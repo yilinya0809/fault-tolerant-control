@@ -19,24 +19,26 @@ class multicopter(BaseEnv):
     control_lower_bound = np.array(-np.inf * np.ones(4))
     control_upper_bound = np.array(np.inf * np.ones(4))
 
-    def __init__(self, pos, vel, quat, omega, rtype, fault):
-        super().__init__()
+    def __init__(self, pos, vel, quat, omega, rtype, **kwargs):
+        super().__init__(**kwargs)
         self.pos = BaseSystem(pos)
         self.vel = BaseSystem(vel)
         self.quat = BaseSystem(quat)
         self.omega = BaseSystem(omega)
         self.rtype = rtype
-        self.LoE = fault
 
-    def deriv(self, pos, vel, quat, omega, control):
+    def deriv(self, pos, vel, quat, omega, control, fault, ctype="rotor"):
         mixer = self.mixing(self.rtype)
-
-        # control force to rotor
-        rotor = np.linalg.inv(mixer).dot(control)
+        if ctype == "force":
+            # control force to rotor
+            rotor = np.linalg.pinv(mixer).dot(control)
+        elif ctype == "rotor":
+            rotor = control
 
         # fault
-        ctrl = self.LoE.dot(rotor)
+        LoE = fault
 
+        ctrl = LoE.dot(rotor)
         F, M1, M2, M3 = mixer.dot(ctrl)
 
         M = np.vstack((M1, M2, M3))
@@ -55,12 +57,12 @@ class multicopter(BaseEnv):
 
         return dpos, dvel, dquat, domeg
 
-    def set_dot(self, t, control):
+    def set_dot(self, t, control, fault, ctype="rotor"):
         pos, vel, quat, omega = self.observe_list()
-        dots = self.deriv(pos, vel, quat, omega, control)
+        dots = self.deriv(pos, vel, quat, omega, control, fault, ctype)
         self.pos.dot, self.vel.dot, self.quat.dot, self.omega.dot = dots
 
-    def hat(v):
+    def hat(self, v):
         v1, v2, v3 = v.squeeze()
         return np.array([
             [0, -v3, v2],
@@ -68,7 +70,7 @@ class multicopter(BaseEnv):
             [-v2, v1, 0]
         ])
 
-    def mixing(rtype):
+    def mixing(self, rtype):
         d, c = self.d, self.c
         b = 1
         if rtype == "quad":
@@ -85,7 +87,7 @@ class multicopter(BaseEnv):
                  [0, 0, b*d*np.sqrt(3)/2, -b*d*np.sqrt(3)/2, b*d*np.sqrt(3)/2,
                   -b*d*np.sqrt(3)/2],
                  [c, -c, c, -c, -c, c]]
-            ).dot(control)
+            )
         elif rtype == "hexa-+":
             mixer = np.array(
                 [[b, b, b, b, b, b],
@@ -103,7 +105,8 @@ if __name__ == "__main__":
     v = np.zeros((3, 1))
     q = np.vstack((1, 0, 0, 0))
     omega = np.zeros((3, 1))
-    rtype = "quad"
-    fault = np.eye(4)
+    rtype = "hexa-x"
+    fault = np.eye(6)
 
-    system = multicopter(x, v, q, omega, rtype, fault)
+    system = multicopter(x, v, q, omega, rtype)
+    system.set_dot(0, np.zeros((6, 1)), fault)
