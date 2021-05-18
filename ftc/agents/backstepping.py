@@ -1,5 +1,5 @@
 import numpy as np
-import scipy
+from scipy.linalg import solve_lyapunov
 from fym.core import BaseEnv, BaseSystem
 from fym.utils.rot import quat2dcm
 
@@ -15,6 +15,7 @@ def T_omega(T):
     return np.array([[0, -T, 0],
                      [T, 0, 0],
                      [0, 0, 0]])
+
 
 def T_u_inv(T):
     return np.array([[0, 1/T, 0], [-1/T, 0, 0], [0, 0, -1]])
@@ -67,14 +68,15 @@ class BacksteppingController(BaseEnv):
             [np.zeros((3, 3))],
             [(1/m)*np.eye(3)],
         ])
-        self.P = scipy.linalg.solve_lyapunov(self.Ap.T, -self.Q)
+        self.P = solve_lyapunov(self.Ap.T, -self.Q)
 
     def dynamics(self, xd, vd, ad, ad_dot, ad_ddot, Td_dot, xc):
         d_xd = vd
         d_vd = ad
         d_ad = ad_dot
         d_ad_dot = ad_ddot
-        d_ad_ddot = (-self.Kxd @ xd -self.Kvd @ vd - self.Kad @ ad - self.Kad_dot @ ad_dot - self.Kad_ddot @ ad_ddot + self.Kxd @ xc)
+        d_ad_ddot = (-self.Kxd @ xd - self.Kvd @ vd - self.Kad @ ad
+                     - self.Kad_dot @ ad_dot - self.Kad_ddot @ ad_ddot + self.Kxd @ xc)
         d_Td = Td_dot
         return d_xd, d_vd, d_ad, d_ad_dot, d_ad_ddot, d_Td
 
@@ -83,14 +85,9 @@ class BacksteppingController(BaseEnv):
         self.xd.dot, self.vd.dot, self.ad.dot, self.ad_dot.dot, self.ad_ddot.dot, self.Td.dot = self.dynamics(xd, vd, ad, ad_dot, ad_ddot, Td_dot, xc)
 
     def command(self, pos, vel, quat, omega,
-                      xd, vd, ad, ad_dot, ad_ddot, Td,
-                      m, J, g):
-        """Notes:
-            Be careful; `rot` denotes the rotation matrix from B- to I- frame,
-            which is opposite to the conventional notation in aerospace engineering.
-            Please see the reference works carefully.
-        """
-        rot = quat2dcm(quat).T  # be careful: `rot` denotes the rotation matrix from B-frame to I-frame
+                xd, vd, ad, ad_dot, ad_ddot, Td,
+                m, J, g):
+        rot = quat2dcm(quat)
         ex = xd - pos
         ev = vd - vel
         ep = np.vstack((ex, ev))
@@ -112,13 +109,20 @@ class BacksteppingController(BaseEnv):
         ep_ddot = Ap @ ep_dot + Bp @ et_dot
         u1_ddot = m * ad_ddot + self.Kp @ ep_ddot
         rot_dot = -skew(omega) @ rot
-        u2_dot = (T_u_inv_dot(T[0], T_dot[0]) @ rot + T_u_inv(T[0]) @ rot_dot) @ (2*Bp.T @ P @ ep + u1_dot + self.Kt@et) + (T_u_inv(T[0]) @ rot @ (2*Bp.T @ P @ ep_dot + u1_ddot + self.Kt @ et_dot))
+        u2_dot = (
+            (T_u_inv_dot(T[0], T_dot[0]) @ rot
+             + T_u_inv(T[0]) @ rot_dot) @ (2*Bp.T @ P @ ep + u1_dot + self.Kt@et)
+            + (T_u_inv(T[0]) @ rot @ (2*Bp.T @ P @ ep_dot + u1_ddot + self.Kt @ et_dot))
+        )
         omegad_dot = np.array([[1, 0, 0],
                                [0, 1, 0],
                                [0, 0, 0]]) @ u2_dot
         omegad = np.vstack((u2[:2], 0))
         eomega = omegad - omega
-        Md = np.cross(omega, J@omega, axis=0) + J @ (T_omega(T[0]).T @ rot @ et + omegad_dot + self.Komega @ eomega)
+        Md = (
+            np.cross(omega, J@omega, axis=0)
+            + J @ (T_omega(T[0]).T @ rot @ et + omegad_dot + self.Komega @ eomega)
+        )
         nud = np.vstack((Td, Md))
         return nud, Td_dot
 
