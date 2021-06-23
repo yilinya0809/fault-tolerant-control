@@ -3,11 +3,10 @@ import matplotlib.pyplot as plt
 
 from fym.core import BaseEnv, BaseSystem
 import fym.logging
-from fym.utils.rot import angle2quat
+from fym.utils.rot import angle2quat, quat2angle
 
 from ftc.models.multicopter import Multicopter
-from ftc.agents.CA import Grouping
-from ftc.agents.CA import CA
+from ftc.agents.CA import ConstrainedCA
 from ftc.agents.fdi import SimpleFDI
 from ftc.faults.actuator import LoE, LiP, Float
 import ftc.agents.lqr as lqr
@@ -44,8 +43,7 @@ class Env(BaseEnv):
         self.fdi = SimpleFDI(no_act=n, tau=0.1, threshold=0.1)
 
         # Define agents
-        self.grouping = Grouping(self.plant.mixer.B)
-        self.CA = CA(self.plant.mixer.B)
+        self.CCA = ConstrainedCA(self.plant.mixer.B)
         self.controller = lqr.LQRController(self.plant.Jinv,
                                             self.plant.m,
                                             self.plant.g)
@@ -63,9 +61,9 @@ class Env(BaseEnv):
         if len(fault_index) == 0:
             rotors = np.linalg.pinv(self.plant.mixer.B.dot(What)).dot(forces)
         else:
-            BB = self.CA.get(fault_index)
-            rotors = np.linalg.pinv(BB.dot(What)).dot(forces)
-
+            rotors = self.CCA.solve_lp(fault_index, forces,
+                                       self.plant.rotor_min,
+                                       self.plant.rotor_max)
         return rotors
 
     def get_ref(self, t):
@@ -112,25 +110,18 @@ class Env(BaseEnv):
         return rotors_cmd, W, rotors
 
     def set_dot(self, t):
-        x = self.plant.state
+        mult_states = self.plant.state
         What = self.fdi.state
+        ref = self.get_ref(t)
+        # rotors = states["act_dyn"]
 
-        rotors_cmd, W, rotors = self._get_derivs(t, x, What)
+        rotors_cmd, W, rotors = self._get_derivs(t, mult_states, What)
 
         self.plant.set_dot(t, rotors)
         self.fdi.set_dot(W)
 
-    def logger_callback(self, i, t, y, *args):
-        states = self.observe_dict(y)
-        x_flat = self.plant.state
-        x = states["plant"]
-        What = states["fdi"]
-        ref = self.get_ref(t)
-        # rotors = states["act_dyn"]
-
-        rotors_cmd, W, rotors = self._get_derivs(t, x_flat, What)
-        return dict(t=t, x=x, What=What, rotors=rotors, rotors_cmd=rotors_cmd,
-                    W=W, ref=ref)
+        return dict(t=t, x=self.plant.observe_dict(), What=What,
+                    rotors=rotors, rotors_cmd=rotors_cmd, W=W, ref=ref)
 
 
 def run():
@@ -200,33 +191,33 @@ def exp1_plot():
     ax = plt.subplot(321)
     plt.plot(data["t"], data["rotors"][:, 0], "k-", label="Response")
     plt.plot(data["t"], data["rotors_cmd"][:, 0], "r--", label="Command")
-    plt.ylim([-5.1, 12.1])
+    plt.ylim([-2.1, 40.1])
     plt.legend()
 
     plt.subplot(322, sharex=ax)
     plt.plot(data["t"], data["rotors"][:, 1], "k-")
     plt.plot(data["t"], data["rotors_cmd"][:, 1], "r--")
-    plt.ylim([-5.1, 12.1])
+    plt.ylim([-2.1, 40.1])
 
     plt.subplot(323, sharex=ax)
     plt.plot(data["t"], data["rotors"][:, 2], "k-")
     plt.plot(data["t"], data["rotors_cmd"][:, 2], "r--")
-    plt.ylim([-5.1, 12.1])
+    plt.ylim([-2.1, 40.1])
 
     plt.subplot(324, sharex=ax)
     plt.plot(data["t"], data["rotors"][:, 3], "k-")
     plt.plot(data["t"], data["rotors_cmd"][:, 3], "r--")
-    plt.ylim([-5.1, 12.1])
+    plt.ylim([-2.1, 40.1])
 
     plt.subplot(325, sharex=ax)
     plt.plot(data["t"], data["rotors"][:, 4], "k-")
     plt.plot(data["t"], data["rotors_cmd"][:, 4], "r--")
-    plt.ylim([-5.1, 12.1])
+    plt.ylim([-2.1, 40.1])
 
     plt.subplot(326, sharex=ax)
     plt.plot(data["t"], data["rotors"][:, 5], "k-")
     plt.plot(data["t"], data["rotors_cmd"][:, 5], "r--")
-    plt.ylim([-5.1, 12.1])
+    plt.ylim([-2.1, 40.1])
 
     plt.gcf().supxlabel("Time, sec")
     plt.gcf().supylabel("Rotor force")
