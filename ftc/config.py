@@ -3,6 +3,7 @@
 [2] V. S. Akkinapalli, G. P. Falconí, and F. Holzapfel, “Attitude control of a multicopter using L1 augmented quaternion based backstepping,” Proceeding - ICARES 2014 2014 IEEE Int. Conf. Aerosp. Electron. Remote Sens. Technol., no. November, pp. 170–178, 2014.
 [3] M. C. Achtelik, K. M. Doth, D. Gurdan, and J. Stumpf, “Design of a multi rotor MAV with regard to efficiency, dynamics and redundancy,” AIAA Guid. Navig. Control Conf. 2012, no. August, pp. 1–17, 2012.
 [4] https://kr.mathworks.com/help/aeroblks/6dofquaternion.html#mw_f692de78-a895-4edc-a4a7-118228165a58
+[5] M. C. Achtelik, K. M. Doth, D. Gurdan, and J. Stumpf, “Design of a multi rotor MAV with regard to efficiency, dynamics and redundancy,” AIAA Guid. Navig. Control Conf. 2014, no. August, pp. 1–17, 2012, doi: 10.2514/6.2012-4779.
 """
 import numpy as np
 from functools import reduce
@@ -111,7 +112,6 @@ default_settings = fym.parser.parse({
                 "c": 8.004e-4,  # z-dir moment coefficient caused by rotor force
                 "b": 1,
                 "rotor_min": 0,
-                "rotor_max": 40,  # abount m * g
             },
 
             # G. P. Falconi's multicopter model [2-4]
@@ -122,13 +122,34 @@ default_settings = fym.parser.parse({
                 "c": 1.2864e-7,  # z-dir moment coefficient caused by rotor force
                 "b": 6.546e-6,
                 "rotor_min": 0,
-                "rotor_max": 3e5,  # about 2 * m * g / b / 6
             },
         },
     },
 })
 
 settings = fym.parser.parse(default_settings)
+
+
+def _maximum_thrust(m, g):
+    return m * g * 0.6371  # maximum thrust for each rotor [5]
+
+
+def _set_maximum_rotor(settings):
+    modelauthor = settings.models.multicopter.modelFrom
+    g = settings.models.multicopter.physProp.g
+    if modelauthor == "Taeyoung_Lee":
+        m = settings.models.multicopter.physPropBy.Taeyoung_Lee.m
+        rotor_max = {"models.multicopter.physPropBy.Taeyoung_Lee":
+                     {"rotor_max": _maximum_thrust(m, g)}
+                     }
+    elif modelauthor == "GP_falconi":
+        rotor_max = {"models.multicopter.physPropBy.GP_falconi":
+                     {"rotor_max": 3e5}  # about 2 * m * g / b / 6
+                     }
+    fym.parser.update(settings, rotor_max)
+
+
+_set_maximum_rotor(settings)
 
 
 def load(key=None):
