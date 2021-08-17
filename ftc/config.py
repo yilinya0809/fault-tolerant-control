@@ -14,14 +14,16 @@ import fym
 default_settings = fym.parser.parse({
     # :::::: FTC Modules :::::: #
 
-    # ====== ftc.agents ====== #
+    # ====== ftc.faults ====== #
 
-    # ------ ftc.agents.fdi ------ #
+    # ------ ftc.faults.manager ------ #
 
-    "agents.fdi": {
+    "faults.manager": {
         "delay": 0.,
         "threshold": 0.,
     },
+
+    # ====== ftc.agents ====== #
 
     # ------ ftc.agents.switcing ------ #
 
@@ -125,6 +127,26 @@ default_settings = fym.parser.parse({
             },
         },
     },
+
+    # :::::: FTC EVALUATION ENV :::::: #
+
+    # ====== env ====== #
+
+    "parallel.max_workers": None,
+    "episode.N": 100,
+    "episode.range": {
+        "pos": (-1, 1),
+        "vel": (-1, 1),
+        "omega": np.deg2rad((-5, 5)),
+        "angle": np.deg2rad((-5, 5)),
+    },
+    "evaluation.cuttime": 5,
+    "evaluation.threshold": 0.5,
+    "env.kwargs": {
+        "dt": 0.01,
+        "max_t": 10,
+    },
+    "ref.pos": np.vstack((0, 0, -10)),
 })
 
 settings = fym.parser.parse(default_settings)
