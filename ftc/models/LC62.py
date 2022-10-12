@@ -376,6 +376,18 @@ class LC62(fym.BaseEnv):
         weight = np.diag([1, 1, 1, 1000, 1000, 1000])
         return dxs.dot(weight).dot(dxs)
 
+    def saturate(self, ctrls):
+        _ctrls = np.zeros((ctrls.shape))
+        pwm_min, pwm_max = self.control_limits["pwm"]
+        dela_min, dela_max = self.control_limits["dela"]
+        dele_min, dele_max = self.control_limits["dele"]
+        delr_min, delr_max = self.control_limits["delr"]
+        _ctrls[:8] = np.clip(ctrls[:8], pwm_min, pwm_max)
+        _ctrls[8] = np.clip(ctrls[8], dela_min, dela_max)
+        _ctrls[9] = np.clip(ctrls[9], dele_min, dele_max)
+        _ctrls[10] = np.clip(ctrls[10], delr_min, delr_max)
+        return _ctrls
+
 
 if __name__ == "__main__":
     system = LC62()
