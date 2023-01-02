@@ -486,7 +486,7 @@ class LC62(fym.BaseEnv):
         _ctrls[10] = np.clip(ctrls[10], delr_min, delr_max)
         return _ctrls
 
-    # Linearization at any state + small perturb
+    # Linearization mathematically
     def perturb_deriv(self, x, u_FM):
         pos, vel, quat, omega = x
         px, py, pz = np.ravel(pos)
@@ -579,11 +579,11 @@ class LC62(fym.BaseEnv):
 
         return A, B
 
-    # Linearization at trim + small perturb by derivatives
     def lin_model_deriv(self, FM):
         A_deriv, B_deriv = self.perturb_deriv(self.x_trims, FM)
         return A_deriv, B_deriv
 
+    # Linearization numerically 
     def statefunc(self, states, ctrls):
         pos = states[0:3]
         vel = states[3:6]
@@ -605,21 +605,18 @@ class LC62(fym.BaseEnv):
         dots = self.deriv_lin(pos, vel, quat, ang, omega, FM)
         return np.vstack((dots))
 
-
-    # Linearization at trim + small perturb numerically
     def lin_model(self, x, u, ptrb):
         self.A, self.B = linearization(self.statefunc, x, u, ptrb)
         return self.A, self.B
-    
+
     def lin_model_FM(self, x, FM, ptrb):
         self.A_FM, self.B_FM = linearization(self.statefunc_FM, x, FM, ptrb)
         return self.A_FM, self.B_FM
-   
+
+
 if __name__ == "__main__":
     system = LC62()
     pos, vel, quat, omega = system.x_trims
-    ang = np.vstack(quat2angle(quat)[::-1])
-    states = np.vstack((pos, vel, ang, omega))
     pwms_pusher, dels = system.u_trims_fixed
     pwms_rotor = system.u_trims_vtol
     ctrls = np.vstack((pwms_rotor, pwms_pusher, dels))
@@ -627,19 +624,3 @@ if __name__ == "__main__":
 
     system.set_dot(t=0, FM=FM)
     print(repr(system))
-
-    print(states)
-#    ptrb = 1e-9
-#    system.lin_model(states, ctrls, ptrb)
-#    A_deriv, B_deriv = system.lin_model_deriv(FM)
-#
-#    print("A = ",system.A, np.size(system.A))
-#    print("\nB = ",system.B,np.size(system.B))
-#
-#    n = np.size(states)
-#    compare = np.zeros((n,n))
-#    for i in np.arange(n):
-#        for j in np.arange(np.size(states)):
-#            if (A_deriv[i,j] - A[i,j] > ptrb):
-#                compare[i,j] = A_deriv[i,j] - A[i,j]
-#    print("\ncomparing = ", compare)
