@@ -86,7 +86,6 @@ class MyEnv(fym.BaseEnv):
             phase_shift = np.append(phase_shift, p)
 
         dtrb_w = dtrb_wind * np.ones((4, 1))
-
         pos, vel, quat, omega = env.plant.observe_list()
         del_J = 0.3 * env.plant.J
         dtrb_model = np.cross(omega, del_J @ omega, axis=0)

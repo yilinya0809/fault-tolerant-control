@@ -114,11 +114,12 @@ class LC62:
             alp, Fr, Fp = 0, self.m * self.g, 0
         else:
             alp, Fr, Fp = result.x
+        q = 0
         pos_trim = np.vstack((0, -h))
         vel_trim = np.vstack((VT * cos(alp), VT * sin(alp)))
 
-        x_trim = np.vstack((pos_trim, vel_trim))
-        u_trim = np.vstack((Fr, Fp, alp))
+        x_trim = np.vstack((pos_trim, vel_trim, alp))
+        u_trim = np.vstack((Fr, Fp, q))
         return x_trim, u_trim
 
     def _trim_cost(self, z, fixed):

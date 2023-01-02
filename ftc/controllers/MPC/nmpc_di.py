@@ -5,7 +5,6 @@ from fym.utils.rot import quat2angle
 
 from ftc.models.LC62_mpc import LC62
 
-
 class MPC:
     def __init__(self, env):
         self.plant = LC62()
@@ -67,7 +66,6 @@ class MPC:
 
     def get_action(self):
         agent_info = {"Xd": self.state_target, "Ud": self.control_target, "qd": 0}
-
         return self.control_init, agent_info
 
     def solve_mpc(self, obs):
@@ -99,7 +97,6 @@ class MPC:
         R = ca.diagcat(0.01, 0.1, 200000)
 
         Xdot = self.plant.deriv_lin(states, controls, q)
-        # Xdot = self.plant.derivnox(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
 
         cost_fn = 0  # cost function

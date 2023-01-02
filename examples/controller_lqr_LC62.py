@@ -5,6 +5,7 @@ considering Flight mode
 VTOL mode: use only rotors
 FW   mode: use all actuators
 """
+
 import argparse
 
 import fym
