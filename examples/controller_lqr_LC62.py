@@ -11,6 +11,7 @@ import fym
 import matplotlib.pyplot as plt
 import numpy as np
 from fym.utils.rot import angle2quat
+from matplotlib import animation
 
 import ftc
 from ftc.models.LinearLC62 import LinearLC62
@@ -28,8 +29,8 @@ class MyEnv(fym.BaseEnv):
         },
         "plant": {
             "init": {
-                "pos": np.random.uniform(-1, 1, size=(3, 1)) + np.vstack((0, 0, -10)),
-                "vel": np.zeros((3, 1)),
+                "pos": np.vstack((0, 0, 0)),
+                "vel": np.vstack((0, 0, 0)),
                 "quat": angle2quat(ang[2], ang[1], ang[0]),
                 "omega": np.zeros((3, 1)),
             },
@@ -142,12 +143,12 @@ def plot():
     data = fym.load("data.h5")["env"]
 
     """ Figure 1 - States """
-    fig, axes = plt.subplots(3, 2, figsize=(18, 5), squeeze=False, sharex=True)
+    fig, axes = plt.subplots(3, 2, squeeze=False, sharex=True)
 
     """ Column 1 - States: Position """
     ax = axes[0, 0]
-    ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "k-")
-    ax.plot(data["t"], data["posd"][:, 0].squeeze(-1), "r--")
+    x = ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "k-")
+    x_ref = ax.plot(data["t"], data["posd"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$x$, m")
     ax.set_xlabel("Time, sec")
     # ax.legend(["Response", "Ref"], loc="upper right")
