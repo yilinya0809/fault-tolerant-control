@@ -4,7 +4,7 @@ from functools import reduce
 import numpy as np
 
 from ftc.registration import registry
-
+import numpy as np
 
 def make(id, env=None):
     assert env is not None
