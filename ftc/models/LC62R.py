@@ -506,12 +506,12 @@ class LC62R(fym.BaseEnv):
         vel = states[3:6]
         ang = states[6:9]
         omega = states[9:12]
-        quat = np.vstack(angle2quat(ang[2], ang[1], ang[0]))
+        quat = angle2quat(ang[2], ang[1], ang[0])
 
         FM = self.get_FM(pos, vel, quat, omega, ctrls)
         dots = self.deriv_ang(pos, vel, quat, ang, omega, FM)
         return np.vstack((dots))
-    
+
     def statefunc_FM(self, states, FM):
         pos = states[0:3]
         vel = states[3:6]
@@ -522,15 +522,13 @@ class LC62R(fym.BaseEnv):
         dots = self.deriv_ang(pos, vel, quat, ang, omega, FM)
         return np.vstack((dots))
 
-
     def lin_model(self, x, u, ptrb):
         self.A, self.B = linearization(self.statefunc, x, u, ptrb)
         return self.A, self.B
-    
+
     def lin_model_FM(self, x, FM, ptrb):
         self.A_FM, self.B_FM = linearization(self.statefunc_FM, x, FM, ptrb)
         return self.A_FM, self.B_FM
-
 
 
 if __name__ == "__main__":

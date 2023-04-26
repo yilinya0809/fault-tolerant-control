@@ -13,12 +13,20 @@ register(
     entry_point="ftc.controllers.LQR.lqr_LC62:LQRController",
 )
 register(
-    id="LQR-LC62-mode",
-    entry_point="ftc.controllers.LQR.lqr_LC62:LQR_modeController",
+    id="LQR-LC62-binary",
+    entry_point="ftc.controllers.LQR.lqr_LC62_CA:LQR_binaryController",
+)
+register(
+    id="LQR-LC62-FM",
+    entry_point="ftc.controllers.LQR.lqr_LC62:LQR_FMController",
 )
 register(
     id="LQR-LC62-PI",
     entry_point="ftc.controllers.LQR.lqr_LC62_CA:LQR_PIController",
+)
+register(
+    id="LQR-LC62-L1norm",
+    entry_point="ftc.controllers.LQR.lqr_LC62_CA:LQR_L1normController",
 )
 register(
     id="BLF",

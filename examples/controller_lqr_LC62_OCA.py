@@ -1,9 +1,11 @@
 """
 LC62-50B LQR control 
-considering Flight mode transition
-via Control allocation
+via Optimization-based Control allocation
 
-case 2. Pseudo Inverse controller
+case 1. Energy optimization controller
+(== Pseudo Inverse controller)
+
+case 2. L1 norm optimization controller
 """
 
 import argparse
@@ -27,7 +29,7 @@ class MyEnv(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 10,
+            "max_t": 40,
         },
         "plant": {
             "init": {
@@ -43,6 +45,7 @@ class MyEnv(fym.BaseEnv):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
         self.plant = LC62R(env_config["plant"])
+        self.cruise_speed = 40
 
         # VTOL
         self.x_trims_HV, self.u_trims_fixed_HV = self.plant.get_trim_fixed(
@@ -51,21 +54,21 @@ class MyEnv(fym.BaseEnv):
         self.u_trims_vtol_HV = self.plant.get_trim_vtol(
             fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
         )
-
-        self.Q_HV = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0])
+        self.Q_HV = np.diag([1, 1, 30, 1, 1, 30, 1, 1, 1, 0, 0, 0])
         self.R_HV = np.diag([1, 1, 1, 1, 1, 1])
 
         # FW
         self.x_trims_FW, self.u_trims_fixed_FW = self.plant.get_trim_fixed(
-            fixed={"h": 10, "VT": 5}
+            fixed={"h": 10, "VT": self.cruise_speed}
         )
         self.u_trims_vtol_FW = self.plant.get_trim_vtol(
             fixed={"x_trims": self.x_trims_FW, "u_trims_fixed": self.u_trims_fixed_FW}
         )
-        self.Q_FW = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0])
+        self.Q_FW = np.diag([10, 1, 100, 50, 1, 100, 1, 1, 1, 0, 0, 0])
         self.R_FW = np.diag([1, 1, 1, 1, 1, 1])
 
-        self.controller = ftc.make("LQR-LC62-PI", self)
+
+        self.controller = ftc.make("LQR-LC62-L1norm", self)
 
     def step(self):
         env_info, done = self.update()
@@ -75,16 +78,24 @@ class MyEnv(fym.BaseEnv):
         return self.observe_flat()
 
     def get_ref(self, t, *args):
-        # VTOL + Hovering
-        posd = np.vstack((0,0,-10))
-        posd_dot = np.vstack((0,0,0))
-        mode = "VTOL"
+        if 0 <= t <= 20:
+            # VTOL + Hovering
+            posd = np.vstack((0, 0, -10))
+            posd_dot = np.vstack((0, 0, 0))
+            mode = "VTOL"
+        elif 20 < t <= 40:
+            # Level Flight
+            VT = self.cruise_speed
+            posd_dot = np.vstack((VT, 0, 0))
+            posd = np.vstack((0, 0, -10)) + (t - 20) * posd_dot
+            mode = "FW"
 
         refs = {"posd": posd, "posd_dot": posd_dot, "mode": mode}
         return [refs[key] for key in args]
 
     def set_dot(self, t):
         ctrls, controller_info = self.controller.get_control(t, self)
+        ctrls[8:] = np.rad2deg(ctrls[8:])
 
         pos, vel, quat, omega = self.plant.observe_list()
         FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
@@ -100,6 +111,7 @@ class MyEnv(fym.BaseEnv):
         }
 
         return env_info
+
 
 def run():
     env = MyEnv()
@@ -140,13 +152,12 @@ def plot():
     ax.plot(data["t"], data["posd"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$y$, m")
     ax.set_xlabel("Time, sec")
-    
+
     ax = axes[2, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
     ax.plot(data["t"], data["posd"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$z$, m")
     ax.set_xlabel("Time, sec")
-
 
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
@@ -161,14 +172,13 @@ def plot():
     ax.set_ylabel(r"$v_y$, m/s")
     ax.set_xlabel("Time, sec")
     ax.set_ylim(-5, 5)
-    
+
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
     ax.plot(data["t"], data["veld"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_z$, m/s")
     ax.set_xlabel("Time, sec")
     ax.set_ylim(-5, 5)
-
 
     """ Figure 2 - Rotor thrusts """
     fig, axs = plt.subplots(3, 2, sharex=True)
@@ -189,7 +199,6 @@ def plot():
     fig.subplots_adjust(wspace=0.5)
     fig.align_ylabels(axs)
 
-
     """ Figure 3 - Pusher and Control surfaces """
     fig, axs = plt.subplots(5, 1, sharex=True)
     ylabels = np.array(
@@ -201,12 +210,31 @@ def plot():
         ax.set_xlim(data["t"][0], data["t"][-1])
         ax.grid()
         plt.setp(ax, ylabel=_ylabel)
-    
+
         if i == 4:
             ax.set_xlabel("Time, sec")
 
     fig.tight_layout()
     fig.align_ylabels(axs)
+
+    """ Figure 4 - Generalized forces """
+    fig, axs = plt.subplots(3, 2)
+    ylabels = np.array((["Fx", "Mx"], ["Fy", "My"], ["Fz", "Mz"]))
+    for i, _ylabel in np.ndenumerate(ylabels):
+        x, y = i
+        ax = axs[i]
+        ax.plot(data["t"], data["FM"].squeeze(-1)[:, 2 * x + y], "k-")
+        ax.set_xlim(data["t"][0], data["t"][-1])
+        if i[0] == 2:
+            ax.set_xlabel("Time, sec")
+
+    plt.gcf().supylabel("Generalized Forces")
+
+    fig.tight_layout()
+    fig.subplots_adjust(wspace=0.5)
+    fig.align_ylabels(axs)
+
+    plt.show()
 
 
 def main(args):
@@ -225,4 +253,3 @@ if __name__ == "__main__":
     parser.add_argument("-P", "--only-plot", action="store_true")
     args = parser.parse_args()
     main(args)
-
