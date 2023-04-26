@@ -15,7 +15,7 @@ from fym.utils.rot import angle2quat
 from matplotlib import animation
 
 import ftc
-from ftc.models.LC62 import LC62
+from ftc.models.LC62R import LC62R
 from ftc.plotframe import LC62Frame, update_plot
 from ftc.utils import safeupdate
 
@@ -27,7 +27,7 @@ class MyEnv(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 50,
+            "max_t": 10,
         },
         "plant": {
             "init": {
@@ -42,7 +42,7 @@ class MyEnv(fym.BaseEnv):
     def __init__(self, env_config={}):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
-        self.plant = LC62(env_config["plant"])
+        self.plant = LC62R(env_config["plant"])
 
         # Hovering
         self.x_trims_HV, self.u_trims_fixed_HV = self.plant.get_trim_fixed(
@@ -52,8 +52,11 @@ class MyEnv(fym.BaseEnv):
             fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
         )
 
-        self.Q_HV = 10 * np.diag([100, 1, 1000, 50, 1, 1, 100, 100, 100, 0, 0, 0])
-        self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
+        # self.Q_HV = 10 * np.diag([100, 1, 1000, 50, 1, 1, 100, 100, 100, 0, 0, 0])
+        # self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
+
+        self.Q_HV = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0])
+        self.R_HV = np.diag([1, 1, 1, 1, 1, 1])
 
         # FW
         self.x_trims_FW, self.u_trims_fixed_FW = self.plant.get_trim_fixed(
@@ -62,8 +65,11 @@ class MyEnv(fym.BaseEnv):
         self.u_trims_vtol_FW = self.plant.get_trim_vtol(
             fixed={"x_trims": self.x_trims_FW, "u_trims_fixed": self.u_trims_fixed_FW}
         )
-        self.Q_FW = 10 * np.diag([100, 1, 2000, 2000, 1, 200, 100, 100, 100, 0, 0, 0])
-        self.R_FW = np.diag([1, 1, 10, 1000, 10])
+        # self.Q_FW = 10 * np.diag([100, 1, 2000, 2000, 1, 200, 100, 100, 100, 0, 0, 0])
+        # self.R_FW = np.diag([1, 1, 10, 1000, 10])
+        self.Q_FW = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0])
+        self.R_FW = np.diag([1, 1, 1, 1, 1])
+
         self.controller = ftc.make("LQR-LC62-mode", self)
 
     def step(self):
@@ -296,29 +302,29 @@ def plot():
     fig.tight_layout()
     fig.align_ylabels(axs)
 
-    """ Figure 4 - Visualization """
-    t = data["t"]
-    x = data["plant"]["pos"].squeeze(-1).T
-    q = data["plant"]["quat"].squeeze(-1).T
-    lamb = data["Lambda"].squeeze(-1).T
+    # """ Figure 4 - Visualization """
+    # t = data["t"]
+    # x = data["plant"]["pos"].squeeze(-1).T
+    # q = data["plant"]["quat"].squeeze(-1).T
+    # lamb = data["Lambda"].squeeze(-1).T
 
-    numFrames = 10
+    # numFrames = 10
 
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
+    # fig = plt.figure()
+    # ax = fig.add_subplot(projection="3d")
 
-    uav = LC62Frame(ax)
-    ani = animation.FuncAnimation(
-        fig,
-        update_plot,
-        frames=len(t[::numFrames]),
-        fargs=(uav, t, x, q, lamb, numFrames),
-        interval=1,
-    )
+    # uav = LC62Frame(ax)
+    # ani = animation.FuncAnimation(
+    #     fig,
+    #     update_plot,
+    #     frames=len(t[::numFrames]),
+    #     fargs=(uav, t, x, q, lamb, numFrames),
+    #     interval=1,
+    # )
 
-    ani.save("animation.gif", dpi=80, writer="imagemagick", fps=25)
+    # ani.save("animation.gif", dpi=80, writer="imagemagick", fps=25)
 
-    plt.show()
+    # plt.show()
 
 
 def main(args):

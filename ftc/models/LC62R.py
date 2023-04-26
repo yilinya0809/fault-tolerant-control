@@ -2,9 +2,9 @@ import fym
 import numpy as np
 import scipy
 from fym.utils.rot import angle2quat, dcm2quat, quat2angle, quat2dcm
-from numpy import cos, sin
+from numpy import cos, sin, tan
 
-from ftc.utils import safeupdate
+from ftc.utils import linearization, safeupdate
 
 
 class LC62R(fym.BaseEnv):
@@ -191,6 +191,26 @@ class LC62R(fym.BaseEnv):
         domega = self.Jinv @ (M - np.cross(omega, self.J @ omega, axis=0)) + domega
         return dpos, dvel, dquat, domega
 
+    def deriv_ang(self, pos, vel, quat, ang, omega, FM):
+        F, M = FM[0:3], FM[3:]
+        dcm = quat2dcm(quat)
+        phi, theta, psi = np.ravel(ang)
+        p, q, r = np.ravel(omega)
+
+        """ disturbances """
+        dv = np.zeros((3, 1))
+        domega = self.Jinv @ np.zeros((3, 1))
+
+        """ dynamics """
+        dpos = dcm.T @ vel
+        dvel = F / self.m - np.cross(omega, vel, axis=0) + dv
+        dphi = p + sin(phi) * tan(theta) * q + cos(phi) * tan(theta) * r
+        dtheta = cos(phi) * q - sin(phi) * r
+        dpsi = (sin(phi) * q + cos(phi) * r) / cos(theta)
+        dang = np.vstack((dphi, dtheta, dpsi))
+        domega = self.Jinv @ (M - np.cross(omega, self.J @ omega, axis=0)) + domega
+        return dpos, dvel, dang, domega
+
     def set_dot(self, t, FM):
         states = self.observe_list()
         dots = self.deriv(*states, FM)
@@ -234,10 +254,10 @@ class LC62R(fym.BaseEnv):
         R5: front right, [CCW]
         R6: rear left,   [CW]
         """
-        # th = (-19281 * rcmds**3 + 36503 * rcmds**2 - 992.75 * rcmds) * self.g / 1000
-        # tq = -6.3961 * rcmds**3 + 12.092 * rcmds**2 - 0.3156 * rcmds
-        th = np.polyval(self.tables["th_r"], rcmds) * self.g / 1000
-        tq = np.polyval(self.tables["tq_r"], rcmds)
+        th = (-19281 * rcmds**3 + 36503 * rcmds**2 - 992.75 * rcmds) * self.g / 1000
+        tq = -6.3961 * rcmds**3 + 12.092 * rcmds**2 - 0.3156 * rcmds
+        # th = np.polyval(self.tables["th_r"], rcmds) * self.g / 1000
+        # tq = np.polyval(self.tables["tq_r"], rcmds)
         Fx = Fy = 0
         Fz = -th[0] - th[1] - th[2] - th[3] - th[4] - th[5]
         l = self.dy1 * (th[1] + th[2] + th[5]) - self.dy2 * (th[0] + th[3] + th[4])
@@ -263,7 +283,8 @@ class LC62R(fym.BaseEnv):
         return np.vstack((Fx, Fy, Fz, l, m, n))
 
     def B_Fuselage(self, dels, pos, vel, omega):
-        rho = self.get_rho(-pos[2])
+        rho = 1.2240919
+        # rho = self.get_rho(-pos[2])
         u, v, w = np.ravel(vel)
         p, q, r = np.ravel(omega)
         VT = np.linalg.norm(vel)
@@ -315,10 +336,10 @@ class LC62R(fym.BaseEnv):
         l = m = n = 0
         return np.vstack((quat2dcm(quat) @ (self.m * self.g * self.e3), l, m, n))
 
-    def get_rho(self, altitude):
-        pressure = 101325 * (1 - 2.25569e-5 * altitude) ** 5.25616
-        temperature = 288.14 - 0.00649 * altitude
-        return pressure / (287 * temperature)
+    #     def get_rho(self, altitude):
+    #         pressure = 101325 * ((1 - 2.25569e-5 * altitude) ** 5.25616)
+    #         temperature = 288.14 - 0.00649 * altitude
+    #         return pressure / (287 * temperature)
 
     def aero_coeff(self, alp):
         CL = np.interp(alp, self.tables["alp"], self.tables["CL"])
@@ -363,7 +384,9 @@ class LC62R(fym.BaseEnv):
 
         h, VT = fixed
         if np.isclose(VT, 0):
-            alp, beta, pusher1, pusher2, dela, dele, delr = np.zeros(7,)
+            alp, beta, pusher1, pusher2, dela, dele, delr = np.zeros(
+                7,
+            )
         else:
             alp, beta, pusher1, pusher2, dela, dele, delr = result.x
         pos_trim = np.vstack((0, 0, -h))
@@ -477,6 +500,21 @@ class LC62R(fym.BaseEnv):
         _ctrls[9] = np.clip(ctrls[9], dele_min, dele_max)
         _ctrls[10] = np.clip(ctrls[10], delr_min, delr_max)
         return _ctrls
+
+    def statefunc(self, states, ctrls):
+        pos = states[0:3]
+        vel = states[3:6]
+        ang = states[6:9]
+        omega = states[9:12]
+        quat = np.vstack(angle2quat(ang[2], ang[1], ang[0]))
+
+        FM = self.get_FM(pos, vel, quat, omega, ctrls)
+        dots = self.deriv_ang(pos, vel, quat, ang, omega, FM)
+        return np.vstack((dots))
+
+    def lin_model(self, x, u, ptrb):
+        self.A, self.B = linearization(self.statefunc, x, u, ptrb)
+        return self.A, self.B
 
 
 if __name__ == "__main__":

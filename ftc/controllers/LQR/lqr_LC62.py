@@ -47,6 +47,7 @@ class LQRController(fym.BaseEnv):
 
         return ctrls, controller_info
 
+
 class LQR_modeController(fym.BaseEnv):
     def __init__(self, env):
         super().__init__()
@@ -79,7 +80,6 @@ class LQR_modeController(fym.BaseEnv):
         self.x_trims_HV = np.vstack((pos_trim, vel_trim, ang_trim, omega_trim))
         self.u_trims_HV = np.vstack((rotor_trim, pusher_trim, dels_trim))
 
-
         ptrb = 1e-9
 
         A_FW, B_FW = env.plant.lin_model(self.x_trims_FW, self.u_trims_FW, ptrb)
@@ -87,7 +87,6 @@ class LQR_modeController(fym.BaseEnv):
 
         self.K_HV, *_ = fym.agents.LQR.clqr(A_HV, B_HV[:, :6], env.Q_HV, env.R_HV)
         self.K_FW, *_ = fym.agents.LQR.clqr(A_FW, B_FW[:, 6:], env.Q_FW, env.R_FW)
-
 
     def get_control(self, t, env):
         w_r = env.get_ref(t, "w_r")[0]
@@ -251,7 +250,7 @@ class LQR_FMCAController(fym.BaseEnv):
         return self.B_ctrl2FM, self.B_const
 
     def get_control(self, t, env):
-        # present state 
+        # present state
         pos, vel, quat, omega = env.plant.observe_list()
         ang = np.vstack(quat2angle(quat)[::-1])
         x = np.vstack((pos, vel, ang, omega))
