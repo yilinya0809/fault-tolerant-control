@@ -17,6 +17,10 @@ register(
     entry_point="ftc.controllers.LQR.lqr_LC62:LQR_modeController",
 )
 register(
+    id="LQR-LC62-PI",
+    entry_point="ftc.controllers.LQR.lqr_LC62_CA:LQR_PIController",
+)
+register(
     id="BLF",
     entry_point="ftc.controllers.BLF.BLF_g:BLFController",
 )

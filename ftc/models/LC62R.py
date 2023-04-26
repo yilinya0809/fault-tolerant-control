@@ -283,8 +283,8 @@ class LC62R(fym.BaseEnv):
         return np.vstack((Fx, Fy, Fz, l, m, n))
 
     def B_Fuselage(self, dels, pos, vel, omega):
-        rho = 1.2240919
-        # rho = self.get_rho(-pos[2])
+        # rho = 1.2240919
+        rho = self.get_rho(-pos[2])
         u, v, w = np.ravel(vel)
         p, q, r = np.ravel(omega)
         VT = np.linalg.norm(vel)
@@ -336,10 +336,10 @@ class LC62R(fym.BaseEnv):
         l = m = n = 0
         return np.vstack((quat2dcm(quat) @ (self.m * self.g * self.e3), l, m, n))
 
-    #     def get_rho(self, altitude):
-    #         pressure = 101325 * ((1 - 2.25569e-5 * altitude) ** 5.25616)
-    #         temperature = 288.14 - 0.00649 * altitude
-    #         return pressure / (287 * temperature)
+    def get_rho(self, altitude):
+        pressure = 101325 * ((1 - 2.25569e-5 * altitude) ** 5.25616)
+        temperature = 288.14 - 0.00649 * altitude
+        return pressure / (287 * temperature)
 
     def aero_coeff(self, alp):
         CL = np.interp(alp, self.tables["alp"], self.tables["CL"])
@@ -511,10 +511,26 @@ class LC62R(fym.BaseEnv):
         FM = self.get_FM(pos, vel, quat, omega, ctrls)
         dots = self.deriv_ang(pos, vel, quat, ang, omega, FM)
         return np.vstack((dots))
+    
+    def statefunc_FM(self, states, FM):
+        pos = states[0:3]
+        vel = states[3:6]
+        ang = states[6:9]
+        omega = states[9:12]
+        quat = np.vstack(angle2quat(ang[2], ang[1], ang[0]))
+
+        dots = self.deriv_ang(pos, vel, quat, ang, omega, FM)
+        return np.vstack((dots))
+
 
     def lin_model(self, x, u, ptrb):
         self.A, self.B = linearization(self.statefunc, x, u, ptrb)
         return self.A, self.B
+    
+    def lin_model_FM(self, x, FM, ptrb):
+        self.A_FM, self.B_FM = linearization(self.statefunc_FM, x, FM, ptrb)
+        return self.A_FM, self.B_FM
+
 
 
 if __name__ == "__main__":
