@@ -5,6 +5,7 @@ import numpy as np
 
 from ftc.registration import registry
 import numpy as np
+from casadi import *
 
 def make(id, env=None):
     assert env is not None
@@ -61,7 +62,9 @@ def linearization(statefunc, states, ctrls, ptrb):
     m = np.size(ctrls)
     A = np.zeros((n, n))
     B = np.zeros((n, m))
+    breakpoint()
 
+    # statefunc = statefunc.full()
     for i in np.arange(n):
         ptrbvec_x = np.zeros((n, 1))
         ptrbvec_x[i] = ptrb

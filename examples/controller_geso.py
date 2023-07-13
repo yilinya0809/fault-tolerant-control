@@ -3,31 +3,27 @@ import argparse
 import fym
 import matplotlib.pyplot as plt
 import numpy as np
+from fym.utils.rot import angle2quat, quat2angle
+from numpy import cos, sin
 
 import ftc
-from ftc.models.LC62 import LC62
+from ftc.models.LC62R import LC62R
 from ftc.utils import safeupdate
 
 np.seterr(all="raise")
 
-
 class MyEnv(fym.BaseEnv):
-    # euler = np.random.uniform(-np.deg2rad(10), np.deg2rad(10), size=(3, 1))
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 20,
+            "max_t": 10,
         },
         "plant": {
             "init": {
-                "pos": np.vstack((0.0, 0.0, 0.0)),
+                "pos": np.vstack((0.0, 0.0, -10.0)),
                 "vel": np.zeros((3, 1)),
                 "quat": np.vstack((1, 0, 0, 0)),
-                "omega": np.zeros((3, 1)),
-                # "pos": np.random.uniform(-1, 1, size=(3, 1)),
-                # "vel": np.random.uniform(-2, 2, size=(3, 1)),
-                # "quat": angle2quat(0, euler[1], euler[0]),
-                # "omega": np.random.uniform(-np.deg2rad(5), np.deg2rad(5), size=(3, 1)),
+                "omega": np.deg2rad(np.vstack((10, 10, 10))),
             },
         },
     }
@@ -35,9 +31,10 @@ class MyEnv(fym.BaseEnv):
     def __init__(self, env_config={}):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
-        self.plant = LC62(env_config["plant"])
-        self.controller = ftc.make("INDI", self)
-        self.u0 = self.controller.get_u0(self)
+        self.plant = LC62R(env_config["plant"])
+        self.controller = ftc.make("GESO", self)
+        self.cruise_speed = 45
+        self.ang_lim = np.deg2rad(45)
 
     def step(self):
         env_info, done = self.update()
@@ -47,46 +44,70 @@ class MyEnv(fym.BaseEnv):
         return self.observe_flat()
 
     def get_ref(self, t, *args):
-        posd = np.vstack((0, 0, 0))
-        posd_dot = np.vstack((0, 0, 0))
+        pos, vel, quat, omega = self.plant.observe_list()
+        ang0 = np.vstack(quat2angle(quat)[::-1])
+        ang_min, ang_max = -self.ang_lim, self.ang_lim
+        ang = np.clip(ang0, ang_min, ang_max)
+        alp = ang[1]
+
+        VT = self.cruise_speed
+        posd = np.vstack((t*VT*cos(alp), 0, -10))
+        posd_dot = np.vstack((VT*cos(alp), 0, VT*sin(alp)))
+
         refs = {"posd": posd, "posd_dot": posd_dot}
         return [refs[key] for key in args]
 
     def set_dot(self, t):
+        pos, vel, quat, omega = self.plant.observe_list()
         ctrls0, controller_info = self.controller.get_control(t, self)
-        # ctrls = ctrls0
-        bctrls = self.plant.saturate(ctrls0)
-
-        """ set faults """
-        lctrls = self.set_Lambda(t, bctrls)  # lambda * bctrls
-        ctrls = self.plant.saturate(lctrls)
-
-        FM = self.plant.get_FM(*self.plant.observe_list(), ctrls)
-        self.plant.set_dot(t, FM)
+        ctrls = self.plant.saturate(ctrls0)
+ 
+        FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
+        dtrb, dtrb_info = self.get_dtrb(t, self)
+        FM_dtrb = FM + np.vstack((0, 0, dtrb))
+        self.plant.set_dot(t, FM_dtrb)
+        self.controller.set_dot(t, self)
 
         env_info = {
             "t": t,
             **self.observe_dict(),
             **controller_info,
+            **dtrb_info,
             "ctrls0": ctrls0,
             "ctrls": ctrls,
             "FM": FM,
-            "Lambda": self.get_Lambda(t),
+            "Fr": self.plant.B_VTOL(ctrls[:6], omega)[2],
+            "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
         }
 
         return env_info
+    
+    def get_dtrb(self, t, env):
+        dtrb_wind = 0
+        amplitude = frequency = phase_shift = []
+        for i in range(5):
+            a = np.random.randn(1)
+            w = np.random.randint(1, 10, 1) * np.pi
+            p = np.random.randint(1, 10, 1)
+            dtrb_wind = dtrb_wind + a * np.sin(w * t + p)
+            amplitude = np.append(amplitude, a)
+            frequency = np.append(frequency, w)
+            phase_shift = np.append(phase_shift, p)
 
-    def get_Lambda(self, t):
-        """Lambda function"""
+        dtrb_w = dtrb_wind * np.ones((4, 1))
+            
+        pos, vel, quat, omega = env.plant.observe_list()
+        del_J = 0.3 * env.plant.J
+        dtrb_model = np.cross(omega, del_J @ omega, axis=0)
+        dtrb_m = np.vstack((0, dtrb_model))
 
-        Lambda = np.ones(11)
-        return Lambda
-
-    def set_Lambda(self, t, ctrls):
-        Lambda = self.get_Lambda(t)
-        ctrls[:6] = np.diag(Lambda[:6]) @ ((ctrls[:6] - 1000) / 1000) * 1000 + 1000
-        return ctrls
-
+        dtrb = dtrb_w + dtrb_m
+        dtrb_info = {
+            "amplitude": amplitude,
+            "frequency": frequency,
+            "phase_shift": phase_shift,
+        }
+        return dtrb, dtrb_info
 
 def run():
     env = MyEnv()
@@ -117,34 +138,42 @@ def plot():
     """ Column 1 - States: Position """
     ax = axes[0, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "k-")
-    ax.plot(data["t"], data["posd"][:, 0].squeeze(-1), "r--")
+    # ax.plot(data["t"], data["posd"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$x$, m")
-    ax.legend(["Response", "Command"], loc="upper right")
     ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 500])
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "k-")
     ax.plot(data["t"], data["posd"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$y$, m")
+    ax.legend(["Response", "Command"], loc="upper right")
+    ax.set_ylim([-1, 1])
 
     ax = axes[2, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
     ax.plot(data["t"], data["posd"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$z$, m")
+    ax.set_ylim([-12, -9])
 
     ax.set_xlabel("Time, sec")
 
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "k-")
+    ax.plot(data["t"], data["veld"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_x$, m/s")
+    ax.set_ylim([0, 50])
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "k-")
+    ax.plot(data["t"], data["veld"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_y$, m/s")
+    ax.set_ylim([-1, 1])
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
+    ax.plot(data["t"], data["veld"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_z$, m/s")
 
     ax.set_xlabel("Time, sec")
@@ -154,16 +183,19 @@ def plot():
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "k-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\phi$, deg")
+    ax.set_ylim([-1, 1])
 
     ax = axes[1, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "k-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\theta$, deg")
+    # ax.set_ylim([-1, 1])
 
     ax = axes[2, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "k-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\psi$, deg")
+    ax.set_ylim([-1, 1])
 
     ax.set_xlabel("Time, sec")
 
@@ -171,19 +203,22 @@ def plot():
     ax = axes[0, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 0].squeeze(-1)), "k-")
     ax.set_ylabel(r"$p$, deg/s")
+    ax.set_ylim([-1, 1])
 
     ax = axes[1, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "k-")
     ax.set_ylabel(r"$q$, deg/s")
+    # ax.set_ylim([-1, 1])
 
     ax = axes[2, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 2].squeeze(-1)), "k-")
     ax.set_ylabel(r"$r$, deg/s")
+    ax.set_ylim([-1, 1])
 
     ax.set_xlabel("Time, sec")
 
     fig.tight_layout()
-    fig.subplots_adjust(wspace=0.3)
+    fig.subplots_adjust(left = 0.05, right = 0.99, wspace=0.3)
     fig.align_ylabels(axes)
 
     """ Figure 2 - Generalized forces """
@@ -192,19 +227,17 @@ def plot():
     """ Column 1 - Generalized forces: Forces """
     ax = axes[0, 0]
     ax.plot(data["t"], data["FM"][:, 0].squeeze(-1), "k-")
-    ax.plot(data["t"], data["FM"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$F_x$")
-    ax.legend(["Response", "Command"], loc="upper right")
     ax.set_xlim(data["t"][0], data["t"][-1])
+    # ax.set_ylim([-1, 1]
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["FM"][:, 1].squeeze(-1), "k-")
-    ax.plot(data["t"], data["FM"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$F_y$")
+    ax.set_ylim([-1, 1])
 
     ax = axes[2, 0]
     ax.plot(data["t"], data["FM"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], data["FM"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$F_z$")
 
     ax.set_xlabel("Time, sec")
@@ -212,19 +245,18 @@ def plot():
     """ Column 2 - Generalized forces: Moments """
     ax = axes[0, 1]
     ax.plot(data["t"], data["FM"][:, 3].squeeze(-1), "k-")
-    ax.plot(data["t"], data["FM"][:, 3].squeeze(-1), "r--")
     ax.set_ylabel(r"$M_x$")
-    ax.legend(["Response", "Command"], loc="upper right")
+    ax.set_ylim([-1, 1])
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["FM"][:, 4].squeeze(-1), "k-")
-    ax.plot(data["t"], data["FM"][:, 4].squeeze(-1), "r--")
     ax.set_ylabel(r"$M_y$")
+    # ax.set_ylim([-1, 1])
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["FM"][:, 5].squeeze(-1), "k-")
-    ax.plot(data["t"], data["FM"][:, 5].squeeze(-1), "r--")
     ax.set_ylabel(r"$M_z$")
+    ax.set_ylim([-1, 1])
 
     ax.set_xlabel("Time, sec")
 
@@ -232,68 +264,79 @@ def plot():
     fig.subplots_adjust(wspace=0.5)
     fig.align_ylabels(axes)
 
-    """ Figure 3 - Rotor thrusts """
-    fig, axs = plt.subplots(3, 2, sharex=True)
-    ylabels = np.array(
-        (["Rotor 1", "Rotor 2"], ["Rotor 3", "Rotor 4"], ["Rotor 5", "Rotor 6"])
-    )
-    for i, _ylabel in np.ndenumerate(ylabels):
-        x, y = i
-        ax = axs[i]
-        ax.plot(
-            data["t"], data["ctrls"].squeeze(-1)[:, 2 * x + y], "k-", label="Response"
-        )
-        ax.plot(
-            data["t"], data["ctrls0"].squeeze(-1)[:, 2 * x + y], "r--", label="Command"
-        )
-        ax.grid()
-        if i == (0, 1):
-            ax.legend(loc="upper right")
-        plt.setp(ax, ylabel=_ylabel)
-        ax.set_ylim([1000 - 5, 2000 + 5])
-    plt.gcf().supxlabel("Time, sec")
-    plt.gcf().supylabel("Rotor Thrusts")
 
+    """ Figure 3 - Thrusts """
+    fig, axs = plt.subplots(2, 4, sharex=True)
+
+    ax = axs[0, 0]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "k-")
+    ax.set_ylabel("Rotor 1")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+
+    ax = axs[1, 0]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "k-")
+    ax.set_ylabel("Rotor 2")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[0, 1]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "k-")
+    ax.set_ylabel("Rotor 3")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[1, 1]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "k-")
+    ax.set_ylabel("Rotor 4")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[0, 2]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "k-")
+    ax.set_ylabel("Rotor 5")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[1, 2]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "k-")
+    ax.set_ylabel("Rotor 6")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[0, 3]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "k-")
+    ax.set_ylabel("Pusher 1")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.5, 1.5])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[1, 3]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "k-")
+    ax.set_ylabel("Pusher 2")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.5, 1.5])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    
+    fig.suptitle("Rotational Thrusts", y=0.85)
     fig.tight_layout()
-    fig.subplots_adjust(wspace=0.5)
-    fig.align_ylabels(axs)
-
-    """ Figure 4 - Pusher and Control surfaces """
-    fig, axs = plt.subplots(5, 1, sharex=True)
-    ylabels = np.array(
-        ("Pusher 1", "Pusher 2", r"$\delta_a$", r"$\delta_e$", r"$\delta_r$")
-    )
-    for i, _ylabel in enumerate(ylabels):
-        ax = axs[i]
-        ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, i + 6], "k-", label="Response")
-        ax.plot(data["t"], data["ctrls0"].squeeze(-1)[:, i + 6], "r--", label="Command")
-        ax.grid()
-        plt.setp(ax, ylabel=_ylabel)
-        if i == 0:
-            ax.legend(loc="upper right")
-    plt.gcf().supxlabel("Time, sec")
-    plt.gcf().supylabel("Pusher and Control Surfaces")
-
-    fig.tight_layout()
-    fig.subplots_adjust(wspace=0.5)
-    fig.align_ylabels(axs)
-
-    """ Figure 5 - LPF """
-    fig, axs = plt.subplots(4, 1, sharex=True)
-    ylabels = np.array(("ddz", "dp", "dq", "dr"))
-    for i, _ylabel in enumerate(ylabels):
-        ax = axs[i]
-        ax.plot(data["t"], data["dxi"].squeeze(-1)[:, i], "k-", label="Response")
-        ax.plot(data["t"], data["dxic"].squeeze(-1)[:, i], "r--", label="Command")
-        ax.grid()
-        plt.setp(ax, ylabel=_ylabel)
-        if i == 0:
-            ax.legend(loc="upper right")
-    plt.gcf().supxlabel("Time, sec")
-    plt.gcf().supylabel("Filter")
-
-    fig.tight_layout()
-    fig.subplots_adjust(wspace=0.5)
+    fig.subplots_adjust(bottom=0.2, top=0.8, wspace=0.25, hspace=0.2)
     fig.align_ylabels(axs)
 
     plt.show()
