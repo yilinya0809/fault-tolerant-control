@@ -29,6 +29,18 @@ register(
     entry_point="ftc.controllers.NDI.ndi:NDIController",
 )
 register(
+    id="NDI-A",
+    entry_point="ftc.controllers.NDI.ndi_A:NDIController",
+)
+register(
+    id="NDI-B",
+    entry_point="ftc.controllers.NDI.ndi_B:NDIController",
+)
+register(
+    id="NDI-C",
+    entry_point="ftc.controllers.NDI.ndi_C:NDIController",
+)
+register(
     id="INDI",
     entry_point="ftc.controllers.INDI.indi:INDIController",
 )
@@ -40,15 +52,23 @@ register(
     id="NMPC",
     entry_point="ftc.controllers.MPC.nmpc_di:MPC",
 )
+# register(
+#     id="NMPC-DI",
+#     entry_point="ftc.controllers.MPC.nmpc_di:NDIController",
+# )
 register(
-    id="NMPC-Corr",
-    entry_point="ftc.controllers.MPC.nmpc_corr:MPC_Corr",
+    id="NMPC-smooth",
+    entry_point="ftc.controllers.MPC.nmpc_smooth:MPC",
 )
 register(
-    id="NMPC-DI",
-    entry_point="ftc.controllers.MPC.mpc_geso:NDIController",
+    id="GESO",
+    entry_point="ftc.controllers.GESO.geso:GESOController",
 )
 register(
     id="NMPC-GESO",
-    entry_point="ftc.controllers.MPC.mpc_geso:GESOController",
+    entry_point="ftc.controllers.GESO.mpc_geso:GESOController",
+)
+register(
+    id="NMPC-DI",
+    entry_point="ftc.controllers.GESO.mpc_geso:NDIController",
 )
