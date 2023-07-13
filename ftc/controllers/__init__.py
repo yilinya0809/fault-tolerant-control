@@ -29,6 +29,18 @@ register(
     entry_point="ftc.controllers.NDI.ndi:NDIController",
 )
 register(
+    id="NDI-A",
+    entry_point="ftc.controllers.NDI.ndi_A:NDIController",
+)
+register(
+    id="NDI-B",
+    entry_point="ftc.controllers.NDI.ndi_B:NDIController",
+)
+register(
+    id="NDI-C",
+    entry_point="ftc.controllers.NDI.ndi_C:NDIController",
+)
+register(
     id="INDI",
     entry_point="ftc.controllers.INDI.indi:INDIController",
 )
