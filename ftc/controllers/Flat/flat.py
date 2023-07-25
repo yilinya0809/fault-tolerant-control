@@ -4,6 +4,7 @@
 import matplotlib.pyplot as plt
 import numdifftools as nd
 import numpy as np
+from fym.utils.rot import dcm2quat
 from numpy import cos, sin
 
 from ftc.models.LC62 import LC62
@@ -27,7 +28,7 @@ class FlatController:
         self.psid_1dot = nd.Derivative(self.psid, n=1)
         self.psid_2dot = nd.Derivative(self.psid, n=2)
 
-    def get_control(self, t):
+    def get(self, t):
         posd = self.posd(t)
         veld = self.posd_1dot(t)
         accd = self.posd_2dot(t)
@@ -76,8 +77,16 @@ class FlatController:
 
         M = self.J @ omega_dot + np.cross(omega.T, (self.J @ omega).T).T
 
-        FM = np.vstack((0, 0, Fz, M))
-        return FM
+        FM = np.vstack((0, 0, -Fz, M))
+
+        state = {
+            "pos": posd,
+            "vel": veld,
+            "quat": dcm2quat(R.T),
+            "omega": omega,
+        }
+
+        return state, FM
 
 
 if __name__ == "__main__":

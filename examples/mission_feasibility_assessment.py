@@ -7,12 +7,19 @@ import numpy as np
 
 import ftc
 from ftc.mfa import MFA
-from ftc.mission_determiners.polytope_determiner import PolytopeDeterminer
 from ftc.models.LC62 import LC62
 from ftc.sim_parallel import evaluate_mfa, evaluate_pos
 from ftc.utils import safeupdate
 
 np.seterr(all="raise")
+
+
+def shrink(u_min, u_max, scaling_factor=1.0):
+    mean = (u_min + u_max) / 2
+    width = (u_max - u_min) / 2
+    u_min = mean - scaling_factor * width
+    u_max = mean + scaling_factor * width
+    return u_min, u_max
 
 
 class MyEnv(fym.BaseEnv):
@@ -39,23 +46,35 @@ class MyEnv(fym.BaseEnv):
 
         self.posd = lambda t: np.vstack((0, 0, 0))
         self.posd_dot = nd.Derivative(self.posd, n=1)
+
         pwm_min, pwm_max = self.plant.control_limits["pwm"]
-        self.determiner = PolytopeDeterminer(
+        self.mfa = MFA(
             pwm_min * np.ones(6),
             pwm_max * np.ones(6),
-            self.allocator,
-            scaling_factor=1.0,
-            is_pwm=True,
+            predictor=ftc.make("Flat", self),
+            distribute=self.distribute,
+            is_success=lambda polynus: all(
+                polytope.contains(nu) for polytope, nu in polynus
+            ),
         )
-        self.mfa = MFA(self)
 
         self.u0 = self.controller.get_u0(self)
 
-    def allocator(self, nu, lmbd=np.ones(6)):
-        nu_f = np.vstack((-nu[0], nu[1:]))
-        th = np.linalg.pinv(lmbd * self.controller.B_r2f) @ nu_f
-        pwms_rotor = (th / self.controller.c_th) * 1000 + 1000
-        return pwms_rotor
+        dx1, dx2, dx3 = self.plant.dx1, self.plant.dx2, self.plant.dx3
+        dy1, dy2 = self.plant.dy1, self.plant.dy2
+        c, self.c_th = 0.0338, 128  # tq / th, th / rcmds
+        self.B_r2f = np.array(
+            (
+                [-1, -1, -1, -1, -1, -1],
+                [-dy2, dy1, dy1, -dy2, -dy2, dy1],
+                [-dx2, -dx2, dx1, -dx3, dx1, -dx3],
+                [-c, c, -c, c, c, -c],
+            )
+        )
+
+    def distribute(self, t, state, pwms_rotor):
+        nu = self.B_r2f @ (pwms_rotor - 1000) / 1000 * self.c_th
+        return nu
 
     def step(self):
         t = self.clock.get()
@@ -63,8 +82,12 @@ class MyEnv(fym.BaseEnv):
         if np.isclose(t, 3):
             tspan = self.clock.tspan
             tspan = tspan[tspan >= t][::20]
-            lmbd = self.get_Lambda(t)
-            mfa_predict = self.mfa.predict(tspan, lmbd[:6])
+            lmbd = self.get_Lambda(t)[:6]
+            loe = lambda u_min, u_max: (
+                lmbd * (u_min - 1000) + 1000,
+                lmbd * (u_max - 1000) + 1000,
+            )
+            mfa_predict = self.mfa.predict(tspan, [loe, shrink])
         else:
             mfa_predict = True
 
@@ -113,7 +136,9 @@ class MyEnv(fym.BaseEnv):
 
         Lambda = np.ones(11)
         if t >= 3:
-            Lambda[0] = 0.3
+            Lambda[0] = 0.0
+            Lambda[1] = 0.3
+            Lambda[2] = 0.3
         return Lambda
 
     def set_Lambda(self, t, ctrls):
@@ -135,11 +160,6 @@ def run():
             flogger.record(env=env_info)
 
             if done:
-                ts = env.clock.tspan[::10]
-                nus = env.mfa.get_nus(ts)
-                lmbds = [env.get_Lambda(t)[:6] for t in ts]
-                env.determiner.visualize(nus, lmbds)
-                plt.tight_layout()
                 break
 
     finally:
