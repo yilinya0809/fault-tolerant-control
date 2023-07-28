@@ -240,43 +240,119 @@ def plot():
     fig.subplots_adjust(wspace=0.5)
     fig.align_ylabels(axes)
 
-    """ Figure 3 - Rotor thrusts """
-    fig, axs = plt.subplots(3, 2, sharex=True)
-    ylabels = np.array(
-        (["Rotor 1", "Rotor 2"], ["Rotor 3", "Rotor 4"], ["Rotor 5", "Rotor 6"])
-    )
-    for i, _ylabel in np.ndenumerate(ylabels):
-        ax = axs[i]
-        ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, sum(i)], "k-") 
-        ax.grid()
-        ax.set_ylim([0, 1])
-        ax.set_xlim(data["t"][0], data["t"][-1])
-        plt.setp(ax, ylabel=_ylabel)
-    plt.gcf().supxlabel("Time, sec")
-    plt.gcf().supylabel("Rotor Thrusts")
+    # """ Figure 3 - Rotor thrusts """
+    # fig, axs = plt.subplots(3, 2, sharex=True)
+    # ylabels = np.array(
+    #     (["Rotor 1", "Rotor 2"], ["Rotor 3", "Rotor 4"], ["Rotor 5", "Rotor 6"])
+    # )
+    # for i, _ylabel in np.ndenumerate(ylabels):
+    #     ax = axs[i]
+    #     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, sum(i)], "k-") 
+    #     ax.grid()
+    #     ax.set_ylim([0, 1])
+    #     ax.set_xlim(data["t"][0], data["t"][-1])
+    #     plt.setp(ax, ylabel=_ylabel)
+    # plt.gcf().supxlabel("Time, sec")
+    # plt.gcf().supylabel("Rotor Thrusts")
 
+    # fig.tight_layout()
+    # fig.subplots_adjust(wspace=0.5)
+    # fig.align_ylabels(axs)
+
+    # """ Figure 4 - Pusher and Control surfaces """
+    # fig, axs = plt.subplots(5, 1, sharex=True)
+    # ylabels = np.array(
+    #     ("Pusher 1", "Pusher 2", r"$\delta_a$", r"$\delta_e$", r"$\delta_r$")
+    # )
+    # for i, _ylabel in enumerate(ylabels):
+    #     ax = axs[i]
+    #     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, i + 6], "k-")
+    #     ax.grid()
+    #     ax.set_ylim([-1, 1])
+    #     ax.set_xlim(data["t"][0], data["t"][-1])
+    #     plt.setp(ax, ylabel=_ylabel)
+    # plt.gcf().supxlabel("Time, sec")
+    # plt.gcf().supylabel("Pusher and Control Surfaces")
+
+    # fig.tight_layout()
+    # fig.subplots_adjust(wspace=0.5)
+    # fig.align_ylabels(axs)
+
+
+    """ Figure 3 - Thrusts """
+    fig, axs = plt.subplots(2, 4, sharex=True)
+
+    ax = axs[0, 0]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "k-")
+    ax.set_ylabel("Rotor 1")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+
+    ax = axs[1, 0]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "k-")
+    ax.set_ylabel("Rotor 2")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[0, 1]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "k-")
+    ax.set_ylabel("Rotor 3")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[1, 1]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "k-")
+    ax.set_ylabel("Rotor 4")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[0, 2]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "k-")
+    ax.set_ylabel("Rotor 5")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[1, 2]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "k-")
+    ax.set_ylabel("Rotor 6")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([0, 1])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[0, 3]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "k-")
+    ax.set_ylabel("Pusher 1")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.5, 1.5])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    ax = axs[1, 3]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "k-")
+    ax.set_ylabel("Pusher 2")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.5, 1.5])
+    ax.set_box_aspect(1)
+    ax.set_xlabel("Time, sec")
+
+    
+    fig.suptitle("Rotational Thrusts", y=0.85)
     fig.tight_layout()
-    fig.subplots_adjust(wspace=0.5)
+    fig.subplots_adjust(bottom=0.2, top=0.8, wspace=0.25, hspace=0.2)
     fig.align_ylabels(axs)
 
-    """ Figure 4 - Pusher and Control surfaces """
-    fig, axs = plt.subplots(5, 1, sharex=True)
-    ylabels = np.array(
-        ("Pusher 1", "Pusher 2", r"$\delta_a$", r"$\delta_e$", r"$\delta_r$")
-    )
-    for i, _ylabel in enumerate(ylabels):
-        ax = axs[i]
-        ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, i + 6], "k-")
-        ax.grid()
-        ax.set_ylim([-1, 1])
-        ax.set_xlim(data["t"][0], data["t"][-1])
-        plt.setp(ax, ylabel=_ylabel)
-    plt.gcf().supxlabel("Time, sec")
-    plt.gcf().supylabel("Pusher and Control Surfaces")
-
-    fig.tight_layout()
-    fig.subplots_adjust(wspace=0.5)
-    fig.align_ylabels(axs)
 
     plt.show()
 
