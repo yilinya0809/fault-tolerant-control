@@ -87,7 +87,7 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    flogger = fym.Logger("data.h5")
+    flogger = fym.Logger("data_B.h5")
 
     env.reset()
     try:
@@ -106,7 +106,7 @@ def run():
 
 
 def plot():
-    data = fym.load("data.h5")["env"]
+    data = fym.load("data_B.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
