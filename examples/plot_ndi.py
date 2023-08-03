@@ -1,8 +1,8 @@
 import argparse
 
 import fym
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 from fym.utils.rot import quat2angle
 from numpy import cos, sin
@@ -57,9 +57,9 @@ def plot():
     ax.plot(data_A["t"], data_A["plant"]["vel"][:, 0].squeeze(-1), "C0")
     ax.plot(data_B["t"], data_B["plant"]["vel"][:, 0].squeeze(-1), "C2")
     ax.plot(data_C["t"], data_C["plant"]["vel"][:, 0].squeeze(-1), "C1")
-    # ax.plot(data_A["t"], data_A["veld"][:, 0].squeeze(-1), "C0--")
-    # ax.plot(data_B["t"], data_B["veld"][:, 0].squeeze(-1), "C2--")
-    # ax.plot(data_C["t"], data_C["veld"][:, 0].squeeze(-1), "C1--")
+    ax.plot(data_A["t"], data_A["veld"][:, 0].squeeze(-1), "C0--")
+    ax.plot(data_B["t"], data_B["veld"][:, 0].squeeze(-1), "C2--")
+    ax.plot(data_C["t"], data_C["veld"][:, 0].squeeze(-1), "C1--")
     ax.set_ylabel(r"$v_x$, m/s")
     ax.set_ylim([0, 50])
 
@@ -117,7 +117,7 @@ def plot():
     ax.set_ylim([-1, 1])
     ax.set_xlabel("Time, sec")
 
-    ax.legend(["A", "B", "C"], ncol=3, bbox_to_anchor=(0.2, -0.3)) 
+    ax.legend(["System A", "System B", "System C"], ncol=3, bbox_to_anchor=(0.5, -0.3)) 
 
 
     """ Column 4 - States: Angular rates """
@@ -150,7 +150,7 @@ def plot():
 
 
     """ Figure 2 - Thrusts """
-    fig, axs = plt.subplots(2, 4, sharex=True)
+    fig, axs = plt.subplots(2, 4, figsize=(13, 5), squeeze=False, sharex=True)
 
     ax = axs[0, 0]
     ax.plot(data_A["t"], data_A["ctrls"].squeeze(-1)[:, 0], "C0")
@@ -159,7 +159,7 @@ def plot():
     ax.set_ylabel("Rotor 1")
     ax.set_xlim(data_A["t"][0], data_A["t"][-1])
     ax.set_ylim([0, 1])
-    ax.set_box_aspect(1)
+    # ax.set_box_aspect(1)
 
     ax = axs[1, 0]
     ax.plot(data_A["t"], data_A["ctrls"].squeeze(-1)[:, 1], "C0")
@@ -168,7 +168,7 @@ def plot():
     ax.set_ylabel("Rotor 2")
     ax.set_xlim(data_A["t"][0], data_A["t"][-1])
     ax.set_ylim([0, 1])
-    ax.set_box_aspect(1)
+    # ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
  
     ax = axs[0, 1]
@@ -178,7 +178,7 @@ def plot():
     ax.set_ylabel("Rotor 3")
     ax.set_xlim(data_A["t"][0], data_A["t"][-1])
     ax.set_ylim([0, 1])
-    ax.set_box_aspect(1)
+    # ax.set_box_aspect(1)
 
     ax = axs[1, 1]
     ax.plot(data_A["t"], data_A["ctrls"].squeeze(-1)[:, 3], "C0")
@@ -187,7 +187,7 @@ def plot():
     ax.set_ylabel("Rotor 4")
     ax.set_xlim(data_A["t"][0], data_A["t"][-1])
     ax.set_ylim([0, 1])
-    ax.set_box_aspect(1)
+    # ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
     ax = axs[0, 2]
@@ -197,7 +197,7 @@ def plot():
     ax.set_ylabel("Rotor 5")
     ax.set_xlim(data_A["t"][0], data_A["t"][-1])
     ax.set_ylim([0, 1])
-    ax.set_box_aspect(1)
+    # ax.set_box_aspect(1)
 
     ax = axs[1, 2]
     ax.plot(data_A["t"], data_A["ctrls"].squeeze(-1)[:, 5], "C0")
@@ -206,10 +206,10 @@ def plot():
     ax.set_ylabel("Rotor 6")
     ax.set_xlim(data_A["t"][0], data_A["t"][-1])
     ax.set_ylim([0, 1])
-    ax.set_box_aspect(1)
+    # ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
-    ax.legend(["A", "B", "C"], ncol=3, bbox_to_anchor=(0.2, -0.3)) 
+    ax.legend(["System A", "System B", "System C"], ncol=3, bbox_to_anchor=(0.5, -0.3)) 
 
     ax = axs[0, 3]
     ax.plot(data_A["t"], data_A["ctrls"].squeeze(-1)[:, 6], "C0")
@@ -217,8 +217,8 @@ def plot():
     ax.plot(data_C["t"], data_C["ctrls"].squeeze(-1)[:, 6], "C1")
     ax.set_ylabel("Pusher 1")
     ax.set_xlim(data_A["t"][0], data_A["t"][-1])
-    ax.set_ylim([-0.5, 1.5])
-    ax.set_box_aspect(1)
+    ax.set_ylim([-0.2, 1.2])
+    # ax.set_box_aspect(1)
 
     ax = axs[1, 3]
     ax.plot(data_A["t"], data_A["ctrls"].squeeze(-1)[:, 7], "C0")
@@ -226,13 +226,14 @@ def plot():
     ax.plot(data_C["t"], data_C["ctrls"].squeeze(-1)[:, 7], "C1")
     ax.set_ylabel("Pusher 2")
     ax.set_xlim(data_A["t"][0], data_A["t"][-1])
-    ax.set_ylim([-0.5, 1.5])
-    ax.set_box_aspect(1)
+    ax.set_ylim([-0.2, 1.2])
+    # ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
-    fig.suptitle("Rotational Thrusts", y=0.85)
+    # fig.suptitle("Rotational Thrusts", y=0.85)
     fig.tight_layout()
-    fig.subplots_adjust(bottom=0.2, top=0.8, wspace=0.25, hspace=0.2)
+    fig.subplots_adjust(left = 0.05, right = 0.99, wspace=0.3)
+    # fig.subplots_adjust(bottom=0.2, top=0.8, wspace=0.2, hspace=0.2)
     fig.align_ylabels(axs)
 
 
