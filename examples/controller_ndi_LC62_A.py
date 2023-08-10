@@ -240,44 +240,6 @@ def plot():
     fig.subplots_adjust(wspace=0.5)
     fig.align_ylabels(axes)
 
-    # """ Figure 3 - Rotor thrusts """
-    # fig, axs = plt.subplots(3, 2, sharex=True)
-    # ylabels = np.array(
-    #     (["Rotor 1", "Rotor 2"], ["Rotor 3", "Rotor 4"], ["Rotor 5", "Rotor 6"])
-    # )
-    # for i, _ylabel in np.ndenumerate(ylabels):
-    #     ax = axs[i]
-    #     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, sum(i)], "k-") 
-    #     ax.grid()
-    #     ax.set_ylim([0, 1])
-    #     ax.set_xlim(data["t"][0], data["t"][-1])
-    #     plt.setp(ax, ylabel=_ylabel)
-    # plt.gcf().supxlabel("Time, sec")
-    # plt.gcf().supylabel("Rotor Thrusts")
-
-    # fig.tight_layout()
-    # fig.subplots_adjust(wspace=0.5)
-    # fig.align_ylabels(axs)
-
-    # """ Figure 4 - Pusher and Control surfaces """
-    # fig, axs = plt.subplots(5, 1, sharex=True)
-    # ylabels = np.array(
-    #     ("Pusher 1", "Pusher 2", r"$\delta_a$", r"$\delta_e$", r"$\delta_r$")
-    # )
-    # for i, _ylabel in enumerate(ylabels):
-    #     ax = axs[i]
-    #     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, i + 6], "k-")
-    #     ax.grid()
-    #     ax.set_ylim([-1, 1])
-    #     ax.set_xlim(data["t"][0], data["t"][-1])
-    #     plt.setp(ax, ylabel=_ylabel)
-    # plt.gcf().supxlabel("Time, sec")
-    # plt.gcf().supylabel("Pusher and Control Surfaces")
-
-    # fig.tight_layout()
-    # fig.subplots_adjust(wspace=0.5)
-    # fig.align_ylabels(axs)
-
 
     """ Figure 3 - Thrusts """
     fig, axs = plt.subplots(2, 4, sharex=True)

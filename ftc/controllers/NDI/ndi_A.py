@@ -65,8 +65,6 @@ class NDIController(fym.BaseEnv):
         xid_dot = np.vstack((veld[2], 0, 0, 0))
         ei = xi - xid
         ei_dot = xi_dot - xid_dot
-        # Ki1 = 0.5 * np.diag((500, 1, 4000, 1))
-        # Ki2 = 0.2 * np.diag((30, 1, 200, 1))
 
         Ki1 = 10 * np.diag((30, 1, 30, 1))
         Ki2 = 10 * np.diag((2, 1, 20, 1))

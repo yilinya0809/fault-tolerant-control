@@ -60,10 +60,6 @@ class NDIController(fym.BaseEnv):
         eo, eo_dot = xo - xod, xo_dot - xod_dot
         eo_int = self.eo_int.state
          
-        # Ko1 = 0.04 * np.diag((0, 1))
-        # Ko2 = 0.001 * np.diag((183, 1))
-        # Ko3 = 0.00001 * np.diag((780, 0))
-
         Ko1 = 0.01 * np.diag((0, 4))
         Ko2 = 0.01 * np.diag((22, 1))
         Ko3 = 0.001 * np.diag((12, 0))
