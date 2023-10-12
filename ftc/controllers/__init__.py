@@ -44,3 +44,7 @@ register(
     id="INDI",
     entry_point="ftc.controllers.INDI.indi:INDIController",
 )
+register(
+    id="MPC",
+    entry_point="ftc.controllers.MPC.mpc_LC62:MPCController",
+)

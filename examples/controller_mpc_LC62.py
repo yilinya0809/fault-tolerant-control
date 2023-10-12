@@ -3,7 +3,7 @@ import argparse
 import fym
 import matplotlib.pyplot as plt
 import numpy as np
-from fym.utils.rot import quat2angle
+from fym.utils.rot import angle2quat, quat2angle
 from numpy import cos, sin
 
 import ftc
@@ -32,8 +32,8 @@ class MyEnv(fym.BaseEnv):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
         self.plant = LC62R(env_config["plant"])
-        self.controller = ftc.make("NDI-A", self)
-        self.cruise_speed = 45
+        self.controller = ftc.make("MPC", self)
+        self.ang_lim = np.deg2rad(30)
 
     def step(self):
         env_info, done = self.update()
@@ -42,36 +42,12 @@ class MyEnv(fym.BaseEnv):
     def observation(self):
         return self.observe_flat()
 
-    def get_ref(self, t, *args):
-        pos, vel, quat, omega = self.plant.observe_list()
-        ang = np.vstack(quat2angle(quat)[::-1])
-        alp = ang[1]
-
-        """ VTOL + Hovering + Level flight """ 
-        # if 0 <= t <= 20::
-        #     # VTOL + Hovering
-        #     posd = np.vstack((0, 0, -10))
-        #     posd_dot = np.vstack((0, 0, 0))
-        # elif 20 < t <= 60:
-        #     # Level Flight
-        #     VT = self.cruise_speed
-        #     # posd_dot = np.vstack((VT*cos(alp), 0, VT*sin(alp)))
-        #     posd_dot = np.vstack((VT, 0, 0))
-        #     posd = np.vstack((0, 0, -10)) + (t - 20) * posd_dot
-
-        """ Level Flight only """
-        VT = self.cruise_speed
-        posd = np.vstack((t*VT*cos(alp), 0, -10))
-        posd_dot = np.vstack((VT*cos(alp), 0, VT*sin(alp)))
-
-        refs = {"posd": posd, "posd_dot": posd_dot}
-        return [refs[key] for key in args]
-
     def set_dot(self, t):
+        pos, vel, quat, omega = self.plant.observe_list()
         ctrls0, controller_info = self.controller.get_control(t, self)
         ctrls = self.plant.saturate(ctrls0)
-
-        FM = self.plant.get_FM(*self.plant.observe_list(), ctrls)
+ 
+        FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
         self.plant.set_dot(t, FM)
 
         env_info = {
@@ -87,7 +63,7 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    flogger = fym.Logger("data_A.h5")
+    flogger = fym.Logger("data.h5")
 
     env.reset()
     try:
@@ -104,9 +80,8 @@ def run():
         flogger.close()
         plot()
 
-
 def plot():
-    data = fym.load("data_A.h5")["env"]
+    data = fym.load("data.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
@@ -114,22 +89,21 @@ def plot():
     """ Column 1 - States: Position """
     ax = axes[0, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "k-")
-    # ax.plot(data["t"], data["posd"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$x$, m")
     ax.set_xlim(data["t"][0], data["t"][-1])
     ax.set_ylim([0, 2000])
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "k-")
-    ax.plot(data["t"], data["posd"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$y$, m")
-    ax.legend(["Response", "Command"], loc="upper right")
+    ax.set_xlim(data["t"][0], data["t"][-1])
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], data["posd"][:, 2].squeeze(-1), "r--")
+    ax.plot(data["t"], data["z_d"].squeeze(-1), "r--")
     ax.set_ylabel(r"$z$, m")
+    ax.set_xlim(data["t"][0], data["t"][-1])
     ax.set_ylim([-12, -9])
 
     ax.set_xlabel("Time, sec")
@@ -137,19 +111,18 @@ def plot():
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "k-")
-    ax.plot(data["t"], data["veld"][:, 0].squeeze(-1), "r--")
+    ax.plot(data["t"], data["Vx_d"].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_x$, m/s")
     ax.set_ylim([0, 50])
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "k-")
-    ax.plot(data["t"], data["veld"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_y$, m/s")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], data["veld"][:, 2].squeeze(-1), "r--")
+    ax.plot(data["t"], data["Vz_d"].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_z$, m/s")
 
     ax.set_xlabel("Time, sec")
@@ -157,19 +130,17 @@ def plot():
     """ Column 3 - States: Euler angles """
     ax = axes[0, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "k-")
-    ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\phi$, deg")
     ax.set_ylim([-1, 1])
 
     ax = axes[1, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "k-")
-    ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
+    ax.plot(data["t"], np.rad2deg(data["theta_d"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\theta$, deg")
     # ax.set_ylim([-1, 1])
 
     ax = axes[2, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "k-")
-    ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\psi$, deg")
     ax.set_ylim([-1, 1])
 
@@ -196,6 +167,7 @@ def plot():
     fig.tight_layout()
     fig.subplots_adjust(left = 0.05, right = 0.99, wspace=0.3)
     fig.align_ylabels(axes)
+
 
     """ Figure 2 - Generalized forces """
     fig, axes = plt.subplots(3, 2, squeeze=False, sharex=True)
@@ -314,7 +286,6 @@ def plot():
     fig.tight_layout()
     fig.subplots_adjust(bottom=0.2, top=0.8, wspace=0.25, hspace=0.2)
     fig.align_ylabels(axs)
-
 
     plt.show()
 

@@ -4,12 +4,11 @@ import casadi as ca
 import matplotlib.pyplot as plt
 import numpy as np
 from casadi import cos, pi, sin
-
 from dyn_nox import LC62
 
 plant = LC62()
 
-step_horizon = 0.1  # time between steps in seconds
+step_horizon = 0.05  # time between steps in seconds
 N = 10              # number of look ahead steps
 sim_time = 20       # simulation time
 
@@ -121,19 +120,10 @@ control_target = ca.DM([Fr_target, Fp_target, theta_target])
 
 # matrix containing all states over all time steps +1 (each column is a state vector)
 X = ca.MX.sym('X', n_states, N + 1)
-
-# matrix containing all control actions over all time steps (each column is an action vector)
 U = ca.MX.sym('U', n_controls, N)
-
-# coloumn vector for storing initial state and target state
 P = ca.MX.sym('P', 2 * n_states + n_controls)
-
-# state weights matrix (Q_x, Q_z, Q_Vx, Q_Vz)
-
-Q = ca.diagcat(100, 100, 100)
-
-# controls weights matrix (R_Fr, R_Fp, R_theta)
-R = ca.diagcat(0.01, 0.1, 100)
+Q = ca.diagcat(200, 100, 100)
+R = ca.diagcat(0.01, 0.1, 200)
 
 
 Xdot = plant.deriv(states, controls)
@@ -230,7 +220,7 @@ times = np.array([[0]])
 
 if __name__ == '__main__':
     main_loop = time()  # return time in sec
-    while (ca.norm_2(state_init - state_target) > 1e-1) and (mpc_iter * step_horizon < sim_time):
+    while (ca.norm_2(state_init - state_target) > 1e-2) and (mpc_iter * step_horizon < sim_time):
         t1 = time()
         args['p'] = ca.vertcat(
             state_init,     # current state
@@ -292,9 +282,11 @@ if __name__ == '__main__':
     main_loop_time = time()
     st_error = ca.norm_2(state_init - state_target)
 
-    print('\n\n')
-    print('Total time: ', main_loop_time - main_loop)
+    print('\n')
+    # print('Total time: ', main_loop_time - main_loop)
+    print('Simulation time: ', times)
     print('avg iteration time: ', np.array(times).mean() * 1000, 'ms')
     print('final state error: ', st_error)
 
+    breakpoint()
     plot(cat_states, cat_controls, times, step_horizon, N, save=False)
