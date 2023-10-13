@@ -33,7 +33,7 @@ class MyEnv(fym.BaseEnv):
         super().__init__(**env_config["fkw"])
         self.plant = LC62R(env_config["plant"])
         self.controller = ftc.make("MPC", self)
-        self.ang_lim = np.deg2rad(30)
+        self.ang_lim = np.deg2rad(50)
 
     def step(self):
         env_info, done = self.update()
@@ -101,7 +101,7 @@ def plot():
 
     ax = axes[2, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], data["z_d"].squeeze(-1), "r--")
+    ax.plot(data["t"], data["z_d"], "r--")
     ax.set_ylabel(r"$z$, m")
     ax.set_xlim(data["t"][0], data["t"][-1])
     ax.set_ylim([-12, -9])
@@ -111,7 +111,7 @@ def plot():
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "k-")
-    ax.plot(data["t"], data["Vx_d"].squeeze(-1), "r--")
+    ax.plot(data["t"], data["Vx_d"], "r--")
     ax.set_ylabel(r"$v_x$, m/s")
     ax.set_ylim([0, 50])
 
@@ -122,7 +122,7 @@ def plot():
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], data["Vz_d"].squeeze(-1), "r--")
+    ax.plot(data["t"], data["Vz_d"], "r--")
     ax.set_ylabel(r"$v_z$, m/s")
 
     ax.set_xlabel("Time, sec")
@@ -130,17 +130,19 @@ def plot():
     """ Column 3 - States: Euler angles """
     ax = axes[0, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "k-")
+    ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\phi$, deg")
     ax.set_ylim([-1, 1])
 
     ax = axes[1, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "k-")
-    ax.plot(data["t"], np.rad2deg(data["theta_d"][:, 1].squeeze(-1)), "r--")
+    ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\theta$, deg")
     # ax.set_ylim([-1, 1])
 
     ax = axes[2, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "k-")
+    ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\psi$, deg")
     ax.set_ylim([-1, 1])
 

@@ -8,16 +8,16 @@ from ftc.controllers.MPC.dyn_LC62 import LC62
 
 ref_plant = LC62()
 
-def shift_timestep(step_horizon, t0, state_init, u, f):
+def shift_timestep(step_horizon, state_init, u, f):
     f_value = f(state_init, u[:, 0])
     next_state = ca.DM.full(state_init + (step_horizon * f_value))
 
-    t0 = t0 + step_horizon
+    # t0 = t0 + step_horizon
     u0 = ca.horzcat(
         u[:, 1:],
         ca.reshape(u[:, -1], -1, 1)
     )
-    return t0, next_state, u0
+    return next_state, u0
 
 
 def DM2Arr(dm):
@@ -55,7 +55,7 @@ def constraints(spec):
     return args
 
 
-def solve_mpc(t, X_init, X_curr, X_target, U_init, U_target, spec, args):
+def solve_mpc(X_init, X_target, U_init, U_target, spec, args):
     step_horizon, tf, N, n_states, n_controls = spec
 
     z = ca.MX.sym('z')
@@ -127,20 +127,15 @@ def solve_mpc(t, X_init, X_curr, X_target, U_init, U_target, spec, args):
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts)
 
-    # solve
-    if 0 <= t < step_horizon:
-        X = X_init
-    else:
-        X = X_curr 
 
     u0 = ca.repmat(U_init, 1, N)
-    X0 = ca.repmat(X, 1, N+1)
+    X0 = ca.repmat(X_init, 1, N+1)
     cat_states = DM2Arr(X0)
 
     mpc_iter = 0
-    while (ca.norm_2(X - X_target > 1e-1) and (mpc_iter * step_horizon < tf)):
+    while (ca.norm_2(X_init - X_target > 1e-1) and (mpc_iter * step_horizon < tf)):
         args['p'] = ca.vertcat(
-            X,     # current state
+            X_init,     # current state
             X_target,   # target state
             U_target,   # target control
         )
@@ -160,7 +155,7 @@ def solve_mpc(t, X_init, X_curr, X_target, U_init, U_target, spec, args):
         u = ca.reshape(sol['x'][n_states * (N + 1):], n_controls, N)
         X0 = ca.reshape(sol['x'][: n_states * (N+1)], n_states, N+1)
 
-        t0, state, u0 = shift_timestep(step_horizon, t0, state, u, f)
+        X_init, u0 = shift_timestep(step_horizon, X_init, u, f)
 
         cat_states = np.dstack((
            cat_states,
@@ -174,8 +169,7 @@ def solve_mpc(t, X_init, X_curr, X_target, U_init, U_target, spec, args):
        
         mpc_iter = mpc_iter + 1
 
-    time = int((t*100)//10)
-    Xd = cat_states[:,:,time]
+    Xd = cat_states[:, 0]
     Ud = u0[:, 0]
     return Xd, Ud
 
@@ -183,6 +177,7 @@ def solve_mpc(t, X_init, X_curr, X_target, U_init, U_target, spec, args):
 class MPCController(fym.BaseEnv):
     def __init__(self, env):
         super().__init__()
+        self.J = env.plant.J
         dx1, dx2, dx3 = env.plant.dx1, env.plant.dx2, env.plant.dx3
         dy1, dy2 = env.plant.dy1, env.plant.dy2
         self.r1 , r2 = 130, 0.0338  # th_r/rcmds, tq_r/th_r
@@ -195,7 +190,7 @@ class MPCController(fym.BaseEnv):
             )
         )
         self.p1, p2 = 70, 0.0835
-        self.ang_lim = np.deg2rad(30)
+        self.ang_lim = np.deg2rad(50)
         self.mg = env.plant.m * env.plant.g
 
         step_horizon = 0.1
@@ -226,41 +221,44 @@ class MPCController(fym.BaseEnv):
         ang_min, ang_max = -self.ang_lim, self.ang_lim
         ang = np.clip(ang0, ang_min, ang_max)
 
-        """ MPC
-        Objective: minimize cost ftn
-        States:
-            X = [z; Vx; Vz]
-        Control inputs:
-            U = [Fr; Fp; theta]
-        """
         args = constraints(self.spec)
-        X_curr = ca.DM([pos[2], vel[0], vel[2]]) # Current state
-        Xd, Ud = solve_mpc(t, self.X_init, X_curr, self.X_target, self.U_init, self.U_target, self.spec, args)
+        X_init = ca.DM([pos[2], vel[0], vel[2]]) # Current state
+        if np.isclose(t % 0.1, 0):
+            self.Xd, self.Ud = solve_mpc(X_init, self.X_target, self.U_init, self.U_target, self.spec, args)
 
-        Xd = DM2Arr(Xd)
-        Ud = DM2Arr(Ud)
 
-        z_d, Vx_d, Vz_d = np.ravel(Xd)
-        Fr, Fp, theta = np.ravel(Ud)
+        z_d, Vx_d, Vz_d = np.ravel(self.Xd)
+        Fr, Fp, theta_d = np.ravel(self.Ud)
 
-        H = np.array([
-            [1, 0, tan(theta)],
-            [0, 1, 0],
-            [0, 0, 1/cos(theta)]
-        ])
+        angd = np.vstack((0, theta_d, 0))
+        omegad = np.zeros((3, 1))
+        
+        f = -np.linalg.inv(self.J) @ (np.cross(omega, self.J @ omega, axis=0))
+        g = np.linalg.inv(self.J)
 
-        Omega_dot = np.vstack((0, theta_dot, 0))
-        w_d = np.linalg.inv(H) @ Omega_dot
-        w_dot_d = 0
+        Ki1 = 1 * np.diag((10, 100, 10))
+        Ki2 = 1 * np.diag((10, 100, 10))
+        Mr = np.linalg.inv(g) @ (-f - Ki1 @ (ang - angd) - Ki2 @ (omega - omegad))
 
-        Mr_d = env.plant.J @ w_dot_d + np.cross(w_d, env.plant.J @ w_d)
+
+#         H = np.array([
+#             [1, 0, tan(theta)],
+#             [0, 1, 0],
+#             [0, 0, 1/cos(theta)]
+#         ])
+
+#         Omega_dot = np.vstack((0, theta_dot, 0))
+#         w_d = np.linalg.inv(H) @ Omega_dot
+#         w_dot_d = 0
+
+#         Mr_d = env.plant.J @ w_dot_d + np.cross(w_d, env.plant.J @ w_d)
 
         nu = np.vstack((Fr, Mr))
         th_r = np.linalg.pinv(self.B_r2FM) @ nu
         rcmds = th_r / self.r1
         
         th_p = Fp / 2
-        pcmds = th_p / self.p1
+        pcmds = th_p / self.p1 * np.ones((2, 1))
         
         dels = np.zeros((3, 1))
         ctrls = np.vstack((rcmds, pcmds, dels))
@@ -271,7 +269,9 @@ class MPCController(fym.BaseEnv):
             "Vz_d": Vz_d,
             "Fr_d": Fr,
             "Fp_d": Fp,
-            "theta_d": theta,
+            "angd": angd,
+            "omegad": omegad,
+            "ang": ang,
         }
 
         return ctrls, controller_info
