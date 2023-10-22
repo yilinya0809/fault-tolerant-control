@@ -254,8 +254,13 @@ class LC62R(fym.BaseEnv):
         return np.vstack((Fx, Fy, Fz, l, m, n))
 
     def B_Pusher(self, pcmds):
-        th = np.interp(pcmds, self.tables["cmd"], self.tables["th_p"])
-        tq = np.interp(pcmds, self.tables["cmd"], self.tables["tq_p"])
+        # th = np.interp(pcmds, self.tables["cmd"], self.tables["th_p"])
+        # tq = np.interp(pcmds, self.tables["cmd"], self.tables["tq_p"])
+        th_p = scipy.interpolate.interp1d(self.tables["cmd"], self.tables["th_p"], fill_value = "extrapolate")
+        tq_p = scipy.interpolate.interp1d(self.tables["cmd"], self.tables["tq_p"], fill_value = "extrapolate")
+        th = th_p(pcmds)
+        tq = tq_p(pcmds)
+
         Fx = th[0] + th[1]
         Fy = Fz = 0
         l = tq[0] - tq[1]
@@ -483,10 +488,13 @@ class LC62R(fym.BaseEnv):
 
 if __name__ == "__main__":
     system = LC62R()
-    pos, vel, quat, omega = system.x_trims
-    pcmds, dels = system.u_trims_fixed
-    rcmds = system.u_trims_vtol
-    ctrls = np.vstack((rcmds, pcmds, dels))
-    FM = system.get_FM(pos, vel, quat, omega, ctrls)
-    system.set_dot(t=0, FM=FM)
-    print(repr(system))
+    # pos, vel, quat, omega = system.x_trims
+    # pcmds, dels = system.u_trims_fixed
+    # rcmds = system.u_trims_vtol
+    # ctrls = np.vstack((rcmds, pcmds, dels))
+    # FM = system.get_FM(pos, vel, quat, omega, ctrls)
+    # system.set_dot(t=0, FM=FM)
+    # print(repr(system))
+
+    pcmds = np.ones((2, 1))
+    print(system.B_Pusher(pcmds))

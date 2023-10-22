@@ -16,7 +16,7 @@ class MyEnv(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 20,
+            "max_t": 10,
         },
         "plant": {
             "init": {
@@ -34,7 +34,7 @@ class MyEnv(fym.BaseEnv):
         self.plant = LC62R(env_config["plant"])
         self.controller = ftc.make("NDI-C", self)
         self.cruise_speed = 45
-        self.ang_lim = np.deg2rad(30)
+        self.ang_lim = np.deg2rad(45)
 
     def step(self):
         env_info, done = self.update()
@@ -91,7 +91,7 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    flogger = fym.Logger("data_C.h5")
+    flogger = fym.Logger("data_NDI.h5")
 
     env.reset()
     try:
@@ -110,7 +110,7 @@ def run():
 
 
 def plot():
-    data = fym.load("data_C.h5")["env"]
+    data = fym.load("data_NDI.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
@@ -121,7 +121,7 @@ def plot():
     # ax.plot(data["t"], data["posd"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$x$, m")
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylim([0, 2000])
+    ax.set_ylim([0, 500])
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "k-")

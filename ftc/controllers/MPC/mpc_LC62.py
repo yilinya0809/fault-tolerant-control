@@ -171,6 +171,7 @@ def solve_mpc(X_init, X_target, U_init, U_target, spec, args):
 
     Xd = cat_states[:, 0]
     Ud = u0[:, 0]
+    breakpoint()
     return Xd, Ud
 
 

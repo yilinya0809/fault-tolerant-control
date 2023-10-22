@@ -17,22 +17,22 @@ class MPC:
         self.step_horizon = 0.1  # time between steps in seconds
         self.N = 10  # number of look ahead steps
 
-        z_init, vx_init, vz_init, theta_init, q_init = env.observation()
+        z_init, vx_init, vz_init, theta_init, _ = env.observation()
 
         X_trim, U_trim = self.plant.get_trim(fixed={"h": 10, "VT": 45})
         _, self.z_target, vx_target, vz_target = X_trim.ravel()
-        Fr_target, Fp_target, theta_target, q_target = U_trim.ravel()
+        Fr_target, Fp_target, theta_target = U_trim.ravel()
 
-        self.control_init = ca.DM([-self.plant.m * self.plant.g, 0, theta_init, q_init])
+        self.control_init = ca.DM([-self.plant.m * self.plant.g, 0, theta_init])
         self.state_init = ca.DM([z_init, vx_init, vz_init])
         self.state_target = ca.DM([self.z_target, vx_target, vz_target])
-        self.control_target = ca.DM([Fr_target, Fp_target, theta_target, q_target])
+        self.control_target = ca.DM([Fr_target, Fp_target, theta_target])
         self.n_states = self.state_init.numel()
         self.n_controls = self.control_init.numel()
         self.args = self.constraints()
 
         self.Q = 10 * ca.diagcat(1, 1, 1) # Gain matrix for X
-        self.R = 0.0 * ca.diagcat(0, 0, 1000, 1000) # Gain matrix for U
+        self.R = 0.0 * ca.diagcat(0, 0, 1000) # Gain matrix for U
 
 
 
@@ -60,9 +60,6 @@ class MPC:
         ubx[n_states * (N + 1) + 1 :: n_controls] = self.Fp_max  # Fp max
         lbx[n_states * (N + 1) + 2 :: n_controls] = -self.theta_max  # theta min
         ubx[n_states * (N + 1) + 2 :: n_controls] = self.theta_max  # theta max
-        lbx[n_states * (N + 1) + 3 :: n_controls] = -np.pi / 2  # q min
-        ubx[n_states * (N + 1) + 3 :: n_controls] = np.pi / 2  # q max
-
 
         args = {
             "lbg": ca.DM.zeros((n_states * (N + 1), 1)),  # constraints lower bound
@@ -82,9 +79,9 @@ class MPC:
 
     def solve_mpc(self, obs):
         z, vx, vz, theta, q = obs
-        Fr, Fp, _, _ = np.ravel(self.control_init)
+        Fr, Fp, _ = np.ravel(self.control_init)
         state_init = ca.DM([z, vx, vz])
-        control_init = ca.DM([Fr, Fp, theta, q])
+        control_init = ca.DM([Fr, Fp, theta])
 
         step_horizon = self.step_horizon
         N = self.N
@@ -99,8 +96,7 @@ class MPC:
         Fr = ca.MX.sym("Fr")
         Fp = ca.MX.sym("Fp")
         theta = ca.MX.sym("theta")
-        q = ca.MX.sym("q")
-        controls = ca.vertcat(Fr, Fp, theta, q)
+        controls = ca.vertcat(Fr, Fp, theta)
 
         X = ca.MX.sym("X", n_states, N + 1)
         U = ca.MX.sym("U", n_controls, N)
@@ -111,7 +107,7 @@ class MPC:
         Q = self.Q
         R = self.R
 
-        Xdot = self.plant.derivnox(states, controls)
+        Xdot = self.plant.derivnox(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
 
         cost_fn = 0  # cost function
@@ -201,12 +197,12 @@ class NDIController(fym.BaseEnv):
         ang0 = np.vstack(quat2angle(quat)[::-1])
         ang = np.clip(ang0, -self.ang_lim, self.ang_lim)
 
-        Frd, Fpd, thetad, qd = np.ravel(action)
+        Frd, Fpd, thetad = np.ravel(action)
         angd = np.vstack((0, thetad, 0))
         # ang_f = self.lpf_ang.state
         # self.lpf_ang.dot = -(ang_f - angd) / self.tau
         # angd = np.vstack((0, ang_f[1], 0))
-        omegad = np.vstack((0, qd, 0))
+        omegad = np.zeros((3, 1))
 
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
 
