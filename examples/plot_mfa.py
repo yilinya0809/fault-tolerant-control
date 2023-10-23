@@ -3,37 +3,11 @@ import argparse
 import fym
 import matplotlib.pyplot as plt
 import numpy as np
-from fym.utils.rot import angle2dcm
+from fym.utils.rot import quat2dcm
 from matplotlib import animation
-from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-from mpl_toolkits.mplot3d.proj3d import proj_transform
 
-
-class Arrow3D(FancyArrowPatch):
-    def __init__(self, x, y, z, dx, dy, dz, *args, **kwargs):
-        super().__init__((0, 0), (0, 0), *args, **kwargs)
-        self._xyz = (x, y, z)
-        self._dxdydz = (dx, dy, dz)
-
-    def draw(self, renderer):
-        x1, y1, z1 = self._xyz
-        dx, dy, dz = self._dxdydz
-        x2, y2, z2 = (x1 + dx, y1 + dy, z1 + dz)
-
-        xs, ys, zs = proj_transform((x1, x2), (y1, y2), (z1, z2), self.axes.M)
-        self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
-        super().draw(renderer)
-
-    def do_3d_projection(self, renderer=None):
-        x1, y1, z1 = self._xyz
-        dx, dy, dz = self._dxdydz
-        x2, y2, z2 = (x1 + dx, y1 + dy, z1 + dz)
-
-        xs, ys, zs = proj_transform((x1, x2), (y1, y2), (z1, z2), self.axes.M)
-        self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
-
-        return np.min(zs)
+from ftc.plotframe import Arrow3D, LC62Frame
 
 
 def _arrow3D(ax, x, y, z, dx, dy, dz, *args, **kwargs):
@@ -76,17 +50,24 @@ def update_plot(
     ax.clear()
     _i = i * numFrames
     t = data["t"]
-    pos = data["posd"][_i, :, :]
+    pos = data["plant"]["pos"][_i, :, :]
     mfa = data["mfa"][_i]
-    NED2ENU = np.array(
-        [
-            [0, 1, 0],
-            [1, 0, 0],
-            [0, 0, -1],
-        ]
-    )
-    # ang = data["ang"][_i, :, :]  # Euler angle
-    # dcm = angle2dcm(*ang)  # I (NED) to B (body)
+    quat = data["plant"]["quat"][_i, :, :]  # Unit quaternion
+    lamb = data["Lambda"][_i, :, None]
+    dcm = quat2dcm(quat)  # I (NED) to B (body)
+    NED2ENU = np.array([[0, 1, 0], [1, 0, 0], [0, 0, -1]])
+
+    LC62Frame(ax).draw_at(pos, np.zeros((11, 1)), quat, lamb)
+
+    scale = 1.5
+    _x = NED2ENU @ pos.ravel()
+    _xe = _x + scale * NED2ENU @ dcm @ np.array([1, 0, 0])
+    _ye = _x + scale * NED2ENU @ dcm @ np.array([0, 1, 0])
+    _ze = _x + scale * NED2ENU @ dcm @ np.array([0, 0, 1])
+    ax.plot([_x[0], _xe[0]], [_x[1], _xe[1]], [_x[2], _xe[2]], "r")
+    ax.plot([_x[0], _ye[0]], [_x[1], _ye[1]], [_x[2], _ye[2]], "g")
+    ax.plot([_x[0], _ze[0]], [_x[1], _ze[1]], [_x[2], _ze[2]], "b")
+
     FM = data["FM"][_i, :, :]
     F = FM[0:3, :]
     M = FM[3:6, :]
@@ -123,8 +104,8 @@ def update_plot(
         )
 
     ax.set(xlim3d=[lim + (NED2ENU @ pos)[0] for lim in Elim], xlabel="E")
-    ax.set(ylim3d=[lim + (NED2ENU @ pos)[1] for lim in Nlim], xlabel="N")
-    ax.set(zlim3d=[lim + (NED2ENU @ pos)[2] for lim in Ulim], xlabel="U")
+    ax.set(ylim3d=[lim + (NED2ENU @ pos)[1] for lim in Nlim], ylabel="N")
+    ax.set(zlim3d=[lim + (NED2ENU @ pos)[2] for lim in Ulim], zlabel="U")
     titleTime = ax.text2D(0.05, 0.95, "", transform=ax.transAxes)
     titleTime.set_text("Time = {:.2f} s".format(t[_i]))
     titleForce = ax.text2D(
@@ -135,6 +116,9 @@ def update_plot(
         0.95, 0.90, "", transform=ax.transAxes, color=colors["torque"]
     )
     titleTorque.set_text("Torque scale: {:.2f}".format(scale_M))
+    ax.text2D(1.0, 0.15, r"$X_B$", transform=ax.transAxes, color="r")
+    ax.text2D(1.0, 0.10, r"$Y_B$", transform=ax.transAxes, color="g")
+    ax.text2D(1.0, 0.05, r"$Z_B$", transform=ax.transAxes, color="b")
 
 
 def main(args, numFrames=10):
