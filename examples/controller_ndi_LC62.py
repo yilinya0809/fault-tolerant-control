@@ -85,6 +85,8 @@ class MyEnv(fym.BaseEnv):
             "ctrls0": ctrls0,
             "ctrls": ctrls,
             "FM": FM,
+            "Fr": self.plant.B_VTOL(ctrls[:6], omega)[2],
+            "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
         }
 
         return env_info

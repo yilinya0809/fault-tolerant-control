@@ -73,6 +73,7 @@ class MPC:
         agent_info = {
             "Xd": self.state_target,
             "Ud": self.control_target,
+            "qd": 0
         }
         
         return self.control_init, agent_info

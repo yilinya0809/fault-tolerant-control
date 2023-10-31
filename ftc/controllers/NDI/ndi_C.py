@@ -118,6 +118,7 @@ class NDIController(fym.BaseEnv):
             "veld": veld,
             "angd": angd,
             "ang": ang,
+            "Fpd": uo[1],
         }
 
         return ctrls, controller_info
