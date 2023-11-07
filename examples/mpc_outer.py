@@ -4,7 +4,8 @@ import casadi as ca
 import matplotlib.pyplot as plt
 import numpy as np
 
-from dyn import LC62
+import ftc
+from ftc.models.LC62S import LC62
 
 
 def shift_timestep(step_horizon, t0, state_init, u, f):
@@ -25,10 +26,10 @@ plant = LC62()
 
 step_horizon = 0.1  # time between steps in seconds
 N = 10  # number of look ahead steps
-sim_time = 20  # simulation time
+sim_time = 30  # simulation time
 
 # x_init = 0
-z_init = -10
+z_init = 0
 vx_init = 0
 vz_init = 0
 
@@ -58,8 +59,12 @@ U = ca.MX.sym("U", n_controls, N)
 P = ca.MX.sym("P", 2 * n_states + n_controls)
 
 # weights matrix: state (Q_x, Q_z, Q_Vx, Q_Vz), control (R_Fr, R_Fp, R_theta)
-Q = ca.diagcat(100, 100, 100)
-R = ca.diagcat(0.01, 0.1, 100)
+Q = 10 * ca.diagcat(10, 1, 1) # Gain matrix for X
+R = 0.0 * ca.diagcat(0, 0, 1000) # Gain matrix for U
+
+
+# Q = ca.diagcat(100, 100, 100)
+# R = ca.diagcat(0.01, 0.1, 100)
 
 Xdot = plant.derivnox(states, controls, q=0.0)
 f = ca.Function("f", [states, controls], [Xdot])
@@ -103,7 +108,7 @@ ubx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
 
 z_eps = 2
 lbx[0 : n_states * (N + 1) : n_states] = z_target - z_eps  # z min
-ubx[0 : n_states * (N + 1) : n_states] = z_target + z_eps  # z max
+ubx[0 : n_states * (N + 1) : n_states] = 0  # z max
 lbx[1 : n_states * (N + 1) : n_states] = 0  # Vx min
 ubx[1 : n_states * (N + 1) : n_states] = ca.inf  # Vx max
 lbx[2 : n_states * (N + 1) : n_states] = -ca.inf  # Vz min

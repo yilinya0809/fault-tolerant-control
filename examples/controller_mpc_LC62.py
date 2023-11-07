@@ -4,8 +4,8 @@ import fym
 import matplotlib.pyplot as plt
 import numpy as np
 from fym.utils.rot import quat2angle
-from mpc_LC62 import MPC, NDIController
 
+import ftc
 from ftc.models.LC62R import LC62R
 from ftc.utils import safeupdate
 
@@ -33,7 +33,7 @@ class MyEnv(fym.BaseEnv):
         super().__init__(**env_config["fkw"])
         self.plant = LC62R(env_config["plant"])
         self.ang_lim = np.deg2rad(45)
-        self.controller = NDIController(self)
+        self.controller = ftc.make("NMPC-DI", self)
 
 
     def step(self, action):
@@ -72,7 +72,7 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    agent = MPC(env)
+    agent = ftc.make("NMPC", env)
     flogger = fym.Logger("data_MPC.h5")
 
     env.reset()
