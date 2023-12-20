@@ -52,3 +52,7 @@ register(
     id="NMPC-DI",
     entry_point="ftc.controllers.MPC.mpc_LC62:NDIController",
 )
+register(
+    id="NMPC-smooth",
+    entry_point="ftc.controllers.MPC.smooth:MPC",
+)

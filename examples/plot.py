@@ -56,6 +56,147 @@ Frd_mpc = data_mpc["Frd"]
 Fpd_mpc = data_mpc["Fpd"]
 thetad_mpc = data_mpc["angd"][:, 1]
 
+def plot1():
+
+    data = data_mpc
+    agent_data = agent
+
+    """ Figure 1 - States """
+    fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
+
+    """ Column 1 - States: Position """
+    ax = axes[0, 0]
+    ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "b-")
+    ax.set_ylabel(r"$x$, m")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    ax = axes[1, 0]
+    ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "b-")
+    ax.set_ylabel(r"$y$, m")
+    ax.set_ylim([-1, 1])
+
+    ax = axes[2, 0]
+    ax.plot(data["t"], agent_data["Xd"][:, 0].squeeze(-1), "r--")
+    ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
+    ax.set_ylabel(r"$z$, m")
+    ax.set_ylim([-15, -5])
+
+    ax.set_xlabel("Time, sec")
+    ax.legend(["Commands from NMPC", "States"], 
+              # loc="upper right",
+              loc="lower right",
+              bbox_to_anchor=(3.2, -0.5),
+              fontsize=12,
+              ncol=2,
+              )
+    # fig.legend([p1, p2], 
+    #            labels=["Commands from NMPC", "States"],
+    #            loc="lower center",
+    #            bbox_to_anchor=(0.5, 0),
+    #            fontsize=12,
+    #            ncol=2,
+    #            )
+    
+
+    """ Column 2 - States: Velocity """
+    ax = axes[0, 1]
+    ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "b-")
+    ax.plot(data["t"], agent_data["Xd"][:, 1].squeeze(-1), "--r")
+    ax.set_ylabel(r"$v_x$, m/s")
+
+    ax = axes[1, 1]
+    ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "b-")
+    ax.set_ylabel(r"$v_y$, m/s")
+    ax.set_ylim([-1, 1])
+
+    ax = axes[2, 1]
+    ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "b-")
+    ax.plot(data["t"], agent_data["Xd"][:, 2].squeeze(-1), "--r")
+    ax.set_ylabel(r"$v_z$, m/s")
+    ax.set_ylim([-20, 20])
+
+    ax.set_xlabel("Time, sec")
+
+    """ Column 3 - States: Euler angles """
+    ax = axes[0, 2]
+    ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
+    ax.set_ylabel(r"$\phi$, deg")
+    ax.set_ylim([-1, 1])
+
+    ax = axes[1, 2]
+    ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
+    ax.set_ylabel(r"$\theta$, deg")
+
+    ax = axes[2, 2]
+    ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "b-")
+    p1 = ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
+    ax.set_ylabel(r"$\psi$, deg")
+    ax.set_ylim([-1, 1])
+
+    ax.set_xlabel("Time, sec")
+
+    """ Column 4 - States: Angular rates """
+    ax = axes[0, 3]
+    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 0].squeeze(-1)), "b-")
+    ax.set_ylabel(r"$p$, deg/s")
+    ax.set_ylim([-1, 1])
+
+    ax = axes[1, 3]
+    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-")
+    ax.set_ylabel(r"$q$, deg/s")
+
+    ax = axes[2, 3]
+    p2 = ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 2].squeeze(-1)), "b-")
+    ax.set_ylabel(r"$r$, deg/s")
+    ax.set_ylim([-1, 1])
+
+    ax.set_xlabel("Time, sec")
+
+    # fig.tight_layout()
+    # fig.legend([p1, p2], 
+    #            labels=["Commands from NMPC", "States"],
+    #            loc="lower center",
+    #            bbox_to_anchor=(0.5, 0),
+    #            fontsize=12,
+    #            ncol=2,
+    #            )
+    
+    fig.tight_layout()
+    fig.align_ylabels(axes)
+    fig.subplots_adjust(left = 0.05, right = 0.99, wspace=0.3)
+
+
+    """ Figure 5 - Thrust """
+    fig, axes = plt.subplots(2, 1, sharex=True)
+
+    ax = axes[0]
+    ax.plot(data["t"], -data["Frd"], "r--")
+    ax.plot(data["t"], -data["Fr"].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_{rotors}$, N", fontsize=13)
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    ax = axes[1]
+    l1 = ax.plot(data["t"], data["Fpd"], "r--")
+    l2 = ax.plot(data["t"], data["Fp"].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_{pushers}$, N", fontsize=13)
+    ax.set_xlabel("Time, sec")
+
+    fig.legend([l1, l2], 
+               labels=["Commands from NMPC", "Results"],
+               loc="lower center",
+               bbox_to_anchor=(0.55, 0),
+               fontsize=12,
+               ncol=2,
+               )
+
+    plt.tight_layout()
+    fig.align_ylabels(axes)
+
+
+    plt.show()
+
 
 def plot():
     """ Figure 1 - States """
@@ -96,7 +237,7 @@ def plot():
     ax.set_ylabel(r"$q$, deg/s", fontsize=13)
     
     fig.legend([l1, l2, l3], 
-               labels=["NDI", "NMPC-DI", "Trim"],
+               labels=["ndi", "nmpc-di", "trim"],
                loc="lower center",
                bbox_to_anchor=(0.55, 0),
                fontsize=15,
@@ -114,51 +255,53 @@ def plot():
     ax.plot(time, rotors_ndi[:, 0], "k--")
     ax.plot(time, rotors_mpc[:, 0], "b-")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$r_1$", fontsize=13)
+    ax.set_ylabel("Rotor 1", fontsize=13)
 
     ax = axes[0, 1]
     ax.plot(time, rotors_ndi[:, 1], "k--")
     ax.plot(time, rotors_mpc[:, 1], "b-")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$r_2$", fontsize=13)
+    ax.set_ylabel("Rotor 2", fontsize=13)
     
     ax = axes[1, 0]
     ax.plot(time, rotors_ndi[:, 2], "k--")
     ax.plot(time, rotors_mpc[:, 2], "b-")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$r_3$", fontsize=13)
+    ax.set_ylabel("Rotor 3", fontsize=13)
 
     ax = axes[1, 1]
     ax.plot(time, rotors_ndi[:, 3], "k--")
     ax.plot(time, rotors_mpc[:, 3], "b-")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$r_4$", fontsize=13)
+    ax.set_ylabel("Rotor 4" , fontsize=13)
 
     ax = axes[2, 0]
     ax.plot(time, rotors_ndi[:, 4], "k--")
     ax.plot(time, rotors_mpc[:, 4], "b-")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$r_5$", fontsize=13)
+    ax.set_ylabel("Rotor 5", fontsize=13)
 
     ax = axes[2, 1]
     ax.plot(time, rotors_ndi[:, 5], "k--")
     ax.plot(time, rotors_mpc[:, 5], "b-")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$r_6$", fontsize=13)
+    ax.set_ylabel("Rotor 6", fontsize=13)
 
     ax = axes[3, 0]
     ax.plot(time, pushers_ndi[:, 0], "k--")
     ax.plot(time, pushers_mpc[:, 0], "b-")
     ax.set_xlim(time[0], time[-1])
     ax.set_xlabel("Time, sec")
-    ax.set_ylabel(r"$p_1$", fontsize=13)
+    ax.set_ylabel("Pusher 1", fontsize=13)
 
     ax = axes[3, 1]
     g1 = ax.plot(time, pushers_ndi[:, 1], "k--")
     g2 = ax.plot(time, pushers_mpc[:, 1], "b-")
     ax.set_xlim(time[0], time[-1])
     ax.set_xlabel("Time, sec")
-    ax.set_ylabel(r"$p_2$", fontsize=13)
+    ax.set_ylabel("Pusher 2", fontsize=13)
+
+    fig.subplots_adjust(left = 0.05, right = 0.99, wspace=0.3)
 
     fig.legend([g1, g2], 
                labels=["NDI", "NMPC-DI"],
@@ -178,7 +321,7 @@ def plot():
     ax.plot(time, -Fr_mpc, "b-")
     ax.plot(time, -Frd_mpc, "--r")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$F_r$, N", fontsize=13)
+    ax.set_ylabel(r"$F_{rotors}$, N", fontsize=13)
 
 
     """ Row 2 - Pusher forces """
@@ -186,7 +329,7 @@ def plot():
     ax.plot(time, Fp_mpc, "b-")
     ax.plot(time, Fpd_mpc, "--r")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$F_p$, N", fontsize=13)
+    ax.set_ylabel(r"$F_{pushers}$, N", fontsize=13)
 
 
     """ Row 3 - Pitch angle """
@@ -198,7 +341,7 @@ def plot():
     ax.set_xlabel("Time, sec")
 
     fig.legend([l1, l2], 
-               labels=["NMPC-DI", "Commands"],
+               labels=["NMPC-DI Results", "NMPC Solutions"],
                loc="lower center",
                bbox_to_anchor=(0.55, 0),
                ncol=2,

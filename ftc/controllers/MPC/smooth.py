@@ -62,9 +62,15 @@ class MPC:
         lbx[n_states * (N + 1) + 2 :: n_controls] = -self.theta_max  # theta min
         ubx[n_states * (N + 1) + 2 :: n_controls] = self.theta_max  # theta max
 
+        lbg = ca.DM.zeros(((n_states + n_controls) * (N + 1), 1))
+        ubg = ca.DM.zeros(((n_states + n_controls) * (N + 1), 1))
+
+        lbg[n_states * (N + 1):] = -ca.inf
+        ubg[n_states * (N + 1):] = ca.inf
+
         args = {
-            "lbg": ca.DM.zeros((n_states * (N + 1), 1)),  # constraints lower bound
-            "ubg": ca.DM.zeros((n_states * (N + 1), 1)),  # constraints upper bound
+            "lbg": lbg,
+            "ubg": ubg,
             "lbx": lbx,
             "ubx": ubx,
         }
@@ -102,26 +108,25 @@ class MPC:
 
         X = ca.MX.sym("X", n_states, N + 1)
         U = ca.MX.sym("U", n_controls, N)
-        P = ca.MX.sym("P", 2 * n_states + n_controls)
+        P = ca.MX.sym("P", 2 * (n_states + n_controls))
 
-        # Q = ca.diagcat(10, 10, 10)
-        # R = 0.0 * ca.diagcat(0, 0, 1000)
-        Q = self.Q
-        R = self.R
+        Q = ca.diagcat(50, 50, 20)
+        R = 0.005 * ca.diagcat(1, 0, 10000)
+        S = 0.0 * ca.diagcat(1, 1, 0)
+        # Q = self.Q
+        # R = self.R
 
         Xdot = self.plant.derivnox(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
 
         cost_fn = 0  # cost function
         g = X[:, 0] - P[:n_states]  # constraints in the equation
+        u_diff = U[:, 0] - P[2 * n_states + n_controls:]
 
-        # runge kutta
         for k in range(N):
+            # discrete dynamics runge kutta
             st = X[:, k]
             con = U[:, k]
-            st_err = st - P[n_states : 2 * n_states]
-            con_err = con - P[2 * n_states :]
-            cost_fn = cost_fn + st_err.T @ Q @ st_err + con_err.T @ R @ con_err
             st_next = X[:, k + 1]
             k1 = f(st, con)
             k2 = f(st + step_horizon / 2 * k1, con)
@@ -130,9 +135,17 @@ class MPC:
             st_next_RK4 = st + (step_horizon / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
             g = ca.vertcat(g, st_next - st_next_RK4)
 
+            # cost function
+            st_err = st - P[n_states : 2 * n_states]
+            con_err = con - P[2 * n_states : 2 * n_states + n_controls]
+            con_diff = con - P[2 * n_states + n_controls:]
+            cost_fn = cost_fn + st_err.T @ Q @ st_err + con_err.T @ R @ con_err + con_diff.T @ S @ con_diff 
+            u_diff = ca.vertcat(u_diff, con_diff)
+
         opt_variables = ca.vertcat(X.reshape((-1, 1)), U.reshape((-1, 1)))
         opt_params = ca.vertcat(P.reshape((-1, 1)))
-        nlp_prob = {"f": cost_fn, "x": opt_variables, "g": g, "p": opt_params}
+        opt_g = ca.vertcat(g, u_diff)
+        nlp_prob = {"f": cost_fn, "x": opt_variables, "g": opt_g, "p": opt_params}
 
         opts = {
             "ipopt": {
@@ -152,7 +165,8 @@ class MPC:
         self.args["p"] = ca.vertcat(
             state_init,  # current state
             self.state_target,  # target state
-            self.control_target,  # target control
+            self.control_target, # target control
+            self.control_init
         )
         self.args["x0"] = ca.vertcat(
             ca.reshape(X0, n_states * (N + 1), 1), ca.reshape(u0, n_controls * N, 1)
@@ -171,72 +185,3 @@ class MPC:
 
         self.control_init = u[:, 0]
 
-
-class NDIController(fym.BaseEnv):
-    def __init__(self, env):
-        super().__init__()
-        self.dx1, self.dx2, self.dx3 = env.plant.dx1, env.plant.dx2, env.plant.dx3
-        self.dy1, self.dy2 = env.plant.dy1, env.plant.dy2
-        cr, self.cr_th = 0.0338, 130  # tq / th, th / rcmds
-        self.B_r2f = np.array(
-            (
-                [-1, -1, -1, -1, -1, -1],
-                [-self.dy2, self.dy1, self.dy1, -self.dy2, -self.dy2, self.dy1],
-                [-self.dx2, -self.dx2, self.dx1, -self.dx3, self.dx1, -self.dx3],
-                [-cr, cr, -cr, cr, cr, -cr],
-            )
-        )
-        self.cp_th = 70
-        self.ang_lim = env.ang_lim
-        self.tau = 0.05
-        self.lpf_ang = fym.BaseSystem(np.zeros((3, 1)))
-        self.lpf_r = fym.BaseSystem(np.zeros((6, 1)))
-        self.lpf_p = fym.BaseSystem(np.zeros((2, 1)))
-        
-
-    def get_control(self, t, env, action):
-        _, _, quat, omega = env.plant.observe_list()
-        ang0 = np.vstack(quat2angle(quat)[::-1])
-        ang = np.clip(ang0, -self.ang_lim, self.ang_lim)
-
-        Frd, Fpd, thetad = np.ravel(action)
-        # Frd = - env.plant.g * env.plant.m
-        # Fpd = 0
-        # thetad = 0.5 * np.sin(t)
-        angd = np.vstack((0, thetad, 0))
-        ang_f = self.lpf_ang.state
-        omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau
-        # angd = np.vstack((0, ang_f[1], 0))
-        # omegad = np.zeros((3, 1))
-
-        f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
-
-        K1 = np.diag((1, 100, 1))
-        K2 = np.diag((1, 10, 1))
-        Mrd = env.plant.J @ (-f - K1 @ (ang - angd) - K2 @ (omega - omegad))
-        nu = np.vstack((Frd, Mrd))
-        th_r = np.linalg.pinv(self.B_r2f) @ nu
-        rcmds = th_r / self.cr_th
-
-        th_p = Fpd / 2
-        pcmds = th_p / self.cp_th * np.ones((2, 1))
-        
-        # rcmds_f = self.lpf_r.state
-        # self.lpf_r.dot = -(rcmds_f - rcmds) / self.tau
-        
-        # pcmds_f = self.lpf_p.state
-        # self.lpf_p.dot = -(pcmds_f - pcmds) / self.tau
-
-        dels = np.zeros((3, 1))
-        ctrls = np.vstack((rcmds, pcmds, dels))
-
-
-        controller_info = {
-            "Frd": Frd,
-            "Fpd": Fpd,
-            "angd": angd,
-            "omegad": omegad,
-            "ang": ang,
-        }
-
-        return ctrls, controller_info

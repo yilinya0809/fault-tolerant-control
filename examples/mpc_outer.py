@@ -26,10 +26,10 @@ plant = LC62()
 
 step_horizon = 0.1  # time between steps in seconds
 N = 10  # number of look ahead steps
-sim_time = 30  # simulation time
+sim_time = 10  # simulation time
 
 # x_init = 0
-z_init = 0
+z_init = -10.0
 vx_init = 0
 vz_init = 0
 
@@ -59,7 +59,8 @@ U = ca.MX.sym("U", n_controls, N)
 P = ca.MX.sym("P", 2 * n_states + n_controls)
 
 # weights matrix: state (Q_x, Q_z, Q_Vx, Q_Vz), control (R_Fr, R_Fp, R_theta)
-Q = 10 * ca.diagcat(10, 1, 1) # Gain matrix for X
+# Q = 10 * ca.diagcat(10, 1, 1) # Gain matrix for X
+Q = 10 * ca.diagcat(1, 1, 1) # Gain matrix for X
 R = 0.0 * ca.diagcat(0, 0, 1000) # Gain matrix for U
 
 
@@ -107,8 +108,9 @@ lbx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
 ubx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
 
 z_eps = 2
-lbx[0 : n_states * (N + 1) : n_states] = z_target - z_eps  # z min
-ubx[0 : n_states * (N + 1) : n_states] = 0  # z max
+lbx[0 : n_states * (N + 1) : n_states] = z_target - 2  # z min
+ubx[0 : n_states * (N + 1) : n_states] = z_target + 1  # z max
+# ubx[0 : n_states * (N + 1) : n_states] = 0 # z max
 lbx[1 : n_states * (N + 1) : n_states] = 0  # Vx min
 ubx[1 : n_states * (N + 1) : n_states] = ca.inf  # Vx max
 lbx[2 : n_states * (N + 1) : n_states] = -ca.inf  # Vz min
@@ -120,8 +122,8 @@ lbx[n_states * (N + 1) :: n_controls] = -Fr_max  # Fr min
 ubx[n_states * (N + 1) :: n_controls] = 0  # Fr max
 lbx[n_states * (N + 1) + 1 :: n_controls] = 0  # Fp min
 ubx[n_states * (N + 1) + 1 :: n_controls] = Fp_max  # Fp max
-lbx[n_states * (N + 1) + 2 :: n_controls] = -np.deg2rad(50)  # theta min
-ubx[n_states * (N + 1) + 2 :: n_controls] = np.deg2rad(50)  # theta min
+lbx[n_states * (N + 1) + 2 :: n_controls] = -np.deg2rad(45)  # theta min
+ubx[n_states * (N + 1) + 2 :: n_controls] = np.deg2rad(45)  # theta min
 
 args = {
     "lbg": ca.DM.zeros((n_states * (N + 1), 1)),  # constraints lower bound
@@ -144,7 +146,8 @@ X0 = ca.repmat(state_init, 1, N + 1)  # initial state full
 
 mpc_iter = 0
 cat_states = DM2Arr(X0)
-cat_controls = DM2Arr(u0[:, 0])
+# cat_controls = DM2Arr(u0[:, 0])
+cat_controls = DM2Arr(u0)
 times = np.array([[0]])
 
 
@@ -175,7 +178,8 @@ if __name__ == "__main__":
         u = ca.reshape(sol["x"][n_states * (N + 1) :], n_controls, N)
 
         cat_states = np.dstack((cat_states, DM2Arr(X0)))
-        cat_controls = np.dstack((cat_controls, DM2Arr(u[:, 0])))
+        # cat_controls = np.dstack((cat_controls, DM2Arr(u[:, 0])))
+        cat_controls = np.dstack((cat_controls, DM2Arr(u)))
         t = np.vstack((t, t0))
 
         t0, state_init, u0 = shift_timestep(step_horizon, t0, state_init, u, f)
@@ -198,6 +202,10 @@ if __name__ == "__main__":
     print("avg iteration time: ", np.array(times).mean() * 1000, "ms")
     print("final error: ", ss_error)
 
+    np.save("time.npy", t)
+    np.save("cat_states.npy", cat_states)
+    np.save("cat_controls.npy", cat_controls)
+
     """Fig 1. States"""
     fig, axes = plt.subplots(3, 1, squeeze=False, sharex=True)
 
@@ -205,19 +213,20 @@ if __name__ == "__main__":
     ax.plot(t, cat_states[0, 0, :])
     ax.set_ylabel(r"$z$ [m]")
     ax.set_xlabel("Time [s]")
-    ax.grid()
+    ax.set_ylim([-11, 0])
+    # ax.grid()
 
     ax = axes[1, 0]
     ax.plot(t, cat_states[1, 0, :])
     ax.set_ylabel(r"$v_x$ [m/s]")
     ax.set_xlabel("Time [s]")
-    ax.grid()
+    # ax.grid()
 
     ax = axes[2, 0]
     ax.plot(t, cat_states[2, 0, :])
     ax.set_ylabel(r"$v_z$ [m/s]")
     ax.set_xlabel("Time [s]")
-    ax.grid()
+    # ax.grid()
 
     plt.tight_layout()
     fig.align_ylabels(axes)
@@ -226,22 +235,22 @@ if __name__ == "__main__":
     fig, axes = plt.subplots(3, 1, squeeze=False, sharex=True)
 
     ax = axes[0, 0]
-    ax.plot(t, cat_controls[0, 0, :])
+    ax.plot(t, -cat_controls[0, 0, :])
     ax.set_ylabel(r"$F_r$ [N]")
     ax.set_xlabel("Time [s]")
-    ax.grid()
+    # ax.grid()
 
     ax = axes[1, 0]
     ax.plot(t, cat_controls[1, 0, :])
     ax.set_ylabel(r"$F_p$ [N]")
     ax.set_xlabel("Time [s]")
-    ax.grid()
+    # ax.grid()
 
     ax = axes[2, 0]
     ax.plot(t, np.rad2deg(cat_controls[2, 0, :]))
     ax.set_ylabel(r"$\theta$ [deg]")
     ax.set_xlabel("Time [s]")
-    ax.grid()
+    # ax.grid()
 
     plt.tight_layout()
     fig.align_ylabels(axes)

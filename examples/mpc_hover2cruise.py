@@ -104,54 +104,56 @@ def plot():
 
     """ Column 1 - States: Position """
     ax = axes[0, 0]
-    ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "k-")
+    ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "b-")
     ax.set_ylabel(r"$x$, m")
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1, 0]
-    ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "k-")
+    ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "b-")
     ax.set_ylabel(r"$y$, m")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 0]
-    ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], agent_data["Xd"][:, 0].squeeze(-1), "--r")
+    a1 = ax.plot(data["t"], agent_data["Xd"][:, 0].squeeze(-1), "r--")
+    a2 = ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
     ax.set_ylabel(r"$z$, m")
+    ax.set_ylim([-15, -5])
 
     ax.set_xlabel("Time, sec")
 
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
-    ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "k-")
+    ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "b-")
     ax.plot(data["t"], agent_data["Xd"][:, 1].squeeze(-1), "--r")
     ax.set_ylabel(r"$v_x$, m/s")
 
     ax = axes[1, 1]
-    ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "k-")
+    ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "b-")
     ax.set_ylabel(r"$v_y$, m/s")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 1]
-    ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
+    ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "b-")
     ax.plot(data["t"], agent_data["Xd"][:, 2].squeeze(-1), "--r")
     ax.set_ylabel(r"$v_z$, m/s")
+    ax.set_ylim([-20, 20])
 
     ax.set_xlabel("Time, sec")
 
     """ Column 3 - States: Euler angles """
     ax = axes[0, 2]
-    ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "k-")
+    ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "b-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\phi$, deg")
     ax.set_ylim([-1, 1])
 
     ax = axes[1, 2]
-    ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "k-")
+    ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\theta$, deg")
 
     ax = axes[2, 2]
-    ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "k-")
+    ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "b-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\psi$, deg")
     ax.set_ylim([-1, 1])
@@ -160,23 +162,30 @@ def plot():
 
     """ Column 4 - States: Angular rates """
     ax = axes[0, 3]
-    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 0].squeeze(-1)), "k-")
+    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 0].squeeze(-1)), "b-")
     ax.set_ylabel(r"$p$, deg/s")
     ax.set_ylim([-1, 1])
 
     ax = axes[1, 3]
-    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "k-")
+    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-")
     ax.set_ylabel(r"$q$, deg/s")
 
     ax = axes[2, 3]
-    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 2].squeeze(-1)), "k-")
+    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 2].squeeze(-1)), "b-")
     ax.set_ylabel(r"$r$, deg/s")
     ax.set_ylim([-1, 1])
 
     ax.set_xlabel("Time, sec")
 
-    plt.tight_layout()
-    fig.subplots_adjust(wspace=0.3)
+    # fig.tight_layout()
+    fig.legend([a1, a2], 
+               labels=["Commands from NMPC", "States"],
+               loc="lower center",
+               bbox_to_anchor=(0.5, 0),
+               fontsize=12,
+               ncol=2,
+               )
+    fig.subplots_adjust(hspace=0.5, wspace=0.3)
     fig.align_ylabels(axes)
 
     """ Figure 2 - Generalized forces """
@@ -184,17 +193,17 @@ def plot():
 
     """ Column 1 - Generalized forces: Forces """
     ax = axes[0, 0]
-    ax.plot(data["t"], data["FM"][:, 0].squeeze(-1), "k-")
+    ax.plot(data["t"], data["FM"][:, 0].squeeze(-1), "b-")
     ax.set_ylabel(r"$F_x$")
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1, 0]
-    ax.plot(data["t"], data["FM"][:, 1].squeeze(-1), "k-")
+    ax.plot(data["t"], data["FM"][:, 1].squeeze(-1), "b-")
     ax.set_ylabel(r"$F_y$")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 0]
-    ax.plot(data["t"], data["FM"][:, 2].squeeze(-1), "k-")
+    ax.plot(data["t"], data["FM"][:, 2].squeeze(-1), "b-")
     ax.set_ylabel(r"$F_z$")
 
     ax.set_xlabel("Time, sec")
@@ -202,16 +211,16 @@ def plot():
 
     """ Column 2 - Generalized forces: Moments """
     ax = axes[0, 1]
-    ax.plot(data["t"], data["FM"][:, 3].squeeze(-1), "k-")
+    ax.plot(data["t"], data["FM"][:, 3].squeeze(-1), "b-")
     ax.set_ylabel(r"$M_x$")
     ax.set_ylim([-1, 1])
 
     ax = axes[1, 1]
-    ax.plot(data["t"], data["FM"][:, 4].squeeze(-1), "k-")
+    ax.plot(data["t"], data["FM"][:, 4].squeeze(-1), "b-")
     ax.set_ylabel(r"$M_y$")
 
     ax = axes[2, 1]
-    ax.plot(data["t"], data["FM"][:, 5].squeeze(-1), "k-")
+    ax.plot(data["t"], data["FM"][:, 5].squeeze(-1), "b-")
     ax.set_ylabel(r"$M_z$")
     ax.set_ylim([-1, 1])
 
@@ -225,29 +234,29 @@ def plot():
     fig, axes = plt.subplots(3, 2, sharex=True)
 
     ax = axes[0, 0]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "k-")
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "b-")
     ax.set_ylabel("Rotor 1")
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1, 0]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "k-")
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "b-")
     ax.set_ylabel("Rotor 2")
 
     ax = axes[2, 0]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "k-")
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "b-")
     ax.set_ylabel("Rotor 3")
     ax.set_xlabel("Time, sec")
 
     ax = axes[0, 1]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "k-")
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "b-")
     ax.set_ylabel("Rotor 4")
 
     ax = axes[1, 1]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "k-")
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "b-")
     ax.set_ylabel("Rotor 5")
 
     ax = axes[2, 1]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "k-")
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "b-")
     ax.set_ylabel("Rotor 6")
     ax.set_xlabel("Time, sec")
 
@@ -259,12 +268,12 @@ def plot():
     fig, axes = plt.subplots(2, 1, sharex=True)
 
     ax = axes[0]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "k-")
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "b-")
     ax.set_ylabel("Pusher 1")
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "k-")
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "b-")
     ax.set_ylabel("Pusher 2")
     ax.set_xlabel("Time, sec")
 
@@ -275,16 +284,24 @@ def plot():
     fig, axes = plt.subplots(2, 1, sharex=True)
 
     ax = axes[0]
-    ax.plot(data["t"], data["Fr"].squeeze(-1), "k-")
-    ax.plot(data["t"], data["Frd"], "r--")
-    ax.set_ylabel("Rotor thrust, N")
+    ax.plot(data["t"], -data["Frd"], "r--")
+    ax.plot(data["t"], -data["Fr"].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_{rotors}$, N")
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1]
-    ax.plot(data["t"], data["Fp"].squeeze(-1), "k-")
-    ax.plot(data["t"], data["Fpd"], "r--")
-    ax.set_ylabel("Pusher thrust, N")
+    l1 = ax.plot(data["t"], data["Fpd"], "r--")
+    l2 = ax.plot(data["t"], data["Fp"].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_{pushers}$, N")
     ax.set_xlabel("Time, sec")
+
+    fig.legend([l1, l2], 
+               labels=["Commands from NMPC", "Results"],
+               loc="lower center",
+               bbox_to_anchor=(0.5, 0),
+               fontsize=13,
+               ncol=2,
+               )
 
     plt.tight_layout()
     fig.align_ylabels(axes)

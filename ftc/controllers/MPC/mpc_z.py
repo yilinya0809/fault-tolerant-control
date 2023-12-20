@@ -188,7 +188,7 @@ class NDIController(fym.BaseEnv):
         )
         self.cp_th = 70
         self.ang_lim = env.ang_lim
-        self.tau = 0.01
+        self.tau = 0.05
         self.lpf_ang = fym.BaseSystem(np.zeros((3, 1)))
         self.lpf_r = fym.BaseSystem(np.zeros((6, 1)))
         self.lpf_p = fym.BaseSystem(np.zeros((2, 1)))
@@ -201,9 +201,9 @@ class NDIController(fym.BaseEnv):
 
         Frd, Fpd, thetad = np.ravel(action)
         angd = np.vstack((0, thetad, 0))
-        # ang_f = self.lpf_ang.state
-        # self.lpf_ang.dot = -(ang_f - angd) / self.tau
-        # angd = np.vstack((0, ang_f[1], 0))
+        ang_f = self.lpf_ang.state
+        self.lpf_ang.dot = -(ang_f - angd) / self.tau
+        angd = np.vstack((0, ang_f[1], 0))
         omegad = np.zeros((3, 1))
 
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
