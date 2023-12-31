@@ -56,3 +56,7 @@ register(
     id="NMPC-smooth",
     entry_point="ftc.controllers.MPC.smooth:MPC",
 )
+# register(
+#     id="NMPC-smooth-num",
+#     entry_point="ftc.controllers.MPC.smooth:Numerical_MPC",
+# )

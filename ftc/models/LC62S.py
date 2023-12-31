@@ -46,6 +46,21 @@ class LC62:
         )
         return vertcat(dz, dvel)
 
+    def deriv_ex(self, x, u):
+        g = self.g
+        m = self.m
+        z, Vx, Vz = x[0], x[1], x[2]
+        Fr_dot, Fp_dot, q = x[3], x[4], x[5]
+        Fr, Fp, theta = u[0], u[1], u[2]
+        Fx, Fz = self.B_Fuselage(np.vstack((Vx, Vz)))
+        dz = -sin(theta) * Vx + cos(theta) * Vz
+        dvel = vertcat(
+            (Fp + Fx) / m - g * sin(theta) - q * Vz,
+            (Fr + Fz) / m + g * cos(theta) + q * Vx,
+        )
+        return vertcat (dz, dvel, Fr_dot, Fp_dot, q)
+        
+
     def B_Fuselage(self, vel):
         S = self.S
         rho = 1.225

@@ -188,7 +188,8 @@ class NDIController(fym.BaseEnv):
         )
         self.cp_th = 70
         self.ang_lim = env.ang_lim
-        self.tau = 0.05
+        self.tau1 = 0.05
+        self.tau2 = 0.01
         self.lpf_ang = fym.BaseSystem(np.zeros((3, 1)))
         self.lpf_r = fym.BaseSystem(np.zeros((6, 1)))
         self.lpf_p = fym.BaseSystem(np.zeros((2, 1)))
@@ -205,7 +206,7 @@ class NDIController(fym.BaseEnv):
         # thetad = 0.5 * np.sin(t)
         angd = np.vstack((0, thetad, 0))
         ang_f = self.lpf_ang.state
-        omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau
+        omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau1
         # angd = np.vstack((0, ang_f[1], 0))
         # omegad = np.zeros((3, 1))
 
@@ -222,13 +223,14 @@ class NDIController(fym.BaseEnv):
         pcmds = th_p / self.cp_th * np.ones((2, 1))
         
         # rcmds_f = self.lpf_r.state
-        # self.lpf_r.dot = -(rcmds_f - rcmds) / self.tau
+        # self.lpf_r.dot = -(rcmds_f - rcmds) / self.tau2
         
         # pcmds_f = self.lpf_p.state
-        # self.lpf_p.dot = -(pcmds_f - pcmds) / self.tau
+        # self.lpf_p.dot = -(pcmds_f - pcmds) / self.tau2
 
         dels = np.zeros((3, 1))
         ctrls = np.vstack((rcmds, pcmds, dels))
+        # ctrls = np.vstack((rcmds_f, pcmds_f, dels))
 
 
         controller_info = {
