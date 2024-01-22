@@ -418,10 +418,40 @@ def total_cost():
 
     return cost_ndi, cost_mpc
 
+def rotor_cost():
+    cost_ndi = 0
+    cost_mpc = 0
+    rcost_ndi = 0
+    rcost_mpc = 0
+
+    A = np.diag((1,1,1,1,1,1,1,1))
+    B = np.diag((1,1,1,1,1,1))
+    # A = np.diag((1,1,1,1,1,1,1,1))
+
+    
+    for k in range(np.size(time)):
+        r_ndi = rotors_ndi[k]
+        r_mpc = rotors_mpc[k]
+        rcost_ndi = rcost_ndi + r_ndi.T @ B @ r_ndi
+        rcost_mpc = rcost_mpc + r_mpc.T @ B @ r_mpc
+        
+
+#     for k in range(np.size(time)):
+#         ctrls_ndi = np.vstack((rotors_ndi[k], pushers_ndi[k]))
+#         ctrls_mpc = np.vstack((rotors_mpc[k], pushers_mpc[k]))
+#         cost_ndi = cost_ndi + ctrls_ndi.T @ A @ ctrls_ndi
+#         cost_mpc = cost_mpc + ctrls_mpc.T @ A @ ctrls_mpc
+        
+    # return cost_ndi, cost_mpc
+    return rcost_ndi, rcost_mpc
+
 
 if __name__ == "__main__":
     cost_ndi, cost_mpc = total_cost()
+    ctrlcost_ndi, ctrlcost_mpc = rotor_cost()
     print(cost_ndi)
     print(cost_mpc)
+    print(ctrlcost_ndi)
+    print(ctrlcost_mpc)
     plot()
 

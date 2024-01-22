@@ -33,7 +33,7 @@ class MyEnv(fym.BaseEnv):
         super().__init__(**env_config["fkw"])
         self.plant = LC62R(env_config["plant"])
         self.ang_lim = np.deg2rad(45)
-        self.controller = ftc.make("NMPC-DI", self)
+        self.controller = ftc.make("geso", self)
 
 
     def step(self, action):
@@ -54,27 +54,60 @@ class MyEnv(fym.BaseEnv):
         ctrls = self.plant.saturate(ctrls0)
 
         FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
-        self.plant.set_dot(t, FM)
+        dtrb, dtrb_info = self.get_dtrb(t, self)
+        FM_dtrb = FM + np.vstack((0, 0, dtrb))
+        self.plant.set_dot(t, FM_dtrb)
+        self.controller.set_dot(t, self)
 
         env_info = {
             "t": t,
             **self.observe_dict(),
             **controller_info,
+            **dtrb_info,
             "ctrls0": ctrls0,
             "ctrls": ctrls,
-            "FM": FM,
+            "FM": FM_dtrb,
             "Fr": self.plant.B_VTOL(ctrls[:6], omega)[2],
             "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
         }
 
         return env_info
 
+    def get_dtrb(self, t, env):
+        dtrb_wind = 0
+        amplitude = frequency = phase_shift = []
+        for i in range(5):
+            a = np.random.randn(1)
+            w = np.random.randint(1, 10, 1) * np.pi
+            p = np.random.randint(1, 10, 1)
+            dtrb_wind = dtrb_wind + a * np.sin(w * t + p)
+            amplitude = np.append(amplitude, a)
+            frequency = np.append(frequency, w)
+            phase_shift = np.append(phase_shift, p)
+
+        dtrb_w = dtrb_wind * np.ones((4, 1))
+            
+        pos, vel, quat, omega = env.plant.observe_list()
+        del_J = 0.3 * env.plant.J
+        dtrb_model = np.cross(omega, del_J @ omega, axis=0)
+        dtrb_m = np.vstack((0, dtrb_model))
+
+        dtrb = dtrb_w + dtrb_m
+        dtrb_info = {
+            "amplitude": amplitude,
+            "frequency": frequency,
+            "phase_shift": phase_shift,
+        }
+        return dtrb, dtrb_info
+
+
+
 
 def run():
     env = MyEnv()
-    # outer-loop
-    agent = ftc.make("NMPC-smooth", env)
-    flogger = fym.Logger("data_test.h5")
+    agent = ftc.make("NMPC", env)
+    # agent = ftc.make("NMPC-test", env)
+    flogger = fym.Logger("data.h5")
 
     env.reset()
     try:
@@ -97,8 +130,8 @@ def run():
 
 
 def plot():
-    data = fym.load("data_test.h5")["env"]
-    agent_data = fym.load("data_test.h5")["agent"]
+    data = fym.load("data.h5")["env"]
+    agent_data = fym.load("data.h5")["agent"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
@@ -164,15 +197,18 @@ def plot():
     """ Column 4 - States: Angular rates """
     ax = axes[0, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 0].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data["omegad"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$p$, deg/s")
     ax.set_ylim([-1, 1])
 
     ax = axes[1, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data["omegad"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$q$, deg/s")
 
     ax = axes[2, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 2].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data["omegad"][:, 2].squeeze(-1)), "r--")
     ax.set_ylabel(r"$r$, deg/s")
     ax.set_ylim([-1, 1])
 

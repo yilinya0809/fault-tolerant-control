@@ -7,9 +7,8 @@
 [6] M. Faessler, A. Franchi, and D. Scaramuzza, “Differential Flatness of Quadrotor Dynamics Subject to Rotor Drag for Accurate Tracking of High-Speed Trajectories,” IEEE Robot. Autom. Lett., vol. 3, no. 2, pp. 620–626, Apr. 2018, doi: 10.1109/LRA.2017.2776353.
 """
 
-import numpy as np
-
 import fym
+import numpy as np
 from fym.utils.rot import quat2dcm
 
 from ftc.utils import safeupdate
