@@ -33,8 +33,8 @@ class MyEnv(fym.BaseEnv):
         super().__init__(**env_config["fkw"])
         self.plant = LC62R(env_config["plant"])
         self.ang_lim = np.deg2rad(45)
-        # self.controller = ftc.make("NMPC-DI", self)
-        self.controller = ftc.make("NMPC-DI-test", self)
+        self.controller = ftc.make("NMPC-DI", self)
+        # self.controller = ftc.make("NMPC-DI-test", self)
 
 
     def step(self, action):
@@ -73,8 +73,8 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    # agent = ftc.make("NMPC", env)
-    agent = ftc.make("NMPC-test", env)
+    agent = ftc.make("NMPC", env)
+    # agent = ftc.make("NMPC-test", env)
     flogger = fym.Logger("data_MPC.h5")
 
     env.reset()

@@ -33,7 +33,8 @@ class MPC:
         self.args = self.constraints()
 
         self.Q = ca.diagcat(100, 50, 10) # Gain matrix for X
-        self.R = 0.0 * ca.diagcat(0, 0, 1000) # Gain matrix for U
+        # self.Q = ca.diagcat(10, 10, 10)
+        self.R = 0.01 * ca.diagcat(0, 0, 1000) # Gain matrix for U
 
 
 
@@ -60,7 +61,7 @@ class MPC:
         lbx[n_states * (N + 1) + 1 :: n_controls] = 0  # Fp min
         ubx[n_states * (N + 1) + 1 :: n_controls] = self.Fp_max  # Fp max
         lbx[n_states * (N + 1) + 2 :: n_controls] = -self.theta_max  # theta min
-        ubx[n_states * (N + 1) + 2 :: n_controls] = self.theta_max  # theta max
+        ubx[n_states * (N + 1) + 2 :: n_controls] = self.theta_max # theta max
 
         args = {
             "lbg": ca.DM.zeros((n_states * (N + 1), 1)),  # constraints lower bound
@@ -188,12 +189,11 @@ class NDIController(fym.BaseEnv):
         )
         self.cp_th = 70
         self.ang_lim = env.ang_lim
-        # self.tau1 = 0.05
-        # self.tau2 = 0.01
-        self.tau = 0.05
+        self.tau1 = 0.05
+        self.tau2 = 0.01
         self.lpf_ang = fym.BaseSystem(np.zeros((3, 1)))
         self.lpf_r = fym.BaseSystem(np.zeros((6, 1)))
-        self.lpf_p = fym.BaseSystem(np.zeros((2, 1)))
+        # self.lpf_p = fym.BaseSystem(np.zeros((2, 1)))
         
 
     def get_control(self, t, env, action):
@@ -206,15 +206,15 @@ class NDIController(fym.BaseEnv):
         # Fpd = 0
         # thetad = 0.5 * np.sin(t)
         angd = np.vstack((0, thetad, 0))
-        # ang_f = self.lpf_ang.state
-        # self.lpf_ang.dot = -(ang_f - angd) / self.tau
-        # angd = np.vstack((0, ang_f[1], 0))
-        omegad = np.zeros((3, 1))
+        ang_f = self.lpf_ang.state
+        omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau1
+
+        # omegad = np.zeros((3, 1))
 
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
 
-        K1 = np.diag((1, 50, 1))
-        K2 = np.diag((1, 10, 1))
+        K1 = np.diag((1, 100, 1))
+        K2 = np.diag((1, 100, 1))
         Mrd = env.plant.J @ (-f - K1 @ (ang - angd) - K2 @ (omega - omegad))
         nu = np.vstack((Frd, Mrd))
         th_r = np.linalg.pinv(self.B_r2f) @ nu
@@ -223,15 +223,15 @@ class NDIController(fym.BaseEnv):
         th_p = Fpd / 2
         pcmds = th_p / self.cp_th * np.ones((2, 1))
         
-        rcmds_f = self.lpf_r.state
-        self.lpf_r.dot = -(rcmds_f - rcmds) / self.tau
+        # rcmds_f = self.lpf_r.state
+        # self.lpf_r.dot = -(rcmds_f - rcmds) / self.tau2
         
-        pcmds_f = self.lpf_p.state
-        self.lpf_p.dot = -(pcmds_f - pcmds) / self.tau
+        # pcmds_f = self.lpf_p.state
+        # self.lpf_p.dot = -(pcmds_f - pcmds) / self.tau
 
         dels = np.zeros((3, 1))
-        # ctrls = np.vstack((rcmds, pcmds, dels))
-        ctrls = np.vstack((rcmds_f, pcmds_f, dels))
+        ctrls = np.vstack((rcmds, pcmds, dels))
+        # ctrls = np.vstack((rcmds_f, pcmds_f, dels))
 
 
         controller_info = {

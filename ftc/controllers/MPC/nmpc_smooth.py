@@ -45,8 +45,8 @@ class MPC:
         lbx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
         ubx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
 
-        lbx[0 : n_states * (N + 1) : n_states] = self.z_target - 5  # z min
-        ubx[0 : n_states * (N + 1) : n_states] = self.z_target + 5
+        lbx[0 : n_states * (N + 1) : n_states] = self.z_target - 2  # z min
+        ubx[0 : n_states * (N + 1) : n_states] = self.z_target + 1
         lbx[1 : n_states * (N + 1) : n_states] = 0  # Vx min
         ubx[1 : n_states * (N + 1) : n_states] = ca.inf  # Vx max
         lbx[2 : n_states * (N + 1) : n_states] = -ca.inf  # Vz min
@@ -62,8 +62,8 @@ class MPC:
 
         lbg = ca.DM.zeros((n_states * (N + 1) + n_controls * (N - 1), 1))
         ubg = ca.DM.zeros((n_states * (N + 1) + n_controls * (N - 1), 1))
-        lbg[n_states * (N + 1):: n_controls] = -ca.inf
-        ubg[n_states * (N + 1):: n_controls] = ca.inf
+        lbg[n_states * (N + 1):: n_controls] = -300
+        ubg[n_states * (N + 1):: n_controls] = 300
         lbg[n_states * (N + 1) + 1:: n_controls] = -ca.inf
         ubg[n_states * (N + 1) + 1:: n_controls] = ca.inf
         lbg[n_states * (N + 1) + 2:: n_controls] = -ca.inf
@@ -109,7 +109,6 @@ class MPC:
         Fp_dot = ca.MX.sym("Fp_dot")
         qd = ca.MX.sym("qd")
         
-        # states = ca.vertcat(z, vx, vz, Fr_dot, Fp_dot, qd)
         controls = ca.vertcat(Fr, Fp, theta)
 
         X = ca.MX.sym("X", n_states, N + 1)
@@ -121,7 +120,7 @@ class MPC:
 
         # Q = ca.diagcat(50, 10, 10)
         # R = 0.0 * ca.diagcat(1, 0, 1000)
-        S = 0.000* ca.diagcat(1, 0, 0)
+        S = 0.0 * ca.diagcat(1, 0, 0)
 
         Xdot = self.plant.derivnox(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])

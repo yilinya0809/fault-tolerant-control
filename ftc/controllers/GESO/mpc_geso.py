@@ -23,7 +23,7 @@ class GESOController(fym.BaseEnv):
         self.cp_th = 70
         self.ang_lim = env.ang_lim
         self.tau1 = 0.05
-        # self.tau2 = 0.01
+        # self.tau2 = 0.012
         self.lpf_ang = fym.BaseSystem(np.zeros((3, 1)))
         # self.lpf_r = fym.BaseSystem(np.zeros((6, 1)))
         # self.lpf_p = fym.BaseSystem(np.zeros((2, 1)))
@@ -47,17 +47,19 @@ class GESOController(fym.BaseEnv):
         ang_f = self.lpf_ang.state
         omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau1
 
-        # angd = np.vstack((0, 0, 0))
-        # omegad = np.vstack((0, 0, 0))
         f = -np.cross(omega, env.plant.J @ omega, axis=0)
+        # f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
 
         K1 = np.diag((1, 100, 1))
         K2 = np.diag((1, 100, 1))
-        nui_N = -f - K1 @ (ang - angd) - K2 @ (omega - omegad)
+
+        nui_N = -f + (-K1 @ (ang - angd) - K2 @ (omega - omegad))
+        # nui_N = env.plant.J @ (-f + (-K1 @ (ang - angd) - K2 @ (omega - omegad)))
         dhat = self.obsv.state[3:]
         nui_E = -dhat
         nui = nui_N + nui_E
         self.u_star = nui + f
+        # self.u_star = nui + env.plant.J @ f
         nu = np.vstack((Frd, nui))
         th_r = np.linalg.pinv(self.B_r2f) @ nu
         rcmds = th_r / self.cr_th
@@ -73,7 +75,7 @@ class GESOController(fym.BaseEnv):
 
         dels = np.zeros((3, 1))
         ctrls = np.vstack((rcmds, pcmds, dels))
-        # ctrls = np.vstack((rcmds_f, pcmds_f, dels))
+        # ctrls = np.vstack((rcmds_f, pcmds, dels))
 
 
         controller_info = {

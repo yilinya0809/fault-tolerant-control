@@ -33,7 +33,8 @@ class MyEnv(fym.BaseEnv):
         super().__init__(**env_config["fkw"])
         self.plant = LC62R(env_config["plant"])
         self.ang_lim = np.deg2rad(45)
-        self.controller = ftc.make("geso", self)
+        self.controller = ftc.make("NMPC-DI", self)
+        # self.controller = ftc.make("geso", self)
 
 
     def step(self, action):
@@ -58,13 +59,13 @@ class MyEnv(fym.BaseEnv):
         dtrb = np.zeros((4, 1))
         FM_dtrb = FM + np.vstack((0, 0, dtrb))
         self.plant.set_dot(t, FM_dtrb)
-        self.controller.set_dot(t, self)
+
 
         env_info = {
             "t": t,
             **self.observe_dict(),
-            **controller_info,
             **dtrb_info,
+            **controller_info,
             "ctrls0": ctrls0,
             "ctrls": ctrls,
             "FM": FM_dtrb,
@@ -78,7 +79,8 @@ class MyEnv(fym.BaseEnv):
         dtrb_wind = 0
         amplitude = frequency = phase_shift = []
         for i in range(5):
-            a = np.random.randn(1)
+            np.random.seed(0)
+            a = np.random.randn(1) * 0.5 + 1
             w = np.random.randint(1, 10, 1) * np.pi
             p = np.random.randint(1, 10, 1)
             dtrb_wind = dtrb_wind + a * np.sin(w * t + p)
@@ -102,13 +104,11 @@ class MyEnv(fym.BaseEnv):
         return dtrb, dtrb_info
 
 
-
-
 def run():
     env = MyEnv()
-    agent = ftc.make("NMPC", env)
-    flogger = fym.Logger("data_geso.h5")
-    # flogger = fym.Logger("data_geso_test.h5")
+    # outer-loop
+    agent = ftc.make("NMPC-smooth", env)
+    flogger = fym.Logger("data.h5")
 
     env.reset()
     try:
@@ -131,10 +131,8 @@ def run():
 
 
 def plot():
-    data = fym.load("data_geso.h5")["env"]
-    agent_data = fym.load("data_geso.h5")["agent"]
-    # data = fym.load("data_geso_test.h5")["env"]
-    # agent_data = fym.load("data_geso_test.h5")["agent"]
+    data = fym.load("data.h5")["env"]
+    agent_data = fym.load("data.h5")["agent"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
@@ -182,7 +180,7 @@ def plot():
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "b-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\phi$, deg")
-    ax.set_ylim([-1, 1])
+    ax.set_ylim([-5, 5])
 
     ax = axes[1, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-")
@@ -193,25 +191,22 @@ def plot():
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "b-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\psi$, deg")
-    ax.set_ylim([-1, 1])
+    ax.set_ylim([-5, 5])
 
     ax.set_xlabel("Time, sec")
 
     """ Column 4 - States: Angular rates """
     ax = axes[0, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 0].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data["omegad"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$p$, deg/s")
     ax.set_ylim([-1, 1])
 
     ax = axes[1, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data["omegad"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$q$, deg/s")
 
     ax = axes[2, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 2].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data["omegad"][:, 2].squeeze(-1)), "r--")
     ax.set_ylabel(r"$r$, deg/s")
     ax.set_ylim([-1, 1])
 
