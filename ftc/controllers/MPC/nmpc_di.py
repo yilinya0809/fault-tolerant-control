@@ -20,7 +20,7 @@ class MPC:
 
         z_init, vx_init, vz_init, theta_init, _ = env.observation()
 
-        X_trim, U_trim = self.plant.get_trim(fixed={"h": 10, "VT": 45})
+        X_trim, U_trim = self.plant.get_trim(fixed={"h": 50, "VT": 45})
         _, self.z_target, vx_target, vz_target = X_trim.ravel()
         Fr_target, Fp_target, theta_target = U_trim.ravel()
 
@@ -31,12 +31,6 @@ class MPC:
         self.n_states = self.state_init.numel()
         self.n_controls = self.control_init.numel()
         self.args = self.constraints()
-
-        self.Q = ca.diagcat(100, 50, 10) # Gain matrix for X
-        # self.Q = ca.diagcat(10, 10, 10)
-        self.R = 0.01 * ca.diagcat(0, 0, 1000) # Gain matrix for U
-
-
 
     def DM2Arr(self, dm):
         return np.array(dm.full())
@@ -49,8 +43,8 @@ class MPC:
         lbx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
         ubx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
 
-        lbx[0 : n_states * (N + 1) : n_states] = self.z_target - 2  # z min
-        ubx[0 : n_states * (N + 1) : n_states] = self.z_target + 1
+        lbx[0 : n_states * (N + 1) : n_states] = self.z_target - self.z_eps  # z min
+        ubx[0 : n_states * (N + 1) : n_states] = self.z_target + self.z_eps  # z max
         lbx[1 : n_states * (N + 1) : n_states] = 0  # Vx min
         ubx[1 : n_states * (N + 1) : n_states] = ca.inf  # Vx max
         lbx[2 : n_states * (N + 1) : n_states] = -ca.inf  # Vz min
@@ -61,7 +55,7 @@ class MPC:
         lbx[n_states * (N + 1) + 1 :: n_controls] = 0  # Fp min
         ubx[n_states * (N + 1) + 1 :: n_controls] = self.Fp_max  # Fp max
         lbx[n_states * (N + 1) + 2 :: n_controls] = -self.theta_max  # theta min
-        ubx[n_states * (N + 1) + 2 :: n_controls] = self.theta_max # theta max
+        ubx[n_states * (N + 1) + 2 :: n_controls] = self.theta_max  # theta max
 
         args = {
             "lbg": ca.DM.zeros((n_states * (N + 1), 1)),  # constraints lower bound
@@ -73,9 +67,9 @@ class MPC:
 
     def get_action(self):
         agent_info = {
-            "Xd": self.state_target,
-            "Ud": self.control_target,
-            "qd": 0
+             "Xd": self.state_target,
+             "Ud": self.control_target,
+             "qd": 0
         }
         
         return self.control_init, agent_info
@@ -105,10 +99,11 @@ class MPC:
         U = ca.MX.sym("U", n_controls, N)
         P = ca.MX.sym("P", 2 * n_states + n_controls)
 
-        # Q = ca.diagcat(10, 10, 10)
-        # R = 0.0 * ca.diagcat(0, 0, 1000)
-        Q = self.Q
-        R = self.R
+        Q = ca.diagcat(300, 300, 300)
+        R = ca.diagcat(0.01, 0.1, 30000)
+
+        # Q = ca.diagcat(100, 100, 10)
+        # R = ca.diagcat(0.01, 0.1, 10)
 
         Xdot = self.plant.derivnox(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
@@ -172,7 +167,6 @@ class MPC:
 
         self.control_init = u[:, 0]
 
-
 class NDIController(fym.BaseEnv):
     def __init__(self, env):
         super().__init__()
@@ -189,11 +183,13 @@ class NDIController(fym.BaseEnv):
         )
         self.cp_th = 70
         self.ang_lim = env.ang_lim
-        self.tau1 = 0.05
-        self.tau2 = 0.01
+        self.tau = 0.05
+        # self.tau1 = 0.05
+        # self.tau2 = 0.01
         self.lpf_ang = fym.BaseSystem(np.zeros((3, 1)))
-        self.lpf_r = fym.BaseSystem(np.zeros((6, 1)))
+        # self.lpf_r = fym.BaseSystem(np.zeros((6, 1)))
         # self.lpf_p = fym.BaseSystem(np.zeros((2, 1)))
+
         
 
     def get_control(self, t, env, action):

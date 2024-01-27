@@ -48,10 +48,10 @@ register(
     id="NMPC",
     entry_point="ftc.controllers.MPC.nmpc_di:MPC",
 )
-register(
-    id="NMPC-DI",
-    entry_point="ftc.controllers.MPC.nmpc_di:NDIController",
-)
+# register(
+#     id="NMPC-DI",
+#     entry_point="ftc.controllers.MPC.nmpc_di:NDIController",
+# )
 register(
     id="NMPC-smooth",
     entry_point="ftc.controllers.MPC.nmpc_smooth:MPC",
@@ -61,6 +61,10 @@ register(
     entry_point="ftc.controllers.GESO.geso:GESOController",
 )
 register(
-    id="geso",
+    id="NMPC-GESO",
     entry_point="ftc.controllers.GESO.mpc_geso:GESOController",
+)
+register(
+    id="NMPC-DI",
+    entry_point="ftc.controllers.GESO.mpc_geso:NDIController",
 )

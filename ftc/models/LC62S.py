@@ -19,13 +19,27 @@ class LC62:
     }
     th_r_max = 159.2089
     th_p_max = 91.5991
+    
+    def deriv_original(self, x, u):
+        g = self.g
+        m = self.m
+        pos, vel = x[:2], x[2:]
+        Fr, Fp, theta = u[0], u[1], u[2]
+        Fx, Fz = self.B_Fuselage(vel)
+        dpos = vertcat(
+            cos(theta) * vel[0] + sin(theta) * vel[1],
+            -sin(theta) * vel[0] + cos(theta) * vel[1],
+        )
+        dvel = vertcat((Fp + Fx) / m - g * sin(theta), (Fr + Fz) / m + g * cos(theta))
+        return vertcat(dpos, dvel)
+
 
     def deriv(self, x, u):
         g = self.g
         m = self.m
         pos, vel = x[:2], x[2:]
         Fr, Fp, theta = u[0], u[1], u[2]
-        Fx, Fz = self.B_Fuselage(vel)
+        Fx, Fz = self.B_Fuselage_lin(vel)
         dpos = vertcat(
             cos(theta) * vel[0] + sin(theta) * vel[1],
             -sin(theta) * vel[0] + cos(theta) * vel[1],
@@ -60,7 +74,6 @@ class LC62:
         )
         return vertcat (dz, dvel, Fr_dot, Fp_dot, q)
         
-
     def B_Fuselage(self, vel):
         S = self.S
         rho = 1.225
@@ -73,6 +86,33 @@ class LC62:
         Fz = -qbar * S * (CL*cos(alp) + CD * sin(alp))
         return Fx, Fz
 
+
+    def B_Fuselage_lin(self, vel):
+        S = self.S
+        rho = 1.225
+        u, w = vel[0], vel[1]
+        VT = norm_2(vel)
+        alp = arctan2(w, u)
+        qbar = 0.5 * rho * VT**2
+        CL, CD = self.aero_coeff_lin(alp)
+        Fx = qbar * S * (CL * sin(alp) - CD * cos(alp))
+        Fz = -qbar * S * (CL*cos(alp) + CD * sin(alp))
+        return Fx, Fz
+
+    def aero_coeff_lin(self, alp):
+        # clgrid = interpolant(
+        #     "CLGRID", "bspline", [self.tables["alp"]], self.tables["CL"]
+        # )
+        # cdgrid = interpolant(
+        #     "CDGRID", "bspline", [self.tables["alp"]], self.tables["CD"]
+        # )
+        # CL = clgrid(alp)
+        # CD = cdgrid(alp)
+
+        CL = 0.2764 * alp - 0.0779
+        CD = 1.0075 * alp - 0.0121
+        return CL, CD
+
     def aero_coeff(self, alp):
         clgrid = interpolant(
             "CLGRID", "bspline", [self.tables["alp"]], self.tables["CL"]
@@ -82,6 +122,7 @@ class LC62:
         )
         CL = clgrid(alp)
         CD = cdgrid(alp)
+
         return CL, CD
 
     def get_trim(
@@ -91,7 +132,7 @@ class LC62:
             "Fr": 0,
             "Fp": 0.5,
         },
-        fixed={"h": 10, "VT": 45},
+        fixed={"h": 50, "VT": 45},
         method="SLSQP",
         options={"disp": False, "ftol": 1e-10},
     ):
@@ -132,7 +173,7 @@ class LC62:
         x_trim = np.vstack((pos_trim, vel_trim))
         u_trim = np.vstack((Fr, Fp, alp))
 
-        dx = self.deriv(x_trim, u_trim)
+        dx = self.deriv_original(x_trim, u_trim)
         dvel = dx[2:]
         weight = np.diag([1, 1])
         return dvel.T @ weight @ dvel
