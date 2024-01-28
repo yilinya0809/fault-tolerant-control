@@ -100,7 +100,7 @@ class MPC:
         P = ca.MX.sym("P", 2 * n_states + n_controls)
 
         Q = ca.diagcat(300, 300, 300)
-        R = ca.diagcat(0.01, 0.1, 30000)
+        R = ca.diagcat(0.01, 0.1, 40000)
 
         # Q = ca.diagcat(100, 100, 10)
         # R = ca.diagcat(0.01, 0.1, 10)

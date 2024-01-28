@@ -39,7 +39,7 @@ class GESOController(fym.BaseEnv):
         self.B[0:l, 0:l] = np.eye(l)
         self.C[0:l, 0:l] = np.eye(l)
         self.A = np.eye(l * (n + 1), l * (n + 1), l)
-        wb = 20
+        wb = 22
         llist = []
         if n == 3:
             clist = np.array([4, 6, 4, 1])
