@@ -55,8 +55,8 @@ class GESOController(fym.BaseEnv):
             L.append(lval * np.eye(l))
         self.L = np.vstack(L)
 
-        self.K1 = np.diag((20, 400, 20))
-        self.K2 = np.diag((20, 200, 20))
+        self.K1 = np.diag((100, 1000, 100))
+        self.K2 = np.diag((500, 500, 100))
 
 
 

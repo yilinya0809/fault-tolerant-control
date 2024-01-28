@@ -55,9 +55,11 @@ class MyEnv1(fym.BaseEnv):
 
         FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
         self.plant.set_dot(t, FM)
+        # self.plant.set_dot(t, FM)
         # dtrb, dtrb_info = self.get_dtrb(t, self)
         # dtrb = np.zeros((4, 1))
         # FM_dtrb = FM + np.vstack((0, 0, dtrb))
+        # self.plant.set_dot(t, FM_dtrb)
 
         env_info = {
             "t": t,
@@ -77,11 +79,11 @@ class MyEnv1(fym.BaseEnv):
     def get_dtrb(self, t, env):
         dtrb_wind = 0
         amplitude = frequency = phase_shift = []
-        for i in range(5):
-            a = np.random.randn(1)
+        a = np.vstack((10, 20, 30))
+        for i in range(3):
             w = np.random.randint(1, 10, 1) * np.pi
             p = np.random.randint(1, 10, 1)
-            dtrb_wind = dtrb_wind + a * np.sin(w * t + p)
+            dtrb_wind = dtrb_wind + a[i] * np.sin(w * t + p)
             amplitude = np.append(amplitude, a)
             frequency = np.append(frequency, w)
             phase_shift = np.append(phase_shift, p)
@@ -115,6 +117,8 @@ class MyEnv2(MyEnv1):
         # dtrb, dtrb_info = self.get_dtrb(t, self)
         # dtrb = np.zeros((4, 1))
         # FM_dtrb = FM + np.vstack((0, 0, dtrb))
+        # self.plant.set_dot(t, FM_dtrb)
+
 
         env_info = {
             "t": t,
@@ -189,7 +193,7 @@ def plot():
     ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "b-")
     ax.plot(data_ndi["t"], data_ndi["plant"]["pos"][:, 1].squeeze(-1), "k-")
     ax.set_ylabel(r"$y$, m")
-    ax.set_ylim([-1, 1])
+    # ax.set_ylim([-1, 1])
 
     ax = axes[2, 0]
     ax.plot(data["t"], agent["Xd"][:, 0].squeeze(-1), "r--")
@@ -228,7 +232,7 @@ def plot():
     ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 0].squeeze(-1)), "k-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\phi$, deg")
-    ax.set_ylim([-1, 1])
+    # ax.set_ylim([-1, 1])
 
     ax = axes[1, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-")
@@ -241,7 +245,7 @@ def plot():
     ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 2].squeeze(-1)), "k-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\psi$, deg")
-    ax.set_ylim([-1, 1])
+    # ax.set_ylim([-1, 1])
 
     ax.set_xlabel("Time, sec")
 
@@ -251,7 +255,7 @@ def plot():
     ax.plot(data["t"], np.rad2deg(data_ndi["plant"]["omega"][:, 0].squeeze(-1)), "k-")
     ax.plot(data["t"], np.rad2deg(data["omegad"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$p$, deg/s")
-    ax.set_ylim([-1, 1])
+    # ax.set_ylim([-1, 1])
 
     ax = axes[1, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-")
@@ -264,7 +268,7 @@ def plot():
     a2 = ax.plot(data["t"], np.rad2deg(data_ndi["plant"]["omega"][:, 2].squeeze(-1)), "k-")
     a3 = ax.plot(data["t"], np.rad2deg(data["omegad"][:, 2].squeeze(-1)), "--r")
     ax.set_ylabel(r"$r$, deg/s")
-    ax.set_ylim([-1, 1])
+    # ax.set_ylim([-1, 1])
 
     ax.set_xlabel("Time, sec")
 
@@ -367,18 +371,23 @@ def plot():
     ax = axes[0]
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 0].squeeze(-1)), "k-")
     ax.set_ylabel(r"$\phi$, deg")
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1]
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data_ndi["angd"][:, 1].squeeze(-1)), "k--")
+    ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 1].squeeze(-1)), "k-")
+    
     ax.set_ylabel(r"$\theta$, deg")
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[2]
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 2].squeeze(-1)), "k-")
     ax.set_ylabel(r"$\psi$, deg")
     ax.set_xlabel("Time, sec")
 
@@ -450,6 +459,49 @@ def plot():
                )
     fig.tight_layout()
     # fig.subplot_adjust(right=0.85)
+    
+    """ Figure 7 - Generalized forces """
+    fig, axes = plt.subplots(3, 2, squeeze=False, sharex=True)
+
+    """ Column 1 - Generalized forces: Forces """
+    ax = axes[0, 0]
+    ax.plot(data["t"], data["FM"][:, 0].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_x$")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    ax = axes[1, 0]
+    ax.plot(data["t"], data["FM"][:, 1].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_y$")
+    ax.set_ylim([-1, 1])
+
+    ax = axes[2, 0]
+    ax.plot(data["t"], data["FM"][:, 2].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_z$")
+
+    ax.set_xlabel("Time, sec")
+
+
+    """ Column 2 - Generalized forces: Moments """
+    ax = axes[0, 1]
+    ax.plot(data["t"], data["FM"][:, 3].squeeze(-1), "b-")
+    ax.set_ylabel(r"$M_x$")
+    ax.set_ylim([-1, 1])
+
+    ax = axes[1, 1]
+    ax.plot(data["t"], data["FM"][:, 4].squeeze(-1), "b-")
+    ax.set_ylabel(r"$M_y$")
+
+    ax = axes[2, 1]
+    ax.plot(data["t"], data["FM"][:, 5].squeeze(-1), "b-")
+    ax.set_ylabel(r"$M_z$")
+    ax.set_ylim([-1, 1])
+
+    ax.set_xlabel("Time, sec")
+
+    plt.tight_layout()
+    fig.subplots_adjust(wspace=0.5)
+    fig.align_ylabels(axes)
+
 
 
 

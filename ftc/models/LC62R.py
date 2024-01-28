@@ -191,9 +191,45 @@ class LC62R(fym.BaseEnv):
         domega = self.Jinv @ (M - np.cross(omega, self.J @ omega, axis=0)) + domega
         return dpos, dvel, dquat, domega
 
+    def deriv_dtrb(self, pos, vel, quat, omega, FM, dtrb):
+        F, M = FM[0:3], FM[3:]
+        dcm = quat2dcm(quat)
+
+        """ disturbances """
+        dv = np.zeros((3, 1))
+        domega = self.Jinv @ np.zeros((3, 1))
+
+        """ dynamics """
+        dpos = dcm.T @ vel
+        dvel = F / self.m - np.cross(omega, vel, axis=0) + dv
+        p, q, r = np.ravel(omega)
+        dquat = 0.5 * np.array(
+            [[0.0, -p, -q, -r], [p, 0.0, r, -q], [q, -r, 0.0, p], [r, q, -p, 0.0]]
+        ).dot(quat)
+        eps = 1 - (quat[0] ** 2 + quat[1] ** 2 + quat[2] ** 2 + quat[3] ** 2)
+        k = 1
+        dquat = dquat + k * eps * quat
+        domega = self.Jinv @ (M + dtrb - np.cross(omega, self.J @ omega, axis=0)) + domega
+        return dpos, dvel, dquat, domega
+
+    def get_dtrb(self, t):
+        # wind dtrb
+        dtrb_wind = 2 * np.sin(2 * np.pi * t + 7) + 0.5 * np.sin(np.pi * t + 1)
+        
+        # model uncertainty
+        _, _, _, omega = self.observe_list()
+        del_J = 0.3 * self.J
+        dtrb_model = np.cross(omega, del_J @ omega, axis=0)
+        dtrb_model = np.zeros((3, 1))
+
+        dtrb = dtrb_wind + dtrb_model
+        return dtrb
+
     def set_dot(self, t, FM):
         states = self.observe_list()
-        dots = self.deriv(*states, FM)
+        # dots = self.deriv(*states, FM)
+        dtrb = self.get_dtrb(t)
+        dots = self.deriv_dtrb(*states, FM, dtrb)
         self.pos.dot, self.vel.dot, self.quat.dot, self.omega.dot = dots
 
     def get_FM(
