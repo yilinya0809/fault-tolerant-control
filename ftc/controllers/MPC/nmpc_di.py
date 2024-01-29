@@ -15,8 +15,8 @@ class MPC:
         self.theta_max = env.ang_lim
         self.z_eps = 2
 
-        self.step_horizon = 0.1  # time between steps in seconds
-        self.N = 10  # number of look ahead steps
+        self.step_horizon = 0.2  # time between steps in seconds
+        self.N = 5  # number of look ahead steps
 
         z_init, vx_init, vz_init, theta_init, _ = env.observation()
 
@@ -100,7 +100,7 @@ class MPC:
         P = ca.MX.sym("P", 2 * n_states + n_controls)
 
         Q = ca.diagcat(300, 300, 300)
-        R = ca.diagcat(0.01, 0.1, 40000)
+        R = ca.diagcat(0.01, 0.1, 200000)
 
         # Q = ca.diagcat(100, 100, 10)
         # R = ca.diagcat(0.01, 0.1, 10)

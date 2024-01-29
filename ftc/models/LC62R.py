@@ -214,13 +214,12 @@ class LC62R(fym.BaseEnv):
 
     def get_dtrb(self, t):
         # wind dtrb
-        dtrb_wind = 2 * np.sin(2 * np.pi * t + 7) + 3 * np.sin(np.pi * t + 1)
-        
+        dtrb_wind = (2 * np.sin(2 * np.pi * t + 7) + 3 * np.sin(np.pi * t + 1)) * np.vstack((0, 1, 0))
         # model uncertainty
         _, _, _, omega = self.observe_list()
         del_J = 0.1 * self.J
         dtrb_model = np.cross(omega, del_J @ omega, axis=0)
-        # dtrb_model = np.zeros((3, 1))
+        dtrb_model = np.zeros((3, 1))
 
         dtrb = dtrb_wind + dtrb_model
         return dtrb

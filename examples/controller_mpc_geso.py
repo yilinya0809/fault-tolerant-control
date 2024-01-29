@@ -55,55 +55,20 @@ class MyEnv1(fym.BaseEnv):
 
         FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
         self.plant.set_dot(t, FM)
-        # self.plant.set_dot(t, FM)
-        # dtrb, dtrb_info = self.get_dtrb(t, self)
-        # dtrb = np.zeros((4, 1))
-        # FM_dtrb = FM + np.vstack((0, 0, dtrb))
-        # self.plant.set_dot(t, FM_dtrb)
-
         env_info = {
             "t": t,
             **self.observe_dict(),
             **controller_info,
-            # **dtrb_info,
             "ctrls0": ctrls0,
             "ctrls": ctrls,
             "FM": FM,
-            # "FM": FM_dtrb,
             "Fr": self.plant.B_VTOL(ctrls[:6], omega)[2],
             "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
         }
 
         return env_info
 
-    def get_dtrb(self, t, env):
-        dtrb_wind = 0
-        amplitude = frequency = phase_shift = []
-        a = np.vstack((10, 20, 30))
-        for i in range(3):
-            w = np.random.randint(1, 10, 1) * np.pi
-            p = np.random.randint(1, 10, 1)
-            dtrb_wind = dtrb_wind + a[i] * np.sin(w * t + p)
-            amplitude = np.append(amplitude, a)
-            frequency = np.append(frequency, w)
-            phase_shift = np.append(phase_shift, p)
-
-        dtrb_w = dtrb_wind * np.ones((4, 1))
-            
-        pos, vel, quat, omega = env.plant.observe_list()
-        del_J = 0.3 * env.plant.J
-        dtrb_model = np.cross(omega, del_J @ omega, axis=0)
-        dtrb_m = np.vstack((0, dtrb_model))
-
-        dtrb = dtrb_w + dtrb_m
-        dtrb_info = {
-            "amplitude": amplitude,
-            "frequency": frequency,
-            "phase_shift": phase_shift,
-        }
-        return dtrb, dtrb_info
-
-
+    
 class MyEnv2(MyEnv1):
     def set_dot(self, t, action):
         self.controller = ftc.make("NMPC-DI", self)
@@ -114,21 +79,14 @@ class MyEnv2(MyEnv1):
 
         FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
         self.plant.set_dot(t, FM)
-        # dtrb, dtrb_info = self.get_dtrb(t, self)
-        # dtrb = np.zeros((4, 1))
-        # FM_dtrb = FM + np.vstack((0, 0, dtrb))
-        # self.plant.set_dot(t, FM_dtrb)
-
 
         env_info = {
             "t": t,
             **self.observe_dict(),
             **controller_info,
-            # **dtrb_info,
             "ctrls0": ctrls0,
             "ctrls": ctrls,
             "FM": FM,
-            # "FM": FM_dtrb,
             "Fr": self.plant.B_VTOL(ctrls[:6], omega)[2],
             "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
         }
