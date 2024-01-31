@@ -212,23 +212,22 @@ class LC62R(fym.BaseEnv):
         domega = self.Jinv @ (M + dtrb - np.cross(omega, self.J @ omega, axis=0)) + domega
         return dpos, dvel, dquat, domega
 
-    def get_dtrb(self, t):
+    def get_dtrb(self, t, omega):
         # wind dtrb
         dtrb_wind = (2 * np.sin(2 * np.pi * t + 7) + 3 * np.sin(np.pi * t + 1)) * np.vstack((0, 1, 0))
         # model uncertainty
-        _, _, _, omega = self.observe_list()
         del_J = 0.1 * self.J
         dtrb_model = np.cross(omega, del_J @ omega, axis=0)
-        dtrb_model = np.zeros((3, 1))
+        # dtrb_model = np.zeros((3, 1))
 
         dtrb = dtrb_wind + dtrb_model
         return dtrb
 
     def set_dot(self, t, FM):
-        states = self.observe_list()
+        pos, vel, quat, omega = self.observe_list()
         # dots = self.deriv(*states, FM)
-        dtrb = self.get_dtrb(t)
-        dots = self.deriv_dtrb(*states, FM, dtrb)
+        dtrb = self.get_dtrb(t, omega)
+        dots = self.deriv_dtrb(pos, vel, quat, omega, FM, dtrb)
         self.pos.dot, self.vel.dot, self.quat.dot, self.omega.dot = dots
 
     def get_FM(
