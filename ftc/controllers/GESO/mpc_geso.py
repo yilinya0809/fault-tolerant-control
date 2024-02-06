@@ -22,11 +22,7 @@ class GESOController(fym.BaseEnv):
         self.cp_th = 70
         self.ang_lim = env.ang_lim
         self.tau = 0.05
-        # self.tau1 = 0.05
-        # self.tau2 = 0.01
         self.lpf_ang = fym.BaseSystem(np.zeros((3, 1)))
-        # self.lpf_r = fym.BaseSystem(np.zeros((6, 1)))
-        # self.lpf_p = fym.BaseSystem(np.zeros((2, 1)))
         
         """ Extended State Observer """
         # self.obsv = fym.BaseSystem(np.zeros((6, 1)))
@@ -55,8 +51,8 @@ class GESOController(fym.BaseEnv):
             L.append(lval * np.eye(l))
         self.L = np.vstack(L)
 
-        self.K1 = np.diag((10, 10, 10))
-        self.K2 = np.diag((10, 10, 10))
+        self.K1 = np.diag((40, 30, 30))
+        self.K2 = np.diag((40, 30, 30))
 
 
 
@@ -66,22 +62,15 @@ class GESOController(fym.BaseEnv):
         # ang = np.clip(ang0, -self.ang_lim, self.ang_lim)
 
         Frd, Fpd, thetad = np.ravel(action)
-        # Frd = - env.plant.g * env.plant.m
-        # Fpd = 0
-        # thetad = 0.5 * np.sin(t)
 
         angd = np.vstack((0, thetad, 0))
         ang_f = self.lpf_ang.state
-        # omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau
         self.lpf_ang.dot = -(ang_f - ang) / self.tau
         omegad = np.zeros((3, 1))
 
-        # f = -np.cross(omega, env.plant.J @ omega, axis=0)
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
         g = env.plant.Jinv
         
-        # K1 = np.diag((20, 40, 20))
-        # K2 = np.diag((10, 20, 10))
 
         nui_N = np.linalg.inv(g) @ (-f - self.K1 @ (ang - angd) - self.K2 @ (omega - omegad))
         dhat = self.obsv.state[3:6]
@@ -101,16 +90,9 @@ class GESOController(fym.BaseEnv):
 
         th_p = Fpd / 2
         pcmds = th_p / self.cp_th * np.ones((2, 1))
-        
-        # rcmds_f = self.lpf_r.state
-        # self.lpf_r.dot = -(rcmds_f - rcmds) / self.tau2
-        
-        # pcmds_f = self.lpf_p.state
-        # self.lpf_p.dot = -(pcmds_f - pcmds) / self.tau2
 
         dels = np.zeros((3, 1))
         ctrls = np.vstack((rcmds, pcmds, dels))
-        # ctrls = np.vstack((rcmds_f, pcmds, dels))
         self.set_dot(t, env)
 
 
@@ -142,9 +124,6 @@ class NDIController(GESOController):
         # ang = np.clip(ang0, -self.ang_lim, self.ang_lim)
 
         Frd, Fpd, thetad = np.ravel(action)
-        # Frd = - env.plant.g * env.plant.m
-        # Fpd = 0
-        # thetad = 0.5 * np.sin(t)
 
         angd = np.vstack((0, thetad, 0))
         ang_f = self.lpf_ang.state
@@ -152,7 +131,6 @@ class NDIController(GESOController):
         self.lpf_ang.dot = -(ang_f - ang) / self.tau
         omegad = np.zeros((3, 1))
 
-        # f = -np.cross(omega, env.plant.J @ omega, axis=0)
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
         g = env.plant.Jinv
 
@@ -175,15 +153,8 @@ class NDIController(GESOController):
         th_p = Fpd / 2
         pcmds = th_p / self.cp_th * np.ones((2, 1))
         
-        # rcmds_f = self.lpf_r.state
-        # self.lpf_r.dot = -(rcmds_f - rcmds) / self.tau2
-        
-        # pcmds_f = self.lpf_p.state
-        # self.lpf_p.dot = -(pcmds_f - pcmds) / self.tau2
-
         dels = np.zeros((3, 1))
         ctrls = np.vstack((rcmds, pcmds, dels))
-        # ctrls = np.vstack((rcmds_f, pcmds, dels))
         self.set_dot(t, env)
 
 

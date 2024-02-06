@@ -196,8 +196,9 @@ class LC62R(fym.BaseEnv):
         dcm = quat2dcm(quat)
 
         """ disturbances """
+        # dv = dtrb / self.m
         dv = np.zeros((3, 1))
-        domega = self.Jinv @ np.zeros((3, 1))
+        domega = self.Jinv @ dtrb
 
         """ dynamics """
         dpos = dcm.T @ vel
@@ -209,12 +210,12 @@ class LC62R(fym.BaseEnv):
         eps = 1 - (quat[0] ** 2 + quat[1] ** 2 + quat[2] ** 2 + quat[3] ** 2)
         k = 1
         dquat = dquat + k * eps * quat
-        domega = self.Jinv @ (M + dtrb - np.cross(omega, self.J @ omega, axis=0)) + domega
+        domega = self.Jinv @ (M - np.cross(omega, self.J @ omega, axis=0)) + domega
         return dpos, dvel, dquat, domega
 
     def get_dtrb(self, t, omega):
         # wind dtrb
-        dtrb_wind = (2 * np.sin(2 * np.pi * t + 7) + 3 * np.sin(np.pi * t + 1)) * np.vstack((0, 1, 0))
+        dtrb_wind = (2 * np.sin(0.9 * np.pi * t + 7) + 3 * np.sin(0.7 * np.pi * t + 1) + 1 + np.sin(0.2*np.pi*t + 3)) * np.vstack((1, 1, 1))
         # model uncertainty
         del_J = 0.1 * self.J
         dtrb_model = np.cross(omega, del_J @ omega, axis=0)

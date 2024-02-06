@@ -241,41 +241,142 @@ def plot():
     fig.subplots_adjust(hspace=0.5, wspace=0.3)
     fig.align_ylabels(axes)
 
-    """ Figure 2 - Rotor inputs """
+
+    """ Figure 2 - X, U """
     fig, axes = plt.subplots(3, 2, sharex=True)
+
+    # z
+    ax = axes[0, 0]
+    ax.plot(data["t"], agent["Xd"][:, 0].squeeze(-1), "r:")
+    ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
+    # ax.plot(data_ndi["t"], data_ndi["plant"]["pos"][:, 2].squeeze(-1), "k-")
+    ax.set_ylabel(r"$z$, m", fontsize=20)
+
+    # Vx
+    ax = axes[1, 0]
+    ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "b-")
+    ax.plot(data["t"], agent["Xd"][:, 1].squeeze(-1), "r:")
+    # ax.plot(data_ndi["t"], data_ndi["plant"]["vel"][:, 0].squeeze(-1), "k-")
+    ax.set_ylabel(r"$v_x$, m/s", fontsize=20)
+
+    ax = axes[2, 0]
+    ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "b-")
+    # ax.plot(data_ndi["t"], data_ndi["plant"]["vel"][:, 2].squeeze(-1), "k-")
+    ax.plot(data["t"], agent["Xd"][:, 2].squeeze(-1), "r:")
+    ax.set_ylabel(r"$v_z$, m/s", fontsize=20)
+    ax.set_ylim([-20, 20])
+    ax.set_xlabel("Time, sec", fontsize=20)
+
+    ax = axes[0, 1]
+    ax.plot(data["t"], -data["Frd"], "r:")
+    ax.plot(data["t"], -data["Fr"].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_{rotors}$, N", fontsize=20)
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    ax = axes[1, 1]
+    l1 = ax.plot(data["t"], data["Fpd"], "r:")
+    l2 = ax.plot(data["t"], data["Fp"].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_{pushers}$, N", fontsize=20)
+
+    ax = axes[2, 1]
+    ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r:")
+    ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-")
+    # ax.plot(data_ndi["t"], np.rad2deg(data_ndi["angd"][:, 1].squeeze(-1)), "k--")
+    # ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 1].squeeze(-1)), "k-")
+    ax.set_ylabel(r"$\theta$, deg", fontsize=20)
+    ax.set_xlabel("Time, sec", fontsize=20)
+    ax.set_xticks(np.arange(0, 21, 5))
+
+    fig.legend([l1, l2],
+               labels=["Optimal trajectories from NMPC", "NMPC-GESO"],
+               loc = "upper center",
+               fontsize=20, 
+               ncol = 2,
+               )
+
+
+    """ Figure 3 - Control inputs """
+    fig, axes = plt.subplots(4, 2, sharex=True)
 
     ax = axes[0, 0]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "b-")
-    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 0], "k-")
-    ax.set_ylabel("Rotor 1")
+    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 0], "k-.")
+    ax.set_ylabel("Rotor 1", fontsize=20)
     ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.1, 1])
+    ax.set_yticks(np.arange(0, 1.1, 0.5))
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "b-")
-    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 1], "k-")
-    ax.set_ylabel("Rotor 2")
+    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 1], "k-.")
+    ax.set_ylabel("Rotor 2", fontsize=20)
+    ax.set_ylim([-0.1, 1])
+    ax.set_yticks(np.arange(0, 1.1, 0.5))
+
 
     ax = axes[2, 0]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "b-")
-    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 2], "k-")
-    ax.set_ylabel("Rotor 3")
-    ax.set_xlabel("Time, sec")
+    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 2], "k-.")
+    ax.set_ylabel("Rotor 3", fontsize=20)
+    # ax.set_xlabel("Time,sec")
+    ax.set_ylim([-0.1, 1])
+    ax.set_yticks(np.arange(0, 1.1, 0.5))
+    # ax.set_xticks(np.arange(0, 21, 5))
+
 
     ax = axes[0, 1]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "b-")
-    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 3], "k-")
-    ax.set_ylabel("Rotor 4")
+    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 3], "k-.")
+    ax.set_ylabel("Rotor 4", fontsize=20)
+    ax.set_ylim([-0.1, 1])
+    ax.set_yticks(np.arange(0, 1.1, 0.5))
+
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "b-")
-    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 4], "k-")
-    ax.set_ylabel("Rotor 5")
+    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 4], "k-.")
+    ax.set_ylabel("Rotor 5", fontsize=20)
+    ax.set_ylim([-0.1, 1])
+    ax.set_yticks(np.arange(0, 1.1, 0.5))
+
+
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "b-")
-    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 5], "k-")
-    ax.set_ylabel("Rotor 6")
-    ax.set_xlabel("Time, sec")
+    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 5], "k-.")
+    ax.set_ylabel("Rotor 6", fontsize=20)
+    # ax.set_xlabel("Time, sec")
+    ax.set_ylim([-0.1, 1])
+    ax.set_yticks(np.arange(0, 1.1, 0.5))
+
+
+    ax = axes[3, 0]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "b-")
+    ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 6], "k-.")
+    ax.set_ylabel("Pusher 1", fontsize=20)
+    ax.set_xlabel("Time, sec", fontsize=20)
+    ax.set_ylim([-0, 1.1])
+    ax.set_yticks(np.arange(0, 1.1, 0.5))
+    ax.set_xticks(np.arange(0, 21, 5))
+
+    ax = axes[3, 1]
+    d1 = ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "b-")
+    d2 = ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 7], "k-.")
+    ax.set_ylabel("Pusher 2", fontsize=20)
+    ax.set_xlabel("Time, sec", fontsize=20)
+    ax.set_ylim([-0, 1.1])
+    ax.set_yticks(np.arange(0, 1.1, 0.5))
+    ax.set_xticks(np.arange(0, 21, 5))
+
+    fig.legend([d1, d2],
+               labels=["NMPC-GESO", "NMPC-DI"],
+               loc = "lower center",
+               bbox_to_anchor=(0.55, 0),
+               fontsize=20, 
+               ncol = 2,
+               )
+
+
 
     plt.tight_layout()
     fig.subplots_adjust(wspace=0.3)
@@ -323,31 +424,44 @@ def plot():
     ax.set_xlabel("Time, sec")
 
 
-    """ Figure 5 - attitude """
+    """ Figure 5 - attitude error """
     fig, axes = plt.subplots(3, 1, sharex=True)
 
     ax = axes[0]
-    ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
-    ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 0].squeeze(-1)), "k-")
-    ax.set_ylabel(r"$\phi$, deg")
+    l1 = ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 0].squeeze(-1)), "k-.")
+    l2 = ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r:")
+    ax.set_ylabel(r"$\phi_{e}$, deg", fontsize=20)
     ax.set_xlim(data["t"][0], data["t"][-1])
-
-    ax = axes[1]
-    ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
-    ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data_ndi["angd"][:, 1].squeeze(-1)), "k--")
-    ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 1].squeeze(-1)), "k-")
+    ax.set_ylim([-1, 1])
     
-    ax.set_ylabel(r"$\theta$, deg")
+    ax = axes[1]
+    error_ndi = np.rad2deg(data_ndi["ang"][:, 1].squeeze(-1)) - np.rad2deg(data_ndi["angd"][:, 1].squeeze(-1))
+
+    error_geso = np.rad2deg(data["ang"][:, 1].squeeze(-1)) -np.rad2deg(data["angd"][:, 1].squeeze(-1)) 
+    ax.plot(data["t"], error_ndi, "k-.")
+    ax.plot(data["t"], error_geso, "b-")
+    ax.plot(data["t"], np.rad2deg(agent["Ud"][:, 2].squeeze(-1)), "r:")
+    ax.set_ylabel(r"$\theta_e$, deg", fontsize=20)
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[2]
-    ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
-    ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 2].squeeze(-1)), "k-")
-    ax.set_ylabel(r"$\psi$, deg")
-    ax.set_xlabel("Time, sec")
+    l1 = ax.plot(data["t"], np.rad2deg(data_ndi["ang"][:, 2].squeeze(-1)), "k-.")
+    l2 = ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "b-")
+    ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r:")
+    ax.set_ylabel(r"$\psi_e$, deg", fontsize=20)
+    ax.set_xlabel("Time, sec", fontsize=20)
+    ax.set_ylim([-1, 1])
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_xticks(np.arange(0, 21, 2))
+    
+    fig.legend([l1, l2], 
+              labels=["NMPC-DI", "NMPC-GESO"],
+              loc="upper center",
+              # bbox_to_anchor=(0.5, 0),
+              fontsize=20,
+              ncol=3,
+             )
 
 
     """ Figure 6 Longitudinal States """
@@ -379,91 +493,47 @@ def plot():
     ax.plot(time, z_geso, "b-")
     ax.plot(time, zd, "r:")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$z$, m", fontsize=13)
+    ax.set_ylabel(r"$z$, m", fontsize=20)
     ax.set_ylim([-55, -45])
+    ax.set_xticks(np.arange(0, 21, 5))
 
     ax = axes[0, 1]
     ax.plot(time, VT_ndi, "k--")
     ax.plot(time, VT_geso, "b-")
     ax.plot(time, VTd, "r:")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$V$, m/s", fontsize=13)
+    ax.set_ylabel(r"$V$, m/s", fontsize=20)
+    ax.set_xticks(np.arange(0, 21, 5))
 
     """ Row 2 - Pitch angle, rate """
     ax = axes[1, 0]
     ax.plot(time, np.rad2deg(theta_ndi), "k--")
     ax.plot(time, np.rad2deg(theta_geso), "b-")
 
-    ax.plot(data["t"], np.rad2deg(agent["Ud"][:, 2].squeeze(-1)), "r--")
+    ax.plot(data["t"], np.rad2deg(agent["Ud"][:, 2].squeeze(-1)), "r:")
     # ax.plot(time, np.rad2deg(theta_trim), "r:")
     ax.set_xlim(time[0], time[-1])
-    ax.set_xlabel("Time, sec")
-    ax.set_ylabel(r"$\theta$, deg", fontsize=13)
+    ax.set_xlabel("Time, sec", fontsize=18)
+    ax.set_ylabel(r"$\theta$, deg", fontsize=20)
+    ax.set_xticks(np.arange(0, 21, 5))
 
     ax = axes[1, 1]
     l1 = ax.plot(time, np.rad2deg(q_ndi), "k--")
     l2 = ax.plot(time, np.rad2deg(q_geso), "b-")
     l3 = ax.plot(time, np.rad2deg(qd), "r:")
     ax.set_xlim(time[0], time[-1])
-    ax.set_xlabel("Time, sec")
-    ax.set_ylabel(r"$q$, deg/s", fontsize=13)
+    ax.set_xlabel("Time, sec", fontsize=18)
+    ax.set_ylabel(r"$q$, deg/s", fontsize=20)
+    ax.set_xticks(np.arange(0, 21, 5))
     
     fig.legend([l1, l2, l3], 
-               labels=["ndi", "geso", "trim"],
+               labels=["NMPC-DI", "NMPC-GESO", "Trim"],
                loc="lower center",
                bbox_to_anchor=(0.55, 0),
-               fontsize=15,
+               fontsize=18,
                ncol=3,
                )
     fig.tight_layout()
-    # fig.subplot_adjust(right=0.85)
-    
-    """ Figure 7 - Generalized forces """
-    fig, axes = plt.subplots(3, 2, squeeze=False, sharex=True)
-
-    """ Column 1 - Generalized forces: Forces """
-    ax = axes[0, 0]
-    ax.plot(data["t"], data["FM"][:, 0].squeeze(-1), "b-")
-    ax.set_ylabel(r"$F_x$")
-    ax.set_xlim(data["t"][0], data["t"][-1])
-
-    ax = axes[1, 0]
-    ax.plot(data["t"], data["FM"][:, 1].squeeze(-1), "b-")
-    ax.set_ylabel(r"$F_y$")
-    ax.set_ylim([-1, 1])
-
-    ax = axes[2, 0]
-    ax.plot(data["t"], data["FM"][:, 2].squeeze(-1), "b-")
-    ax.set_ylabel(r"$F_z$")
-
-    ax.set_xlabel("Time, sec")
-
-
-    """ Column 2 - Generalized forces: Moments """
-    ax = axes[0, 1]
-    ax.plot(data["t"], data["FM"][:, 3].squeeze(-1), "b-")
-    ax.set_ylabel(r"$M_x$")
-    ax.set_ylim([-1, 1])
-
-    ax = axes[1, 1]
-    ax.plot(data["t"], data["FM"][:, 4].squeeze(-1), "b-")
-    ax.set_ylabel(r"$M_y$")
-
-    ax = axes[2, 1]
-    ax.plot(data["t"], data["FM"][:, 5].squeeze(-1), "b-")
-    ax.set_ylabel(r"$M_z$")
-    ax.set_ylim([-1, 1])
-
-    ax.set_xlabel("Time, sec")
-
-    plt.tight_layout()
-    fig.subplots_adjust(wspace=0.5)
-    fig.align_ylabels(axes)
-
-
-
-
-    plt.tight_layout()
     fig.align_ylabels(axes)
 
     plt.show()

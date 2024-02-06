@@ -27,6 +27,15 @@ Fr_trim = agent["Ud"][:, 0]
 Fp_trim = agent["Ud"][:, 1]
 theta_trim = agent["Ud"][:, 2]
 
+Frd_geso = data_geso["Frd"]
+Fpd_geso = data_geso["Fpd"]
+thetad_geso = data_geso["angd"][:, 2]
+
+
+Frd_ndi = data_ndi["Frd"]
+Fpd_ndi = data_ndi["Fpd"]
+thetad_ndi = data_ndi["angd"][:, 2]
+
 x_ndi = data_ndi["plant"]["pos"][:, 0]
 z_ndi = data_ndi["plant"]["pos"][:, 2]
 V_ndi = data_ndi["plant"]["vel"].squeeze(-1)
@@ -89,13 +98,6 @@ def plot1():
               fontsize=12,
               ncol=2,
               )
-    # fig.legend([p1, p2], 
-    #            labels=["Commands from NMPC", "States"],
-    #            loc="lower center",
-    #            bbox_to_anchor=(0.5, 0),
-    #            fontsize=12,
-    #            ncol=2,
-    #            )
     
 
     """ Column 2 - States: Velocity """
@@ -393,7 +395,8 @@ def total_cost():
 
     cost_ndi = 0
     cost_geso = 0
-    Q = 10 * np.diag((1, 1, 1))
+    Q = 300 * np.diag((1, 1, 1))
+    R = np.diag((0.01, 0.1, 200000))
     
     for k in range(np.size(time)):
         Vx_ndi = V_ndi[k, 0]
@@ -412,11 +415,23 @@ def total_cost():
             Vx_geso - Vxd[k],
             Vz_geso - Vzd[k],
         ))
+         
+        ctrl_ndi = np.vstack((
+            Fr_ndi[k] - Frd_ndi[k],
+            Fp_ndi[k] - Fpd_ndi[k],
+            theta_ndi[k] - thetad_ndi[k]
+        ))
+        ctrl_geso = np.vstack((
+            Fr_geso[k] - Frd_geso[k],
+            Fp_geso[k] - Fpd_geso[k],
+            theta_geso[k] - thetad_geso[k]
+        ))
+            
 
-        cost_ndi = cost_ndi + err_ndi.T @ Q @ err_ndi
-        cost_geso = cost_geso + err_geso.T @ Q @ err_geso
+        cost_ndi = cost_ndi + err_ndi.T @ Q @ err_ndi + ctrl_ndi.T @ R @ ctrl_ndi
+        cost_geso = cost_geso + err_geso.T @ Q @ err_geso + ctrl_geso.T @ R @ ctrl_geso
 
-    return cost_ndi, cost_geso
+    return cost_ndi/20, cost_geso/20
 
 def rotor_cost():
     cost_ndi = 0
@@ -425,25 +440,24 @@ def rotor_cost():
     rcost_geso = 0
 
     A = np.diag((1,1,1,1,1,1,1,1))
-    B = np.diag((1,1,1,1,1,1))
-    # A = np.diag((1,1,1,1,1,1,1,1))
+    # B = np.diag((1,1,1,1,1,1))
 
     
-    for k in range(np.size(time)):
-        r_ndi = rotors_ndi[k]
-        r_geso = rotors_geso[k]
-        rcost_ndi = rcost_ndi + r_ndi.T @ B @ r_ndi
-        rcost_geso = rcost_geso + r_geso.T @ B @ r_geso
+    # for k in range(np.size(time)):
+    #     r_ndi = rotors_ndi[k]
+    #     r_geso = rotors_geso[k]
+    #     rcost_ndi = rcost_ndi + r_ndi.T @ B @ r_ndi
+    #     rcost_geso = rcost_geso + r_geso.T @ B @ r_geso
         
 
-#     for k in range(np.size(time)):
-#         ctrls_ndi = np.vstack((rotors_ndi[k], pushers_ndi[k]))
-#         ctrls_geso = np.vstack((rotors_geso[k], pushers_geso[k]))
-#         cost_ndi = cost_ndi + ctrls_ndi.T @ A @ ctrls_ndi
-#         cost_geso = cost_geso + ctrls_geso.T @ A @ ctrls_geso
+    for k in range(np.size(time)):
+        ctrls_ndi = np.vstack((rotors_ndi[k], pushers_ndi[k]))
+        ctrls_geso = np.vstack((rotors_geso[k], pushers_geso[k]))
+        cost_ndi = cost_ndi + ctrls_ndi.T @ A @ ctrls_ndi
+        cost_geso = cost_geso + ctrls_geso.T @ A @ ctrls_geso
         
-    # return cost_ndi, cost_geso
-    return rcost_ndi, rcost_geso
+    return cost_ndi, cost_geso
+    # return rcost_ndi, rcost_geso
 
 
 if __name__ == "__main__":
