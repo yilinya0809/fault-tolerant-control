@@ -1,25 +1,61 @@
 import scipy
 from casadi import *
-
+from ftc.utils import linearization
+import numpy as np
 
 class LC62:
-    g = 9.81  # [m / sec^2]
-    m = 41.97  # [kg]
-    S1 = 0.2624  # [m^2]
-    S2 = 0.5898  # [m^2]
-    S = S1 + S2
-    tables = {
-        "alp": np.deg2rad(np.array([0, 2, 4, 6, 8, 10, 12, 14, 16])),  # [rad]
-        "CL": np.array(
-            [0.1931, 0.4075, 0.6112, 0.7939, 0.9270, 1.0775, 0.9577, 1.0497, 1.0635]
-        ),
-        "CD": np.array(
-            [0.0617, 0.0668, 0.0788, 0.0948, 0.1199, 0.1504, 0.2105, 0.2594, 0.3128]
-        ),
-    }
-    th_r_max = 159.2089
-    th_p_max = 91.5991
-    
+    def __init__(self):
+
+        self.g = 9.81  # [m / sec^2]
+        self.m = 41.97  # [kg]
+        S1 = 0.2624  # [m^2]
+        S2 = 0.5898  # [m^2]
+        self.S = S1 + S2
+        self.tables = {
+            "alp": np.deg2rad(np.array([0, 2, 4, 6, 8, 10, 12, 14, 16])),  # [rad]
+            "CL": np.array(
+                [0.1931, 0.4075, 0.6112, 0.7939, 0.9270, 1.0775, 0.9577, 1.0497, 1.0635]
+            ),
+            "CD": np.array(
+                [0.0617, 0.0668, 0.0788, 0.0948, 0.1199, 0.1504, 0.2105, 0.2594, 0.3128]
+            ),
+        }
+        self.th_r_max = 159.2089
+        self.th_p_max = 91.5991
+        X_trim, U_trim = self.get_trim(fixed={"h": 50, "VT": 45})
+
+        self.X_trim = X_trim[1:]
+        self.U_trim = U_trim
+    # def linearization(self, statefunc, states, ctrls, ptrb):
+    #     n = np.size(states)
+    #     m = np.size(ctrls)
+    #     A = DM(n, n)
+    #     B = DM(n, m)
+
+    #     f = statefunc.full()
+        
+    #     for i in np.arange(n):
+    #         ptrb_x = array(n, 1)
+    #         ptrb_x[i] = ptrb
+    #         x_ptrb = states + ptrb_x
+
+    #         dfdx = (f(x_ptrb, ctrls) - f(states, ctrls)) / ptrb
+    #         for j in np.arange(n):
+    #             A[j, i] = dfdx[j]
+    #     for i in np.arange(m):
+    #         ptrbvec_u = array((m, 1))
+    #         ptrbvec_u[i] = ptrb
+    #         u_ptrb = ctrls + ptrbvec_u
+
+    #         dfdu = (f(states, u_ptrb) - f(states, ctrls)) / ptrb
+    #         for j in np.arange(n):
+    #             B[j, i] = dfdu[j]
+
+    #     return A, B
+
+        
+        
+                
     def deriv_original(self, x, u):
         g = self.g
         m = self.m
@@ -60,6 +96,50 @@ class LC62:
         )
         return vertcat(dz, dvel)
 
+    def derivnoxq(self, x, u):
+        g = self.g
+        m = self.m
+        z, vel = x[0], x[1:]
+        Fr, Fp, theta = u[0], u[1], u[2]
+        Fx, Fz = self.B_Fuselage(vel)
+        dz = -sin(theta) * vel[0] + cos(theta) * vel[1]
+        dvel = vertcat(
+            (Fp + Fx) / m - g * sin(theta)
+            (Fr + Fz) / m + g * cos(theta)
+        )
+        return vertcat(dz, dvel)
+
+
+    
+    def deriv_mat(self, x, u):
+        f = self.derivnoxq
+        ptrb = 1e-6
+        breakpoint()
+        A, B = linearization(f, x, u, ptrb)
+        
+        return A, B
+
+    def deriv_lin(self, x, u, q):
+        # A, B = self.deriv_mat(x, u)
+        n = MX.size(x)[0]
+        m = MX.size(u)[0]
+
+        A = np.zeros((n, n))
+        B = np.zeros((n, m))
+        
+
+        
+
+
+
+        self.A = A + np.array((
+            [0,0,0],
+            [0,0,-1],
+            [0,1,0],
+        )) @ q
+        self.B = B
+        Xdot = self.A @ x + self.B @ u
+        return Xdot
        
     def B_Fuselage(self, vel):
         S = self.S
@@ -164,3 +244,10 @@ class LC62:
         dvel = dx[2:]
         weight = np.diag([1, 1])
         return dvel.T @ weight @ dvel
+
+if __name__ == "__main__":
+    sys = LC62()
+    
+    Xdot1 = sys.derivnox(sys.X_trim, sys.U_trim, q=0)
+    Xdot2 = sys.deriv_lin(np.zeros((3,1)), np.zeros((3,1)), q=0)
+    print(Xdot1, Xdot2)
