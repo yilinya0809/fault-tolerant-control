@@ -168,7 +168,7 @@ class LC62R(fym.BaseEnv):
         self.omega = fym.BaseSystem(env_config["init"]["omega"])
 
         self.e3 = np.vstack((0, 0, 1))
-        self.x_trims, self.u_trims_fixed = self.get_trim_fixed(fixed={"h": 10, "VT": 0})
+        self.x_trims, self.u_trims_fixed = self.get_trim_fixed(fixed={"h": 10, "VT": 45})
         self.u_trims_vtol = self.get_trim_vtol(
             fixed={"x_trims": self.x_trims, "u_trims_fixed": self.u_trims_fixed}
         )
@@ -382,7 +382,7 @@ class LC62R(fym.BaseEnv):
             "dele": 0,
             "delr": 0,
         },
-        fixed={"h": 10, "VT": 10},
+        fixed={"h": 10, "VT": 45},
         method="SLSQP",
         options={"disp": False, "ftol": 1e-10},
     ):
@@ -536,5 +536,6 @@ if __name__ == "__main__":
     # system.set_dot(t=0, FM=FM)
     # print(repr(system))
 
-    pcmds = np.ones((2, 1))
-    print(system.B_Pusher(pcmds))
+    # pcmds = np.ones((2, 1))
+    # print(system.B_Pusher(pcmds))
+    breakpoint()
