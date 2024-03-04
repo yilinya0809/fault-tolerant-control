@@ -76,7 +76,8 @@ class MPC:
 
     def solve_mpc(self, obs):
         z, vx, vz, theta, q = obs
-        Fr, Fp, _ = np.ravel(self.control_init)
+        Fr, Fp, _ = ca.vertsplit(self.control_init)
+        # Fr, Fp, _ = np.ravel(self.control_init)
         state_init = ca.DM([z, vx, vz])
         control_init = ca.DM([Fr, Fp, theta])
 
@@ -103,7 +104,8 @@ class MPC:
         R = ca.diagcat(0.01, 0.1, 200000)
 
         Xdot = self.plant.deriv_lin(states, controls, q)
-        breakpoint()
+        Xdot1 = self.plant.derivnox(states, controls, q)
+        # breakpoint()
         f = ca.Function("f", [states, controls], [Xdot])
 
         cost_fn = 0  # cost function
