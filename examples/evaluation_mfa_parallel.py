@@ -1,14 +1,16 @@
 import argparse
+from pathlib import Path
 
 import fym
 import matplotlib.pyplot as plt
 import numdifftools as nd
 import numpy as np
+from fym.utils.rot import angle2quat
 
 import ftc
 from ftc.mfa import MFA
 from ftc.models.LC62 import LC62
-from ftc.sim_parallel import calculate_mae, evaluate_mfa
+from ftc.sim_parallel import evaluate_mfa_success_rate, sim_parallel
 from ftc.utils import safeupdate
 
 np.seterr(all="raise")
@@ -22,26 +24,28 @@ def shrink(u_min, u_max, scaling_factor=1.0):
     return u_min, u_max
 
 
-class MyEnv(fym.BaseEnv):
+class Env(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
             "max_t": 10,
         },
-        "plant": {
-            "init": {
-                "pos": np.vstack((0.0, 0.0, 0.0)),
-                "vel": np.zeros((3, 1)),
-                "quat": np.vstack((1, 0, 0, 0)),
-                "omega": np.zeros((3, 1)),
-            },
-        },
     }
 
-    def __init__(self, env_config={}):
+    def __init__(self, initial, env_config={}):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
-        self.plant = LC62(env_config["plant"])
+        pos, vel, angle, omega = initial
+        quat = angle2quat(*angle.ravel()[::-1])
+        plant_init = {
+            "init": {
+                "pos": pos,
+                "vel": vel,
+                "quat": quat,
+                "omega": omega,
+            },
+        }
+        self.plant = LC62(plant_init)
         self.controller = ftc.make("INDI", self)
 
         self.posd = lambda t: np.vstack((0, 0, 0))
@@ -137,9 +141,7 @@ class MyEnv(fym.BaseEnv):
 
         Lambda = np.ones(11)
         if t >= 3:
-            Lambda[0] = 0.0
             Lambda[1] = 0.3
-            Lambda[2] = 0.3
         return Lambda
 
     def set_Lambda(self, t, ctrls):
@@ -148,34 +150,45 @@ class MyEnv(fym.BaseEnv):
         return ctrls
 
 
-def run():
-    env = MyEnv()
-    flogger = fym.Logger("data.h5")
+def sim(i, initial, Env, dirpath="data"):
+    loggerpath = Path(dirpath, f"env_{i:04d}.h5")
+    env = Env(initial)
+    flogger = fym.Logger(loggerpath)
 
     env.reset()
-    try:
-        # initialization
-        Lambda_prev = env.get_Lambda(env.clock.get())
-        mfa_predict_prev = True
-        while True:
-            env.render()
 
-            done, env_info = env.step(mfa_predict_prev, Lambda_prev)
-            flogger.record(env=env_info)
+    # initialization
+    Lambda_prev = env.get_Lambda(env.clock.get())
+    mfa_predict_prev = True
+    while True:
+        env.render(mode=None)
 
-            Lambda_prev = env_info["Lambda"]
-            mfa_predict_prev = env_info["mfa"]
+        done, env_info = env.step(mfa_predict_prev, Lambda_prev)
+        flogger.record(env=env_info, initial=initial)
 
-            if done:
-                break
+        Lambda_prev = env_info["Lambda"]
+        mfa_predict_prev = env_info["mfa"]
 
-    finally:
-        flogger.close()
-        plot()
+        if done:
+            break
+
+    flogger.close()
 
 
-def plot():
-    data = fym.load("data.h5")["env"]
+def parsim(N=1, seed=0):
+    np.random.seed(seed)
+    pos = np.random.uniform(0, 0, size=(N, 3, 1))
+    vel = np.random.uniform(0, 0, size=(N, 3, 1))
+    angle = np.random.uniform(*np.deg2rad((-5, 5)), size=(N, 3, 1))
+    omega = np.random.uniform(*np.deg2rad((-1, 1)), size=(N, 3, 1))
+
+    initials = np.stack((pos, vel, angle, omega), axis=1)
+    sim_parallel(sim, N, initials, Env)
+
+
+def plot(i):
+    loggerpath = Path("data", f"env_{i:04d}.h5")
+    data = fym.load(loggerpath)["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
@@ -304,13 +317,10 @@ def plot():
         (["Rotor 1", "Rotor 2"], ["Rotor 3", "Rotor 4"], ["Rotor 5", "Rotor 6"])
     )
     for i, _ylabel in np.ndenumerate(ylabels):
-        x, y = i
         ax = axs[i]
+        ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, sum(i)], "k-", label="Response")
         ax.plot(
-            data["t"], data["ctrls"].squeeze(-1)[:, 2 * x + y], "k-", label="Response"
-        )
-        ax.plot(
-            data["t"], data["ctrls0"].squeeze(-1)[:, 2 * x + y], "r--", label="Command"
+            data["t"], data["ctrls0"].squeeze(-1)[:, sum(i)], "r--", label="Command"
         )
         ax.grid()
         if i == (0, 1):
@@ -346,32 +356,21 @@ def plot():
     fig.subplots_adjust(wspace=0.5)
     fig.align_ylabels(axs)
 
-    """ Figure 5 - MFA """
-    plt.figure()
-
-    plt.plot(data["t"], data["mfa"], "k-")
-    plt.grid()
-    plt.xlabel("Time, sec")
-    plt.ylabel("MFA")
-
-    plt.tight_layout()
-
     plt.show()
 
 
-def main(args):
+def main(args, N, seed, i):
     if args.only_plot:
-        plot()
+        plot(i)
         return
     else:
-        run()
-        data = fym.load("data.h5")
-        evaluate_mfa(
-            np.all(data["env"]["mfa"]), calculate_mae(data, time_from=2), verbose=True
+        parsim(N, seed)
+        evaluate_mfa_success_rate(
+            N, time_from=2, error_type=None, threshold=np.ones(3), verbose=True
         )
 
         if args.plot:
-            plot()
+            plot(i)
 
 
 if __name__ == "__main__":
@@ -379,4 +378,4 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--plot", action="store_true")
     parser.add_argument("-P", "--only-plot", action="store_true")
     args = parser.parse_args()
-    main(args)
+    main(args, N=10, seed=0, i=0)
