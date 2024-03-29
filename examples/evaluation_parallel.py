@@ -295,7 +295,7 @@ def main(args, N, seed, i):
         return
     else:
         parsim(N, seed)
-        evaluate_recovery_rate(N, time_from=2)
+        evaluate_recovery_rate(N, time_from=2, error_type="alt")
 
         if args.plot:
             plot(i)
