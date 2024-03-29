@@ -247,10 +247,10 @@ class LC62(fym.BaseEnv):
 
     def B_Pusher(self, pwms_pusher):
         th_p = interp1d(
-            self.tables["cmd"], self.tables["th_p"], fill_value="extrapolate"
+            self.tables["pwm"], self.tables["th_p"], fill_value="extrapolate"
         )
         tq_p = interp1d(
-            self.tables["cmd"], self.tables["tq_p"], fill_value="extrapolate"
+            self.tables["pwm"], self.tables["tq_p"], fill_value="extrapolate"
         )
         th = th_p(pwms_pusher)
         tq = tq_p(pwms_pusher)
