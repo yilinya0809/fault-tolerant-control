@@ -87,16 +87,20 @@ class GESOController(fym.BaseEnv):
         nu = np.vstack((Frd, nui))
         th_r = np.linalg.pinv(self.B_r2f) @ nu
         rcmds = th_r / self.cr_th
+        rpwms = rcmds * 1000 + 1000
 
         th_p = Fpd / 2
         pcmds = th_p / self.cp_th * np.ones((2, 1))
+        ppwms = pcmds * 1000 + 1000
 
         dels = np.zeros((3, 1))
-        ctrls = np.vstack((rcmds, pcmds, dels))
+        ctrls = np.vstack((rpwms, ppwms, dels))
         self.set_dot(t, env)
 
 
         controller_info = {
+            "posd": env.posd(t),
+            "veld": env.posd_dot(t),
             "Frd": Frd,
             "Fpd": Fpd,
             "angd": angd,

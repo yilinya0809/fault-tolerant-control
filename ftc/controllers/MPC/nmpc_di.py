@@ -100,12 +100,14 @@ class MPC:
         U = ca.MX.sym("U", n_controls, N)
         P = ca.MX.sym("P", 2 * n_states + n_controls)
 
+        # Q = ca.diagcat(100, 100, 100)
+        # R = ca.diagcat(0.01, 0.1, 100)
+
         Q = ca.diagcat(300, 300, 300)
         R = ca.diagcat(0.01, 0.1, 200000)
 
-        Xdot = self.plant.deriv_lin(states, controls, q)
-        Xdot1 = self.plant.derivnox(states, controls, q)
-        # breakpoint()
+        # Xdot = self.plant.deriv_lin(states, controls, q)
+        Xdot = self.plant.derivnox(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
 
         cost_fn = 0  # cost function

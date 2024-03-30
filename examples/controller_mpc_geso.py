@@ -16,7 +16,7 @@ class MyEnv1(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 1,
+            "max_t": 20,
         },
         "plant": {
             "init": {

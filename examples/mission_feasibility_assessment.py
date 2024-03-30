@@ -4,6 +4,7 @@ import fym
 import matplotlib.pyplot as plt
 import numdifftools as nd
 import numpy as np
+from fym.utils.rot import quat2angle
 
 import ftc
 from ftc.mfa import MFA
@@ -30,7 +31,7 @@ class MyEnv(fym.BaseEnv):
         },
         "plant": {
             "init": {
-                "pos": np.vstack((0.0, 0.0, 0.0)),
+                "pos": np.vstack((0.0, 0.0, -50.0)),
                 "vel": np.zeros((3, 1)),
                 "quat": np.vstack((1, 0, 0, 0)),
                 "omega": np.zeros((3, 1)),
@@ -42,10 +43,13 @@ class MyEnv(fym.BaseEnv):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
         self.plant = LC62(env_config["plant"])
-        self.controller = ftc.make("INDI", self)
+        self.ang_lim = np.deg2rad(50)
+        self.controller = ftc.make("NMPC-GESO", self)
 
-        self.posd = lambda t: np.vstack((0, 0, 0))
-        self.posd_dot = nd.Derivative(self.posd, n=1)
+        # self.zd = lambda t: -50.0
+        self.posd = lambda t: np.vstack((0, 0, -50.0))
+        self.posd_dot = lambda t: np.vstack((45, 0, 0))
+        # self.posd_dot = nd.Derivative(self.posd, n=1)
 
         pwm_min, pwm_max = self.plant.control_limits["pwm"]
         self.mfa = MFA(
@@ -58,7 +62,7 @@ class MyEnv(fym.BaseEnv):
             ),
         )
 
-        self.u0 = self.controller.get_u0(self)
+        # self.u0 = self.controller.get_u0(self)
 
         dx1, dx2, dx3 = self.plant.dx1, self.plant.dx2, self.plant.dx3
         dy1, dy2 = self.plant.dy1, self.plant.dy2
@@ -76,7 +80,7 @@ class MyEnv(fym.BaseEnv):
         nu = self.B_r2f @ (pwms_rotor - 1000) / 1000 * self.c_th
         return nu
 
-    def step(self, mfa_predict_prev, Lambda_prev):
+    def step(self, mfa_predict_prev, Lambda_prev, action):
         t = self.clock.get()
 
         Lambda = self.get_Lambda(t)
@@ -92,12 +96,17 @@ class MyEnv(fym.BaseEnv):
             )
             mfa_predict = self.mfa.predict(tspan, [loe, shrink])
 
-        env_info, done = self.update()
+        env_info, done = self.update(action=action)
+        obs = self.observation()
 
-        return done, env_info | {"mfa": mfa_predict}
+        return obs, done, env_info | {"mfa": mfa_predict}
 
     def observation(self):
-        return self.observe_flat()
+        # return self.observe_flat()
+        pos, vel, quat, omega = self.plant.observe_list()
+        ang = np.vstack(quat2angle(quat)[::-1])
+        obs = (pos[2], vel[0], vel[2], ang[1], omega[1])  # Current state
+        return obs
 
     def psid(self, t):
         return 0
@@ -105,12 +114,12 @@ class MyEnv(fym.BaseEnv):
     def get_ref(self, t, *args):
         refs = {
             "posd": self.posd(t),
-            "posd_dot": self.posd_dot(t),
+            "veld": self.posd_dot(t)
         }
         return [refs[key] for key in args]
 
-    def set_dot(self, t):
-        ctrls0, controller_info = self.controller.get_control(t, self)
+    def set_dot(self, t, action):
+        ctrls0, controller_info = self.controller.get_control(t, self,action)
         bctrls = self.plant.saturate(ctrls0)
 
         """ set faults """
@@ -136,10 +145,10 @@ class MyEnv(fym.BaseEnv):
         """Lambda function"""
 
         Lambda = np.ones(11)
-        if t >= 3:
-            Lambda[0] = 0.0
-            Lambda[1] = 0.3
-            Lambda[2] = 0.3
+        # if t >= 3:
+        #     Lambda[0] = 0.0
+        #     Lambda[1] = 0.3
+        #     Lambda[2] = 0.3
         return Lambda
 
     def set_Lambda(self, t, ctrls):
@@ -150,6 +159,7 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
+    agent = ftc.make("NMPC", env)
     flogger = fym.Logger("data.h5")
 
     env.reset()
@@ -160,8 +170,11 @@ def run():
         while True:
             env.render()
 
-            done, env_info = env.step(mfa_predict_prev, Lambda_prev)
-            flogger.record(env=env_info)
+            action, agent_info = agent.get_action()
+
+            obs, done, env_info = env.step(mfa_predict_prev, Lambda_prev, action=action)
+            agent.solve_mpc(obs)
+            flogger.record(env=env_info, agent=agent_info)
 
             Lambda_prev = env_info["Lambda"]
             mfa_predict_prev = env_info["mfa"]
@@ -183,35 +196,39 @@ def plot():
     """ Column 1 - States: Position """
     ax = axes[0, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "k-")
-    ax.plot(data["t"], data["posd"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$x$, m")
     ax.legend(["Response", "Command"], loc="upper right")
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "k-")
-    ax.plot(data["t"], data["posd"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$y$, m")
+    ax.set_ylim(-1, 1)
 
     ax = axes[2, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
     ax.plot(data["t"], data["posd"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$z$, m")
+    ax.set_ylim(-60, -40)
 
     ax.set_xlabel("Time, sec")
 
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "k-")
+    ax.plot(data["t"], data["veld"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_x$, m/s")
+    ax.set_ylim(0, 50)
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "k-")
     ax.set_ylabel(r"$v_y$, m/s")
+    ax.set_ylim(-1, 1)
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
     ax.set_ylabel(r"$v_z$, m/s")
+    ax.set_ylim(-1, 1)
 
     ax.set_xlabel("Time, sec")
 
@@ -220,6 +237,7 @@ def plot():
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "k-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\phi$, deg")
+    ax.set_ylim(-1, 1)
 
     ax = axes[1, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "k-")
@@ -230,6 +248,7 @@ def plot():
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "k-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\psi$, deg")
+    ax.set_ylim(-1, 1)
 
     ax.set_xlabel("Time, sec")
 
@@ -237,14 +256,17 @@ def plot():
     ax = axes[0, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 0].squeeze(-1)), "k-")
     ax.set_ylabel(r"$p$, deg/s")
+    ax.set_ylim(-1, 1)
 
     ax = axes[1, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "k-")
     ax.set_ylabel(r"$q$, deg/s")
+    # ax.set_ylim(-1, 1)
 
     ax = axes[2, 3]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 2].squeeze(-1)), "k-")
     ax.set_ylabel(r"$r$, deg/s")
+    ax.set_ylim(-1, 1)
 
     ax.set_xlabel("Time, sec")
 
@@ -367,7 +389,7 @@ def main(args):
         run()
         data = fym.load("data.h5")
         evaluate_mfa(
-            np.all(data["env"]["mfa"]), calculate_mae(data, time_from=2), verbose=True
+            np.all(data["env"]["mfa"]), calculate_mae(data, time_from=2, error_type="alt"), verbose=True
         )
 
         if args.plot:
