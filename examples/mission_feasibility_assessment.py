@@ -27,7 +27,7 @@ class MyEnv(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 10,
+            "max_t": 20,
         },
         "plant": {
             "init": {
@@ -145,10 +145,10 @@ class MyEnv(fym.BaseEnv):
         """Lambda function"""
 
         Lambda = np.ones(11)
-        # if t >= 3:
-        #     Lambda[0] = 0.0
-        #     Lambda[1] = 0.3
-        #     Lambda[2] = 0.3
+        if t >= 5:
+            Lambda[0] = 0.0
+            Lambda[1] = 0.5
+            # Lambda[2] = 0.3
         return Lambda
 
     def set_Lambda(self, t, ctrls):
@@ -228,7 +228,7 @@ def plot():
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
     ax.set_ylabel(r"$v_z$, m/s")
-    ax.set_ylim(-1, 1)
+    # ax.set_ylim(-1, 1)
 
     ax.set_xlabel("Time, sec")
 
