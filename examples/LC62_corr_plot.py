@@ -11,6 +11,7 @@ Trst_corr = np.load('corr.npz')
 VT_corr = Trst_corr['VT_corr']
 acc_corr = Trst_corr['acc_corr']
 theta_corr = Trst_corr['theta_corr']
+cost = Trst_corr['cost']
 
 """ Figure 1 - Trim """
 theta_trim = theta_corr[:, np.where(acc_corr == 0)].squeeze(-1)
@@ -31,7 +32,18 @@ ax.set_ylabel("V, m/s", fontsize=15)
 ax.set_zlabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Transition Corridor", fontsize=20)
 
-""" Figure 3 - Trst 2D """
+
+""" Figure 3 - cost """
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
+VT, acc = np.meshgrid(VT_corr, acc_corr)
+ax.plot_surface(acc, VT, cost.T, cmap='plasma', edgecolor='none')
+ax.contourf(acc, VT, cost.T, zdir='x', offset=6, cmap='plasma')
+ax.set_xlabel(r"$a_x, m/s^{2}$", fontsize=15)
+ax.set_ylabel("V, m/s", fontsize=15)
+ax.set_zlabel(r"cost", fontsize=15)
+
+""" Figure 4 - Trst 2D """
 fig = plt.figure()
 ax = fig.add_subplot(111)
 contour = ax.contourf(VT, theta_corr.T, acc, levels=np.shape(theta_corr)[0], cmap='plasma')
@@ -40,6 +52,7 @@ ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Dynamic Transition Corridor", fontsize=20)
 cbar = fig.colorbar(contour)
 cbar.ax.set_xlabel(r"$a_x, m/s^{2}$")
+
 
 plt.show()
 
