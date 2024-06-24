@@ -510,7 +510,7 @@ class LC62_corridor(fym.BaseEnv):
         corr = list(corr.values())
         VT_corr, acc_corr = corr
         bounds = (
-            np.deg2rad((-20, 20)),
+            np.deg2rad((-30, 30)),
             np.deg2rad((-10, 10)),
             self.control_limits["cmd"],
             self.control_limits["cmd"],
@@ -522,6 +522,7 @@ class LC62_corridor(fym.BaseEnv):
         m = np.size(acc_corr)
 
         theta_corr = np.zeros((n, m))
+        cost = np.zeros((n, m))
 
         for i in range(n):
             for j in range(m):
@@ -534,17 +535,18 @@ class LC62_corridor(fym.BaseEnv):
                     method = method,
                     options = options,
                 )
-                
-                alp, beta, pusher1, pusher2, dela, dele, delr = result.x
-                # if np.isclose(VT, 0):
-                #     alp, beta, pusher1, pusher2, dela, dele, delr = np.zeros(7)
-                # else:
-                #     alp, beta, pusher1, pusher2, dela, dele, delr = result.x
+                cost[i][j] = result.fun
+                if result.success and np.linalg.norm(cost[i][j]) < 1:
+                    alp, beta, pusher1, pusher2, dela, dele, delr = result.x
+                                # if np.isclose(VT, 0):
+                                #     alp, beta, pusher1, pusher2, dela, dele, delr = np.zeros(7)
+                                # else:
+                                #     alp, beta, pusher1, pusher2, dela, dele, delr = result.x
 
-                theta_corr[i][j] = np.rad2deg(alp)
+                    theta_corr[i][j] = np.rad2deg(alp)
 
         Trst_corr = VT_corr, acc_corr, theta_corr
-        return Trst_corr
+        return Trst_corr, cost
 
     def _cost_fixed(self, z, fixed):
         h, VT, acc = fixed
@@ -566,7 +568,7 @@ class LC62_corridor(fym.BaseEnv):
         dpos, dvel, dquat, domega= self.deriv(pos_trim, vel_trim, quat_trim, omega_trim, FM_Fixed)
         dxs = np.vstack((dvel[0] - acc, dvel[1:3], domega))
         weight = np.diag([10, 1, 1, 1000, 1000, 1000])
-        cost = dxs.T @ weight @ dxs
+        cost = np.sqrt(dxs.T @ weight @ dxs)
         return cost
 
     def corr_plot(self, Trst_corr):
@@ -593,7 +595,6 @@ class LC62_corridor(fym.BaseEnv):
 
         plt.show()
 
-        
 
 if __name__ == "__main__":
     system = LC62_corridor()
@@ -609,11 +610,9 @@ if __name__ == "__main__":
     # print(theta_trim)
 
 
-    Trst_corr = system.get_corr(corr={"VT": np.arange(0, 41, 0.05), "acc": np.arange(-2, 2.1, 0.5)})
+    Trst_corr, cost = system.get_corr(corr={"VT": np.arange(0, 40, 1), "acc": np.arange(-4, 6, 1)})
     VT_corr, acc_corr, theta_corr = Trst_corr
-    np.savez('corr.npz', VT_corr=VT_corr, acc_corr=acc_corr, theta_corr=theta_corr)
-    
+    np.savez('corr.npz', VT_corr=VT_corr, acc_corr=acc_corr, theta_corr=theta_corr, cost=cost)
     # system.corr_plot(Trst_corr)
-    
 
 
