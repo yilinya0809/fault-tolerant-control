@@ -327,9 +327,9 @@ class LC62_corridor(fym.BaseEnv):
         return pressure / (287 * temperature)
 
     def aero_coeff(self, alp):
-        _CL = interp1d(self.tables["alp"], self.tables["CL"], fill_value="extrapolate")
-        _CD = interp1d(self.tables["alp"], self.tables["CD"],fill_value='extrapolate')
-        _Cm = interp1d(self.tables["alp"], self.tables["Cm"], fill_value='extrapolate')
+        _CL = interp1d(self.tables["alp"], self.tables["CL"], kind="linear", fill_value="extrapolate")
+        _CD = interp1d(self.tables["alp"], self.tables["CD"], kind="linear", fill_value='extrapolate')
+        _Cm = interp1d(self.tables["alp"], self.tables["Cm"], kind="linear", fill_value='extrapolate')
         CL = _CL(alp)
         CD = _CD(alp)
         Cm = _Cm(alp)
@@ -495,38 +495,66 @@ class LC62_corridor(fym.BaseEnv):
         z0={
             "alpha": 0.0,
             "beta": 0,
-            "pusher1": 0.5,
-            "pusher2": 0.5,
-            "dela": 0,
-            "dele": 0,
-            "delr": 0,
+            "rotor1": 0.5,
+            "rotor2": 0.5,
+            "rotor3": 0.5,
+            "rotor4": 0.5,
+            "rotor5": 0.5,
+            "rotor6": 0.5,
+            "pusher1": 0.0,
+            "pusher2": 0.0,
+
         },
         height = 50,
         corr = {"VT": np.arange(1, 46, 1), "acc": np.arange(-4, 6, 1)},
         method="SLSQP",
         options={"disp": False, "ftol": 1e-10},
     ):
-        z0 = list(z0.values())
+        # z0 = list(z0.values())
         corr = list(corr.values())
         VT_corr, acc_corr = corr
         bounds = (
-            np.deg2rad((-30, 30)),
+            np.deg2rad((-20, 20)),
             np.deg2rad((-10, 10)),
             self.control_limits["cmd"],
             self.control_limits["cmd"],
-            self.control_limits["dela"],
-            self.control_limits["dele"],
-            self.control_limits["delr"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
         )
         n = np.size(VT_corr)
         m = np.size(acc_corr)
 
         theta_corr = np.zeros((n, m))
-        cost = np.zeros((n, m))
+        cost = np.ones((n, m)) * 200
+        success = np.zeros((n, m))
 
-        for i in range(n):
-            for j in range(m):
-                fixed = (height, VT_corr[i], acc_corr[j])
+        for j in range(m):
+        #     vel = VT_corr[i]
+        #     if vel < 10:
+        #         r0 = 0.5
+        #         p0 = 0.0
+        #     elif 10 <= vel < 20:
+        #         r0 = 0.3
+        #         p0 = 0.2
+        #     elif 20 <= vel < 30:
+        #         r0 = 0.1
+        #         p0 = 0.4
+        #     else:
+        #         r0 = 0.0
+                # p0 = 0.5
+
+            for i in range(n):
+                acc = acc_corr[j]
+                vel = VT_corr[i]
+                # if vel > 30 and acc > 3:
+                #     r0 = 0.0
+                #     p0 = 0.7
+                z0 = list(z0.values())
+                fixed = (height, vel, acc)
                 result = scipy.optimize.minimize(
                     self._cost_fixed,
                     z0,
@@ -536,62 +564,66 @@ class LC62_corridor(fym.BaseEnv):
                     options = options,
                 )
                 cost[i][j] = result.fun
-                if result.success and np.linalg.norm(cost[i][j]) < 1:
-                    alp, beta, pusher1, pusher2, dela, dele, delr = result.x
-                                # if np.isclose(VT, 0):
-                                #     alp, beta, pusher1, pusher2, dela, dele, delr = np.zeros(7)
-                                # else:
-                                #     alp, beta, pusher1, pusher2, dela, dele, delr = result.x
-
+                if np.linalg.norm(cost[i][j]) < 1:
+                    alp, beta, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.p1, self.p2 = result.x
                     theta_corr[i][j] = np.rad2deg(alp)
+                    z0={
+                        "alpha": 0,
+                        "beta": 0,
+                        "rotor1": self.r1,
+                        "rotor2": self.r2,
+                        "rotor3": self.r3,
+                        "rotor4": self.r4,
+                        "rotor5": self.r5,
+                        "rotor6": self.r6,
+                        "pusher1": self.p1,
+                        "pusher2": self.p2,
+                        }
+                    success[i][j]=1
+                    print(f'vel: {vel:.1f}, acc: {acc:.1f}, success')
+                else:
+                    print(f'vel: {vel:.1f}, acc: {acc:.1f}, cost: {cost[i][j]:.3f}')
 
-        Trst_corr = VT_corr, acc_corr, theta_corr
-        return Trst_corr, cost
+
+        Trst_corr = VT_corr, acc_corr, theta_corr, cost, success
+        return Trst_corr
 
     def _cost_fixed(self, z, fixed):
         h, VT, acc = fixed
-        alp, beta, pusher1, pusher2, dela, dele, delr = z
+        alp, beta, rotor1, rotor2, rotor3, rotor4, rotor5, rotor6, pusher1, pusher2 = z
         pos_trim = np.vstack((0, 0, -h))
         vel_trim = np.vstack(
             (VT * cos(alp) * cos(beta), VT * sin(beta), VT * sin(alp) * cos(beta))
         )
         quat_trim = np.vstack(angle2quat(0, alp, 0))
         omega_trim = np.vstack((0, 0, 0))
+        rcmds = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
         pcmds = np.vstack((pusher1, pusher2))
-        dels = np.vstack((dela, dele, delr))
+        dels = np.vstack((0, 0, 0))
 
+        FM_Rotor = self.B_VTOL(rcmds, omega_trim)
         FM_Pusher = self.B_Pusher(pcmds)
         FM_Fuselage = self.B_Fuselage(dels, pos_trim, vel_trim, omega_trim)
         FM_Gravity = self.B_Gravity(quat_trim)
-        FM_Fixed = FM_Fuselage + FM_Pusher + FM_Gravity
+        FM_Fixed = FM_Fuselage + FM_Pusher + FM_Gravity + FM_Rotor
 
         dpos, dvel, dquat, domega= self.deriv(pos_trim, vel_trim, quat_trim, omega_trim, FM_Fixed)
-        dxs = np.vstack((dvel[0] - acc, dvel[1:3], domega))
-        weight = np.diag([10, 1, 1, 1000, 1000, 1000])
-        cost = np.sqrt(dxs.T @ weight @ dxs)
+        dxs = np.vstack((dpos[0]-VT, dpos[1:3], dvel[0]-acc, dvel[1:3], domega))
+        weight = np.diag([10, 1, 1, 10, 1, 1, 1000, 1000, 1000])
+        cost = dxs.T @ weight @ dxs
         return cost
 
-    def corr_plot(self, Trst_corr):
-        VT_corr, acc_corr, theta_corr = Trst_corr
+    def cl_plot(self):
+        alp = np.arange(-5, 10, 0.1)
+        aero_coeff = self.aero_coeff(alp)
+        CL = aero_coeff[0, :]
 
         """ Figure 1 - Trim """
-        theta_trim = theta_corr[:, np.where(acc_corr == 0)].squeeze(-1)
         fig = plt.figure()
         fig, ax = plt.subplots(1, 1)
-        ax.plot(VT_corr, theta_trim)
-        ax.set_xlabel("V, m/s", fontsize=20)
-        ax.set_ylabel(r"$\theta$, deg", fontsize=20)
-        ax.set_title("Trim condition", fontsize=25)
-
-        """ Figure 2 - Trst """
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-        VT, acc = np.meshgrid(VT_corr, acc_corr)
-        ax.plot_surface(acc, VT, theta_corr.T, cmap='plasma')
-        ax.set_xlabel(r"$a_x, m/s^{2}$", fontsize=20)
-        ax.set_ylabel("V, m/s", fontsize=20)
-        ax.set_zlabel(r"$\theta$, deg", fontsize=20)
-        ax.set_title("Transition Corridor", fontsize=25)
+        ax.plot(alp, CL)
+        ax.set_xlabel('AoA')
+        ax.set_ylabel('CL')
 
         plt.show()
 
@@ -599,20 +631,9 @@ class LC62_corridor(fym.BaseEnv):
 if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
-    # VT_corr = np.arange(1, 46, 1)
-    # theta_trim = np.zeros(np.size(VT_corr))
-    # for i in range(np.size(VT_corr)):
-    #     x_trims, u_trims_fixed = system.get_trim_fixed(fixed={"h": height, "VT": VT_corr[i]})
-    #     u_trims_vtol = system.get_trim_vtol(fixed={"x_trims": x_trims, "u_trims_fixed": u_trims_fixed})
-    #     pos, vel, quat, omega = x_trims
-    #     ang = quat2angle(quat)
-    #     theta_trim[i] = np.rad2deg(ang[1])
-    # print(theta_trim)
-
-
-    Trst_corr, cost = system.get_corr(corr={"VT": np.arange(0, 40, 1), "acc": np.arange(-4, 6, 1)})
-    VT_corr, acc_corr, theta_corr = Trst_corr
-    np.savez('corr.npz', VT_corr=VT_corr, acc_corr=acc_corr, theta_corr=theta_corr, cost=cost)
-    # system.corr_plot(Trst_corr)
-
+    system.cl_plot()
+    # Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 3.8, 0.2)})
+    # # Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 4, 0.2)})
+    # VT_corr, acc_corr, theta_corr, cost, success = Trst_corr
+    # np.savez('corr.npz', VT_corr=VT_corr, acc_corr=acc_corr, theta_corr=theta_corr, cost=cost, success=success)
 
