@@ -47,8 +47,6 @@ class MPC_Corr:
 
     def set_ref(self, t, tf, v0, vf):
         VT_ref = v0 + (vf - v0) / tf * t
-
-        VT_ref = v0 + (vf - v0) / tf * t
         upper_bound, lower_bound = boundary(VT_corr)
         degree = 3
         upper, lower, central = poly(degree, VT_corr, upper_bound, lower_bound)
