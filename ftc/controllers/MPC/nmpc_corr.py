@@ -1,16 +1,15 @@
 import casadi as ca
 import fym
 import numpy as np
-from ftc.models.LC62S import LC62
 from fym.utils.rot import quat2angle
-
 from poly_corr import boundary, poly, weighted_poly
+
+from ftc.models.LC62S import LC62
 
 Trst_corr = np.load("corr.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc_corr"]
 theta_corr = Trst_corr["theta_corr"]
-
 
 class MPC_Corr:
     def __init__(self, env):
@@ -193,3 +192,4 @@ class MPC_Corr:
         u = ca.reshape(sol["x"][n_states * (N + 1) :], n_controls, N)
 
         self.control_init = u[:, 0]
+
