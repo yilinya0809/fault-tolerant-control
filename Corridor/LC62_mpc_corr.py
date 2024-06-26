@@ -132,14 +132,14 @@ def plot():
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "k-")
-    ax.plot(data["t"], data["posd"][:, 1].squeeze(-1), "r--")
+    # ax.plot(data["t"], data["posd"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$y$, m")
     ax.legend(["Response", "Command"], loc="upper right")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], data["posd"][:, 2].squeeze(-1), "r--")
+    # ax.plot(data["t"], data["posd"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$z$, m")
     ax.set_ylim([-12, -9])
 
@@ -148,19 +148,19 @@ def plot():
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "k-")
-    ax.plot(data["t"], data["veld"][:, 0].squeeze(-1), "r--")
+    # ax.plot(data["t"], data["veld"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_x$, m/s")
     ax.set_ylim([0, 50])
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "k-")
-    ax.plot(data["t"], data["veld"][:, 1].squeeze(-1), "r--")
+    # ax.plot(data["t"], data["veld"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_y$, m/s")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], data["veld"][:, 2].squeeze(-1), "r--")
+    # ax.plot(data["t"], data["veld"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_z$, m/s")
 
     ax.set_xlabel("Time, sec")
