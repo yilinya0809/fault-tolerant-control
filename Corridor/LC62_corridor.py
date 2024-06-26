@@ -532,27 +532,39 @@ class LC62_corridor(fym.BaseEnv):
         cost = np.ones((n, m)) * 200
         success = np.zeros((n, m))
 
-        for j in range(m):
-        #     vel = VT_corr[i]
-        #     if vel < 10:
-        #         r0 = 0.5
-        #         p0 = 0.0
-        #     elif 10 <= vel < 20:
-        #         r0 = 0.3
-        #         p0 = 0.2
-        #     elif 20 <= vel < 30:
-        #         r0 = 0.1
-        #         p0 = 0.4
-        #     else:
-        #         r0 = 0.0
-                # p0 = 0.5
+        for i in range(n):
+            vel = VT_corr[i]
+            if vel < 10:
+                r0 = 0.5
+                p0 = 0.0
+            elif 10 <= vel < 20:
+                r0 = 0.3
+                p0 = 0.2
+            elif 20 <= vel < 30:
+                r0 = 0.1
+                p0 = 0.4
+            else:
+                r0 = 0.0
+                p0 = 0.5
 
-            for i in range(n):
+            for j in range(m):
                 acc = acc_corr[j]
                 vel = VT_corr[i]
-                # if vel > 30 and acc > 3:
-                #     r0 = 0.0
-                #     p0 = 0.7
+                if vel > 30 and acc > 3:
+                    r0 = 0.0
+                    p0 = 0.7
+                z0={
+                    "alpha": 0,
+                    "beta": 0,
+                    "rotor1": r0,
+                    "rotor2": r0,
+                    "rotor3": r0,
+                    "rotor4": r0,
+                    "rotor5": r0,
+                    "rotor6": r0,
+                    "pusher1": p0,
+                    "pusher2": p0,
+                }
                 z0 = list(z0.values())
                 fixed = (height, vel, acc)
                 result = scipy.optimize.minimize(
@@ -564,21 +576,22 @@ class LC62_corridor(fym.BaseEnv):
                     options = options,
                 )
                 cost[i][j] = result.fun
+                alp, beta, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.p1, self.p2 = result.x
                 if np.linalg.norm(cost[i][j]) < 1:
-                    alp, beta, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.p1, self.p2 = result.x
+                    # alp, beta, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.p1, self.p2 = result.x
                     theta_corr[i][j] = np.rad2deg(alp)
-                    z0={
-                        "alpha": 0,
-                        "beta": 0,
-                        "rotor1": self.r1,
-                        "rotor2": self.r2,
-                        "rotor3": self.r3,
-                        "rotor4": self.r4,
-                        "rotor5": self.r5,
-                        "rotor6": self.r6,
-                        "pusher1": self.p1,
-                        "pusher2": self.p2,
-                        }
+                    # z0={
+                    #     "alpha": 0,
+                    #     "beta": 0,
+                    #     "rotor1": self.r1,
+                    #     "rotor2": self.r2,
+                    #     "rotor3": self.r3,
+                    #     "rotor4": self.r4,
+                    #     "rotor5": self.r5,
+                    #     "rotor6": self.r6,
+                    #     "pusher1": self.p1,
+                    #     "pusher2": self.p2,
+                    #     }
                     success[i][j]=1
                     print(f'vel: {vel:.1f}, acc: {acc:.1f}, success')
                 else:
@@ -614,14 +627,14 @@ class LC62_corridor(fym.BaseEnv):
         return cost
 
     def cl_plot(self):
-        alp = np.arange(-5, 10, 0.1)
+        alp = np.deg2rad(np.arange(-5, 10, 0.1))
         aero_coeff = self.aero_coeff(alp)
         CL = aero_coeff[0, :]
 
         """ Figure 1 - Trim """
         fig = plt.figure()
         fig, ax = plt.subplots(1, 1)
-        ax.plot(alp, CL)
+        ax.plot(np.rad2deg(alp), CL)
         ax.set_xlabel('AoA')
         ax.set_ylabel('CL')
 
@@ -631,9 +644,9 @@ class LC62_corridor(fym.BaseEnv):
 if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
-    system.cl_plot()
-    # Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 3.8, 0.2)})
-    # # Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 4, 0.2)})
-    # VT_corr, acc_corr, theta_corr, cost, success = Trst_corr
-    # np.savez('corr.npz', VT_corr=VT_corr, acc_corr=acc_corr, theta_corr=theta_corr, cost=cost, success=success)
+    # system.cl_plot()
+    # Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 3.4, 0.2)})
+    Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 3.8, 0.2)})
+    VT_corr, acc_corr, theta_corr, cost, success = Trst_corr
+    np.savez('corr.npz', VT_corr=VT_corr, acc_corr=acc_corr, theta_corr=theta_corr, cost=cost, success=success)
 
