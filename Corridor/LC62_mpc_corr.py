@@ -4,7 +4,7 @@ import fym
 import matplotlib.pyplot as plt
 import numpy as np
 from fym.utils.rot import quat2angle
-from poly_corr import poly
+from poly_corr import boundary, poly, weighted_poly
 
 import ftc
 from ftc.models.LC62R import LC62R
@@ -12,24 +12,10 @@ from ftc.utils import safeupdate
 
 np.seterr(all="raise")
 
-
 Trst_corr = np.load("corr.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc_corr"]
 theta_corr = Trst_corr["theta_corr"]
-cost = Trst_corr["cost"]
-success = Trst_corr["success"]
-
-upper_bound = []
-lower_bound = []
-
-for i in range(len(VT_corr)):
-    theta_at_V = theta_corr[i, :]
-    upper_bound.append(np.max(theta_at_V))
-    lower_bound.append(np.min(theta_at_V))
-
-upper_bound = np.array(upper_bound)
-lower_bound = np.array(lower_bound)
 
 
 class MyEnv(fym.BaseEnv):
@@ -40,7 +26,7 @@ class MyEnv(fym.BaseEnv):
         },
         "plant": {
             "init": {
-                "pos": np.vstack((0.0, 0.0, -10.0)),
+                "pos": np.vstack((0.0, 0.0, -50.0)),
                 "vel": np.zeros((3, 1)),
                 "quat": np.vstack((1, 0, 0, 0)),
                 "omega": np.zeros((3, 1)),
@@ -72,7 +58,7 @@ class MyEnv(fym.BaseEnv):
     def set_dot(self, t, action):
         tf = self.clock.max_t
         pos, vel, quat, omega = self.plant.observe_list()
-        self.agent.set_ref(t, tf, VT_corr[0], VT_corr[-1])
+        stated = self.agent.set_ref(t, tf, VT_corr[0], VT_corr[-1])
         ctrls0, controller_info = self.controller.get_control(t, self, action)
         ctrls = self.plant.saturate(ctrls0)
 
@@ -88,6 +74,7 @@ class MyEnv(fym.BaseEnv):
             "FM": FM,
             "Fr": self.plant.B_VTOL(ctrls[:6], omega)[2],
             "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
+            "stated": stated,
         }
 
         return env_info
@@ -139,16 +126,16 @@ def plot():
 
     ax = axes[2, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
-    # ax.plot(data["t"], data["posd"][:, 2].squeeze(-1), "r--")
+    ax.plot(data["t"], data["stated"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$z$, m")
-    ax.set_ylim([-12, -9])
+    # ax.set_ylim([-12, -9])
 
     ax.set_xlabel("Time, sec")
 
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "k-")
-    # ax.plot(data["t"], data["veld"][:, 0].squeeze(-1), "r--")
+    ax.plot(data["t"], data["stated"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_x$, m/s")
     ax.set_ylim([0, 50])
 
@@ -160,7 +147,7 @@ def plot():
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
-    # ax.plot(data["t"], data["veld"][:, 2].squeeze(-1), "r--")
+    ax.plot(data["t"], data["stated"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_z$, m/s")
 
     ax.set_xlabel("Time, sec")
