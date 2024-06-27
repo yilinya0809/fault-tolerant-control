@@ -1,12 +1,10 @@
-<<<<<<< HEAD
-=======
 import casadi as ca
->>>>>>> 8cd6684 (NDI-based Control Design for Transition Flight of LC62)
 import fym
 import numpy as np
 from fym.utils.rot import quat2angle
 
-from ftc.models.LC62S import LC62
+# from ftc.models.LC62S import LC62
+
 
 class GESOController(fym.BaseEnv):
     def __init__(self, env):
@@ -72,7 +70,9 @@ class GESOController(fym.BaseEnv):
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
         g = env.plant.Jinv
 
-        nui_N = np.linalg.inv(g) @ (-f - self.K1 @ (ang - angd) - self.K2 @ (omega - omegad))
+        nui_N = np.linalg.inv(g) @ (
+            -f - self.K1 @ (ang - angd) - self.K2 @ (omega - omegad)
+        )
         dhat = self.obsv.state[3:6]
         nui_E = -dhat
 
@@ -132,7 +132,9 @@ class NDIController(GESOController):
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
         g = env.plant.Jinv
 
-        nui_N = np.linalg.inv(g) @ (-f - self.K1 @ (ang - angd) - self.K2 @ (omega - omegad))
+        nui_N = np.linalg.inv(g) @ (
+            -f - self.K1 @ (ang - angd) - self.K2 @ (omega - omegad)
+        )
         dhat = self.obsv.state[3:6]
         nui_E = -dhat
 

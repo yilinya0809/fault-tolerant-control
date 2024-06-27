@@ -192,4 +192,3 @@ class MPC_Corr:
         u = ca.reshape(sol["x"][n_states * (N + 1) :], n_controls, N)
 
         self.control_init = u[:, 0]
-
