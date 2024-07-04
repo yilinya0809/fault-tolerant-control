@@ -4,9 +4,9 @@ import fym
 import matplotlib.pyplot as plt
 import numpy as np
 from fym.utils.rot import quat2angle
-from poly_corr import boundary, poly, weighted_poly
 
 import ftc
+from Corridor.poly_corr import boundary, poly, weighted_poly
 from ftc.models.LC62R import LC62R
 from ftc.utils import safeupdate
 

@@ -12,7 +12,8 @@ from ftc.utils import safeupdate
 
 np.seterr(all="raise")
 
-Trst_corr = np.load("corr.npz")
+Trst_corr = np.load("corr_conti.npz")
+# Trst_corr = np.load("corr_back.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc_corr"]
 theta_corr = Trst_corr["theta_corr"]
@@ -28,6 +29,7 @@ class MyEnv(fym.BaseEnv):
             "init": {
                 "pos": np.vstack((0.0, 0.0, -50.0)),
                 "vel": np.zeros((3, 1)),
+                # "vel": np.vstack((40, 0, 0)),
                 "quat": np.vstack((1, 0, 0, 0)),
                 "omega": np.zeros((3, 1)),
             },
@@ -59,6 +61,7 @@ class MyEnv(fym.BaseEnv):
         tf = self.clock.max_t
         pos, vel, quat, omega = self.plant.observe_list()
         stated = self.agent.set_ref(t, tf, VT_corr[0], VT_corr[-1])
+        # stated = self.agent.set_ref(t, tf, VT_corr[-1], VT_corr[0])
         ctrls0, controller_info = self.controller.get_control(t, self, action)
         ctrls = self.plant.saturate(ctrls0)
 
@@ -82,8 +85,8 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    # agent = ftc.make("NMPC-Corr", env)
     flogger = fym.Logger("data_corr.h5")
+    # flogger = fym.Logger("data_corr_back.h5")
 
     env.reset()
     try:
@@ -104,7 +107,9 @@ def run():
 
 
 def plot():
-    data = fym.load("data_corr.h5")["env"]
+    data = fym.load("data_corr_archive.h5")["env"]
+
+    # data = fym.load("data_corr_back.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
@@ -128,7 +133,7 @@ def plot():
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
     ax.plot(data["t"], data["stated"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$z$, m")
-    # ax.set_ylim([-12, -9])
+    ax.set_ylim([-60, -40])
 
     ax.set_xlabel("Time, sec")
 
@@ -149,6 +154,7 @@ def plot():
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
     ax.plot(data["t"], data["stated"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_z$, m/s")
+    ax.set_ylim([-3, 3])
 
     ax.set_xlabel("Time, sec")
 
@@ -245,7 +251,8 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "k-")
     ax.set_ylabel("Rotor 1")
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylim([0, 1])
+    # ax.set_ylim([0, 1])
+    ax.set_ylim([-0.2, 1.2])
     ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
@@ -253,7 +260,8 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "k-")
     ax.set_ylabel("Rotor 2")
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylim([0, 1])
+    # ax.set_ylim([0, 1])
+    ax.set_ylim([-0.2, 1.2])
     ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
@@ -261,7 +269,8 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "k-")
     ax.set_ylabel("Rotor 3")
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylim([0, 1])
+    # ax.set_ylim([0, 1])
+    ax.set_ylim([-0.2, 1.2])
     ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
@@ -269,7 +278,8 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "k-")
     ax.set_ylabel("Rotor 4")
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylim([0, 1])
+    # ax.set_ylim([0, 1])
+    ax.set_ylim([-0.2, 1.2])
     ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
@@ -277,7 +287,8 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "k-")
     ax.set_ylabel("Rotor 5")
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylim([0, 1])
+    # ax.set_ylim([0, 1])
+    ax.set_ylim([-0.2, 1.2])
     ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
@@ -285,7 +296,8 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "k-")
     ax.set_ylabel("Rotor 6")
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylim([0, 1])
+    # ax.set_ylim([0, 1])
+    ax.set_ylim([-0.2, 1.2])
     ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
@@ -293,7 +305,8 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "k-")
     ax.set_ylabel("Pusher 1")
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylim([-0.5, 1.5])
+    # ax.set_ylim([0, 1])
+    ax.set_ylim([-0.2, 1.2])
     ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 
@@ -301,7 +314,8 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "k-")
     ax.set_ylabel("Pusher 2")
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylim([-0.5, 1.5])
+    # ax.set_ylim([-0.5, 1.5])
+    ax.set_ylim([-0.2, 1.2])
     ax.set_box_aspect(1)
     ax.set_xlabel("Time, sec")
 

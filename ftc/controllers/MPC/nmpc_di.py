@@ -20,7 +20,7 @@ class MPC:
 
         z_init, vx_init, vz_init, theta_init, _ = env.observation()
 
-        X_trim, U_trim = self.plant.get_trim(fixed={"h": 50, "VT": 45})
+        X_trim, U_trim = self.plant.get_trim(fixed={"h": 50, "VT": 40})
         _, self.z_target, vx_target, vz_target = X_trim.ravel()
         Fr_target, Fp_target, theta_target = U_trim.ravel()
 
@@ -95,8 +95,10 @@ class MPC:
         U = ca.MX.sym("U", n_controls, N)
         P = ca.MX.sym("P", 2 * n_states + n_controls)
 
-        Q = ca.diagcat(300, 300, 300)
-        R = ca.diagcat(0.01, 0.1, 200000)
+        # Q = ca.diagcat(300, 300, 300)
+        # R = ca.diagcat(0.01, 0.1, 200000)
+        Q = ca.diagcat(1, 1, 1)
+        R = ca.diagcat(0, 0, 0)
 
         Xdot = self.plant.derivnox(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])

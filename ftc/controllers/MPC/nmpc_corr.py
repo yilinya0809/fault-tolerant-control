@@ -2,14 +2,15 @@ import casadi as ca
 import fym
 import numpy as np
 from fym.utils.rot import quat2angle
-from poly_corr import boundary, poly, weighted_poly
 
+from Corridor.poly_corr import boundary, poly, weighted_poly
 from ftc.models.LC62S import LC62
 
-Trst_corr = np.load("corr.npz")
+Trst_corr = np.load("corr_conti.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc_corr"]
 theta_corr = Trst_corr["theta_corr"]
+
 
 class MPC_Corr:
     def __init__(self, env):
@@ -46,11 +47,17 @@ class MPC_Corr:
         return np.array(dm.full())
 
     def set_ref(self, t, tf, v0, vf):
+        # eps = 1.2
+        # if t <= tf / eps:
+        #     VT_ref = v0 + eps * (vf - v0) / tf * t
+        # else:
+        #     VT_ref = vf
         VT_ref = v0 + (vf - v0) / tf * t
         upper_bound, lower_bound = boundary(VT_corr)
-        degree = 3
+        degree = 2
         upper, lower, central = poly(degree, VT_corr, upper_bound, lower_bound)
         weighted = weighted_poly(degree, VT_corr, vf, upper, lower)
+        # weighted = weighted_poly(degree, VT_corr, v0, upper, lower)
 
         theta_ref = np.deg2rad(weighted(VT_ref))
 
@@ -127,7 +134,7 @@ class MPC_Corr:
         #         R = ca.diagcat(0.01, 0.1, 200000)
 
         Q = ca.diagcat(1, 1, 1)
-        R = ca.diagcat(0, 0, 0)
+        R = ca.diagcat(0, 0, 10)
 
         # Xdot = self.plant.deriv_lin(states, controls, q)
         Xdot = self.plant.derivnox(states, controls, q)

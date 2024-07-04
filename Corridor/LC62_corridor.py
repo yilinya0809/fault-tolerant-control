@@ -1,14 +1,14 @@
 import fym
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-from fym.utils.rot import angle2quat, quat2dcm, quat2angle
+from fym.utils.rot import angle2quat, quat2angle, quat2dcm
+from mpl_toolkits.mplot3d import axes3d
 from numpy import cos, sin
 from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d
 
-from ftc.utils import safeupdate
 from ftc.models.LC62R import LC62R
+from ftc.utils import safeupdate
 
 
 class LC62_corridor(fym.BaseEnv):
@@ -138,7 +138,6 @@ class LC62_corridor(fym.BaseEnv):
         "tq_r": [-6.3961, 12.092, -0.3156, 0],
     }
 
-
     control_limits = {
         "cmd": (0, 1),
         "dela": np.deg2rad((-10, 10)),
@@ -188,7 +187,6 @@ class LC62_corridor(fym.BaseEnv):
         dquat = dquat + k * eps * quat
         domega = self.Jinv @ (M - np.cross(omega, self.J @ omega, axis=0)) + domega
         return dpos, dvel, dquat, domega
-
 
     def set_dot(self, t, FM):
         states = self.observe_list()
@@ -327,9 +325,24 @@ class LC62_corridor(fym.BaseEnv):
         return pressure / (287 * temperature)
 
     def aero_coeff(self, alp):
-        _CL = interp1d(self.tables["alp"], self.tables["CL"], kind="linear", fill_value="extrapolate")
-        _CD = interp1d(self.tables["alp"], self.tables["CD"], kind="linear", fill_value='extrapolate')
-        _Cm = interp1d(self.tables["alp"], self.tables["Cm"], kind="linear", fill_value='extrapolate')
+        _CL = interp1d(
+            self.tables["alp"],
+            self.tables["CL"],
+            kind="linear",
+            fill_value="extrapolate",
+        )
+        _CD = interp1d(
+            self.tables["alp"],
+            self.tables["CD"],
+            kind="linear",
+            fill_value="extrapolate",
+        )
+        _Cm = interp1d(
+            self.tables["alp"],
+            self.tables["Cm"],
+            kind="linear",
+            fill_value="extrapolate",
+        )
         CL = _CL(alp)
         CD = _CD(alp)
         Cm = _Cm(alp)
@@ -489,7 +502,6 @@ class LC62_corridor(fym.BaseEnv):
         _ctrls[10] = np.clip(ctrls[10], delr_min, delr_max)
         return _ctrls
 
-
     def get_corr(
         self,
         z0={
@@ -503,10 +515,9 @@ class LC62_corridor(fym.BaseEnv):
             "rotor6": 0.5,
             "pusher1": 0.0,
             "pusher2": 0.0,
-
         },
-        height = 50,
-        corr = {"VT": np.arange(1, 46, 1), "acc": np.arange(-4, 6, 1)},
+        height=50,
+        corr={"VT": np.arange(1, 46, 1), "acc": np.arange(-4, 6, 1)},
         method="SLSQP",
         options={"disp": False, "ftol": 1e-10},
     ):
@@ -553,7 +564,7 @@ class LC62_corridor(fym.BaseEnv):
                 if vel > 30 and acc > 3:
                     r0 = 0.0
                     p0 = 0.7
-                z0={
+                z0 = {
                     "alpha": 0,
                     "beta": 0,
                     "rotor1": r0,
@@ -570,13 +581,24 @@ class LC62_corridor(fym.BaseEnv):
                 result = scipy.optimize.minimize(
                     self._cost_fixed,
                     z0,
-                    args = (fixed,),
-                    bounds = bounds,
-                    method = method,
-                    options = options,
+                    args=(fixed,),
+                    bounds=bounds,
+                    method=method,
+                    options=options,
                 )
                 cost[i][j] = result.fun
-                alp, beta, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.p1, self.p2 = result.x
+                (
+                    alp,
+                    beta,
+                    self.r1,
+                    self.r2,
+                    self.r3,
+                    self.r4,
+                    self.r5,
+                    self.r6,
+                    self.p1,
+                    self.p2,
+                ) = result.x
                 if np.linalg.norm(cost[i][j]) < 1:
                     # alp, beta, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.p1, self.p2 = result.x
                     theta_corr[i][j] = np.rad2deg(alp)
@@ -592,11 +614,10 @@ class LC62_corridor(fym.BaseEnv):
                     #     "pusher1": self.p1,
                     #     "pusher2": self.p2,
                     #     }
-                    success[i][j]=1
-                    print(f'vel: {vel:.1f}, acc: {acc:.1f}, success')
+                    success[i][j] = 1
+                    print(f"vel: {vel:.1f}, acc: {acc:.1f}, success")
                 else:
-                    print(f'vel: {vel:.1f}, acc: {acc:.1f}, cost: {cost[i][j]:.3f}')
-
+                    print(f"vel: {vel:.1f}, acc: {acc:.1f}, cost: {cost[i][j]:.3f}")
 
         Trst_corr = VT_corr, acc_corr, theta_corr, cost, success
         return Trst_corr
@@ -620,9 +641,12 @@ class LC62_corridor(fym.BaseEnv):
         FM_Gravity = self.B_Gravity(quat_trim)
         FM_Fixed = FM_Fuselage + FM_Pusher + FM_Gravity + FM_Rotor
 
-        dpos, dvel, dquat, domega= self.deriv(pos_trim, vel_trim, quat_trim, omega_trim, FM_Fixed)
-        dxs = np.vstack((dpos[0]-VT, dpos[1:3], dvel[0]-acc, dvel[1:3], domega))
-        weight = np.diag([10, 1, 1, 10, 1, 1, 1000, 1000, 1000])
+        dpos, dvel, dquat, domega = self.deriv(
+            pos_trim, vel_trim, quat_trim, omega_trim, FM_Fixed
+        )
+        # fix - norm
+        dxs = np.vstack((dpos[0] - VT*cos(alp), dpos[1], dpos[2] - VT*sin(alp), dvel[0] - acc, dvel[1:3], domega))
+        weight = np.diag([10, 1, 10, 10, 1, 1, 1000, 1000, 1000])
         cost = dxs.T @ weight @ dxs
         return cost
 
@@ -635,8 +659,8 @@ class LC62_corridor(fym.BaseEnv):
         fig = plt.figure()
         fig, ax = plt.subplots(1, 1)
         ax.plot(np.rad2deg(alp), CL)
-        ax.set_xlabel('AoA')
-        ax.set_ylabel('CL')
+        ax.set_xlabel("AoA")
+        ax.set_ylabel("CL")
 
         plt.show()
 
@@ -645,8 +669,16 @@ if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
     # system.cl_plot()
-    # Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 3.4, 0.2)})
-    Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 3.8, 0.2)})
+    # Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 3.8, 0.2)})
+    Trst_corr = system.get_corr(
+        corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(-2, 0.1, 0.2)}
+    )
     VT_corr, acc_corr, theta_corr, cost, success = Trst_corr
-    np.savez('corr.npz', VT_corr=VT_corr, acc_corr=acc_corr, theta_corr=theta_corr, cost=cost, success=success)
-
+    np.savez(
+        "corr_back.npz",
+        VT_corr=VT_corr,
+        acc_corr=acc_corr,
+        theta_corr=theta_corr,
+        cost=cost,
+        success=success,
+    )
