@@ -10,26 +10,35 @@ from numpy.polynomial.polynomial import Polynomial
 from scipy.interpolate import interp1d
 from statsmodels.regression.quantile_regression import QuantReg
 
-Trst_corr = np.load("corr_conti.npz")
-# Trst_corr = np.load("corr_back.npz")
+# Trst_corr = np.load("corr_conti.npz")
+Trst_corr = np.load("corr_2d.npz")
 VT_corr = Trst_corr["VT_corr"]
-acc_corr = Trst_corr["acc_corr"]
-theta_corr = Trst_corr["theta_corr"]
+# acc_corr = Trst_corr["acc_corr"]
+theta_corr = np.rad2deg(Trst_corr["theta_corr"])
 cost = Trst_corr["cost"]
 success = Trst_corr["success"]
-
 
 def boundary(VT_corr):
     upper_bound = []
     lower_bound = []
+ 
+        # theta_at_V = theta_corr[i, :]
+        # upper_bound.append(np.max(theta_at_V))
+        # lower_bound.append(np.min(theta_at_V))
+
 
     for i in range(len(VT_corr)):
-        theta_at_V = theta_corr[i, :]
-        upper_bound.append(np.max(theta_at_V))
-        lower_bound.append(np.min(theta_at_V))
+        theta_candidate = []
+        for j in range(len(theta_corr)):
+            if success[i][j] == 1:
+                theta_candidate.append(theta_corr[j])
 
+        upper_bound.append(np.max(theta_candidate))
+        lower_bound.append(np.min(theta_candidate))
     upper_bound = np.array(upper_bound)
     lower_bound = np.array(lower_bound)
+
+
     return upper_bound, lower_bound
 
 
@@ -84,7 +93,7 @@ def weighted_poly(degree, VT_corr, VT_cruise, poly_upper, poly_lower):
 
 
 def plot():
-    degree = 2
+    degree = 3
     upper_bound, lower_bound = boundary(VT_corr)
     upper, lower, central = poly(degree, VT_corr, upper_bound, lower_bound)
 

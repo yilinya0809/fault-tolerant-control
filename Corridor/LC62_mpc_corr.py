@@ -12,11 +12,11 @@ from ftc.utils import safeupdate
 
 np.seterr(all="raise")
 
-Trst_corr = np.load("corr_conti.npz")
-# Trst_corr = np.load("corr_back.npz")
+# Trst_corr = np.load("corr_conti.npz")
+Trst_corr = np.load("corr_2d.npz")
 VT_corr = Trst_corr["VT_corr"]
-acc_corr = Trst_corr["acc_corr"]
-theta_corr = Trst_corr["theta_corr"]
+# acc_corr = Trst_corr["acc_corr"]
+theta_corr = np.rad2deg(Trst_corr["theta_corr"])
 
 
 class MyEnv(fym.BaseEnv):
@@ -107,7 +107,7 @@ def run():
 
 
 def plot():
-    data = fym.load("data_corr_archive.h5")["env"]
+    data = fym.load("data_corr.h5")["env"]
 
     # data = fym.load("data_corr_back.h5")["env"]
 
