@@ -536,6 +536,7 @@ class LC62_corridor(fym.BaseEnv):
             self.control_limits["cmd"],
             self.control_limits["cmd"],
         )
+
         n = np.size(VT_range)
         m = np.size(theta_range)
 
@@ -547,11 +548,13 @@ class LC62_corridor(fym.BaseEnv):
                 theta = theta_range[j]
                 vel = VT_range[i]
                 fixed = (height, vel, theta, Vz_max)
+                cons = self._constraints(z0, fixed)
                 result = scipy.optimize.minimize(
                     self._cost_fixed,
                     z0,
                     args=(fixed,),
                     bounds=bounds,
+                    constraints=cons,
                     method=method,
                     options=options,
                 )
@@ -609,27 +612,53 @@ class LC62_corridor(fym.BaseEnv):
         dpos, dvel, dquat, domega = self.deriv(
             pos_trim, vel_trim, quat_trim, omega_trim, FM
         )
-        # fix - norm
 
-        # dxs = np.vstack((dpos[0] - VT*cos(alp), dpos[1], dpos[2] - VT*sin(alp), dvel[0] - acc, dvel[1:3], domega))
-        # x1 = dpos[0] - vel * cos(theta)
-        # x2 = dpos[1]
-        # x3 = dpos[2] - vel * sin(theta)
-        # x4 = (np.sign(dvel[0]) - 1) * dvel[0]
-        # x5 = dvel[1]
-        # x6 = (np.sign(dvel[2]) + 1) * dvel[2]
-        # x7 = domega
-        x1 = (np.sign(FM[0]) - 1) * FM[0]
-        x2 = (np.sign(FM[2]) + 1) * FM[2]
+        # x2 = (np.sign(FM[2]) + 1) * FM[2]
+        x2 = FM[2]
         x3 = FM[4]
-        x4 = (np.sign(dpos[2] ** 2 - Vz_max * dpos[2]) + 1) * (
-            dpos[2] ** 2 - Vz_max * dpos[2]
-        )
+        # x4 = (np.sign(dpos[2] ** 2 - Vz_max * dpos[2]) + 1) * (
+        #     dpos[2] ** 2 - Vz_max * dpos[2]
+        # )
 
-        dxs = np.vstack((x1, x2, x3, x4))
-        weight = np.diag([1, 1, 1, 10])
+        dxs = np.vstack((x2, x3))
+        weight = np.diag([1, 1])
         cost = dxs.T @ weight @ dxs
         return cost
+
+    def _constraints(self, z, fixed):
+        h, vel, theta, Vz_max = fixed
+        rotor1, rotor2, rotor3, rotor4, rotor5, rotor6, pusher1, pusher2 = z
+        pos_trim = np.vstack((0, 0, -h))
+        vel_trim = np.vstack((vel * cos(theta), 0, vel * sin(theta)))
+        quat_trim = np.vstack(angle2quat(0, theta, 0))
+        omega_trim = np.vstack((0, 0, 0))
+        rcmds = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
+        pcmds = np.vstack((pusher1, pusher2))
+        dels = np.vstack((0, 0, 0))
+
+        FM_Rotor = self.B_VTOL(rcmds, omega_trim)
+        FM_Pusher = self.B_Pusher(pcmds)
+        FM_Fuselage = self.B_Fuselage(dels, pos_trim, vel_trim, omega_trim)
+        FM_Gravity = self.B_Gravity(quat_trim)
+        FM = FM_Fuselage + FM_Pusher + FM_Gravity + FM_Rotor
+
+        dpos, dvel, dquat, domega = self.deriv(
+            pos_trim, vel_trim, quat_trim, omega_trim, FM
+        )
+
+        cons1 = lambda z, fixed: FM[0]
+        cons2 = lambda z, fixed: -FM[2]
+        cons3 = lambda z, fixed: FM[4]
+        cons4 = lambda z, fixed: -dpos[2]
+        cons5 = lambda z, fixed: dpos[2] + Vz_max
+        cons = (
+            {"type": "ineq", "fun": cons1, "args": (fixed,)},
+            # {"type": "eq", "fun": cons2, "args": (fixed,)},
+            # {"type": "eq", "fun": cons3, "args": (fixed,)},
+            {"type": "ineq", "fun": cons4, "args": (fixed,)},
+            {"type": "ineq", "fun": cons5, "args": (fixed,)},
+        )
+        return cons
 
     def cl_plot(self):
         alp = np.deg2rad(np.arange(-5, 10, 0.1))
@@ -650,9 +679,10 @@ if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
     Vz_max = 2
-    grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
-    r0 = np.arange(0.0, 1.0, 0.1)
-    p0 = np.arange(0.0, 1.0, 0.1)
+    # grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
+    grid = {"VT": np.arange(0, 40, 1), "theta": np.deg2rad(np.arange(-30, 30, 1))}
+    r0 = np.arange(0.0, 1.0, 0.5)
+    p0 = np.arange(0.0, 1.0, 0.5)
 
     for i in range(len(r0)):
         for j in range(len(p0)):
@@ -677,7 +707,7 @@ if __name__ == "__main__":
             VT_corr, theta_corr, cost, success = Trst_corr
             np.savez(
                 os.path.join(
-                    "Corridor/data1",
+                    "Corridor/data2",
                     "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
                 ),
                 z0=list(z0.values()),
