@@ -679,10 +679,10 @@ if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
     Vz_max = 2
-    # grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
-    grid = {"VT": np.arange(0, 40, 1), "theta": np.deg2rad(np.arange(-30, 30, 1))}
-    r0 = np.arange(0.0, 1.0, 0.5)
-    p0 = np.arange(0.0, 1.0, 0.5)
+    grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
+    # grid = {"VT": np.arange(0, 40, 1), "theta": np.deg2rad(np.arange(-30, 30, 1))}
+    r0 = np.arange(0.2, 1.0, 0.2)
+    p0 = np.arange(0.2, 1.0, 0.2)
 
     for i in range(len(r0)):
         for j in range(len(p0)):
@@ -707,7 +707,7 @@ if __name__ == "__main__":
             VT_corr, theta_corr, cost, success = Trst_corr
             np.savez(
                 os.path.join(
-                    "Corridor/data2",
+                    "Corridor/data4",
                     "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
                 ),
                 z0=list(z0.values()),
