@@ -9,7 +9,7 @@ from scipy.interpolate import interp1d
 from Corridor.poly_corr import boundary, poly, weighted_poly
 
 # Trst_corr = np.load("corr.npz")
-Trst_corr = np.load("data/corr_init_r0.5_p0.5.npz")
+Trst_corr = np.load("data3/corr_init_r0.5_p0.5.npz")
 VT_corr = Trst_corr["VT_corr"]
 # acc_corr = Trst_corr["acc_corr"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -81,11 +81,11 @@ ax.set_title("Dynamic Transition Corridor", fontsize=20)
 
 ax = axs[1]
 degree = 3
-upper_bound, lower_bound = boundary(VT_corr)
-upper, lower, central = poly(degree, VT_corr, upper_bound, lower_bound)
+upper_bound, lower_bound = boundary(Trst_corr)
+upper, lower, central = poly(degree, Trst_corr, upper_bound, lower_bound)
 
 VT_target = VT_corr[-1]
-weighted = weighted_poly(degree, VT_corr, VT_target, upper, lower)
+weighted = weighted_poly(degree, Trst_corr, VT_target, upper, lower)
 
 ax.plot(
     VT_corr, upper_bound, "o", label="Upper Bound Data", color="blue", alpha=0.3

@@ -10,18 +10,23 @@ from numpy.polynomial.polynomial import Polynomial
 from scipy.interpolate import interp1d
 from statsmodels.regression.quantile_regression import QuantReg
 
-# Trst_corr = np.load("corr_conti.npz")
-Trst_corr = np.load("corr_2d.npz")
-VT_corr = Trst_corr["VT_corr"]
-# acc_corr = Trst_corr["acc_corr"]
-theta_corr = np.rad2deg(Trst_corr["theta_corr"])
-cost = Trst_corr["cost"]
-success = Trst_corr["success"]
+# # Trst_corr = np.load("corr_conti.npz")
+# # Trst_corr = np.load("corr_2d.npz")
+# VT_corr = Trst_corr["VT_corr"]
+# # acc_corr = Trst_corr["acc_corr"]
+# theta_corr = np.rad2deg(Trst_corr["theta_corr"])
+# cost = Trst_corr["cost"]
+# success = Trst_corr["success"]
 
-def boundary(VT_corr):
+def boundary(Trst_corr):
+    VT_corr = Trst_corr["VT_corr"]
+    # acc_corr = Trst_corr["acc_corr"]
+    theta_corr = np.rad2deg(Trst_corr["theta_corr"])
+    cost = Trst_corr["cost"]
+    success = Trst_corr["success"]
+
     upper_bound = []
     lower_bound = []
- 
         # theta_at_V = theta_corr[i, :]
         # upper_bound.append(np.max(theta_at_V))
         # lower_bound.append(np.min(theta_at_V))
@@ -49,7 +54,13 @@ def boundary(VT_corr):
 # lower_bound_conservative = lower_bound + lower_margin
 
 
-def poly(degree, VT_corr, upper_bound, lower_bound):
+def poly(degree, Trst_corr, upper_bound, lower_bound):
+    VT_corr = Trst_corr["VT_corr"]
+    theta_corr = np.rad2deg(Trst_corr["theta_corr"])
+    cost = Trst_corr["cost"]
+    success = Trst_corr["success"]
+
+
     poly_upper = np.polyfit(VT_corr, upper_bound, degree)
     poly_lower = np.polyfit(VT_corr, lower_bound, degree)
 
@@ -64,7 +75,12 @@ def poly(degree, VT_corr, upper_bound, lower_bound):
     return poly_upper_func, poly_lower_func, poly_central_func
 
 
-def weighted_poly(degree, VT_corr, VT_cruise, poly_upper, poly_lower):
+def weighted_poly(degree, Trst_corr, VT_cruise, poly_upper, poly_lower):
+    VT_corr = Trst_corr["VT_corr"]
+    theta_corr = np.rad2deg(Trst_corr["theta_corr"])
+    cost = Trst_corr["cost"]
+    success = Trst_corr["success"]
+
     lamb = []
     weighted_points = []
     for i in range(len(VT_corr)):
