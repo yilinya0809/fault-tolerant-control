@@ -1,3 +1,5 @@
+import os
+
 import fym
 import matplotlib.pyplot as plt
 import numpy as np
@@ -555,8 +557,17 @@ class LC62_corridor(fym.BaseEnv):
                 )
                 cost[i][j] = result.fun
                 if np.linalg.norm(cost[i][j]) < eps:
-                    self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.p1, self.p2 = result.x
-                    z0={
+                    (
+                        self.r1,
+                        self.r2,
+                        self.r3,
+                        self.r4,
+                        self.r5,
+                        self.r6,
+                        self.p1,
+                        self.p2,
+                    ) = result.x
+                    z0 = {
                         "rotor1": self.r1,
                         "rotor2": self.r2,
                         "rotor3": self.r3,
@@ -565,15 +576,16 @@ class LC62_corridor(fym.BaseEnv):
                         "rotor6": self.r6,
                         "pusher1": self.p1,
                         "pusher2": self.p2,
-                        }
+                    }
                     z0 = list(z0.values())
                     success[i][j] = 1
                     print(f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, success")
                 else:
-                    print(f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}")
+                    print(
+                        f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}"
+                    )
                     success[i][j] = np.NaN
 
-                    
         Trst_corr = VT_range, theta_range, cost, success
         return Trst_corr
 
@@ -581,9 +593,7 @@ class LC62_corridor(fym.BaseEnv):
         h, vel, theta, Vz_max = fixed
         rotor1, rotor2, rotor3, rotor4, rotor5, rotor6, pusher1, pusher2 = z
         pos_trim = np.vstack((0, 0, -h))
-        vel_trim = np.vstack(
-            (vel * cos(theta), 0, vel * sin(theta))
-        )
+        vel_trim = np.vstack((vel * cos(theta), 0, vel * sin(theta)))
         quat_trim = np.vstack(angle2quat(0, theta, 0))
         omega_trim = np.vstack((0, 0, 0))
         rcmds = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
@@ -612,8 +622,10 @@ class LC62_corridor(fym.BaseEnv):
         x1 = (np.sign(FM[0]) - 1) * FM[0]
         x2 = (np.sign(FM[2]) + 1) * FM[2]
         x3 = FM[5]
-        x4 = (np.sign(dpos[2]**2 - Vz_max * dpos[2]) + 1) * (dpos[2]**2 - Vz_max * dpos[2])
-        
+        x4 = (np.sign(dpos[2] ** 2 - Vz_max * dpos[2]) + 1) * (
+            dpos[2] ** 2 - Vz_max * dpos[2]
+        )
+
         dxs = np.vstack((x1, x2, x3, x4))
         weight = np.diag([1, 1, 1, 10])
         cost = dxs.T @ weight @ dxs
@@ -637,16 +649,40 @@ class LC62_corridor(fym.BaseEnv):
 if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
-    # system.cl_plot()
-    # Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 3.8, 0.2)})
-    Trst_corr = system.get_corr(
-        grid={"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
-    )
-    VT_corr, theta_corr, cost, success = Trst_corr
-    np.savez(
-        "corr_2d.npz",
-        VT_corr=VT_corr,
-        theta_corr=theta_corr,
-        cost=cost,
-        success=success,
-    )
+    Vz_max = 2
+    grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
+    r0 = np.arange(0.0, 1.0, 0.1)
+    p0 = np.arange(0.0, 1.0, 0.1)
+
+    for i in range(len(r0)):
+        for j in range(len(p0)):
+            z0 = {
+                "rotor1": r0[i],
+                "rotor2": r0[i],
+                "rotor3": r0[i],
+                "rotor4": r0[i],
+                "rotor5": r0[i],
+                "rotor6": r0[i],
+                "pusher1": p0[j],
+                "pusher2": p0[j],
+            }
+            print(f"r0={r0[i]:.1f}, p0={p0[j]:.1f}")
+
+            Trst_corr = system.get_corr(
+                z0=z0,
+                height=height,
+                Vz_max=Vz_max,
+                grid=grid,
+            )
+            VT_corr, theta_corr, cost, success = Trst_corr
+            np.savez(
+                os.path.join(
+                    "Corridor/data",
+                    "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
+                ),
+                z0=list(z0.values()),
+                VT_corr=VT_corr,
+                theta_corr=theta_corr,
+                cost=cost,
+                success=success,
+            )

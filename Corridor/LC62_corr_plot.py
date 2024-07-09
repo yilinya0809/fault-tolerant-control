@@ -6,9 +6,10 @@ from fym.utils.rot import angle2quat, quat2angle, quat2dcm
 from mpl_toolkits.mplot3d import axes3d
 from numpy import cos, sin
 from scipy.interpolate import interp1d
+from Corridor.poly_corr import boundary, poly, weighted_poly
 
 # Trst_corr = np.load("corr.npz")
-Trst_corr = np.load("corr_2d.npz")
+Trst_corr = np.load("Corridor/data/corr_init_r0.0_p0.8.npz")
 VT_corr = Trst_corr["VT_corr"]
 # acc_corr = Trst_corr["acc_corr"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -70,13 +71,36 @@ success = Trst_corr["success"]
 # cbar.ax.set_xlabel("VT, m/s")
 
 """ Figure 1 """
-fig, ax = plt.subplots(1, 1) 
+fig, axs = plt.subplots(1, 2) 
+ax = axs[0]
 VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, success.T)
 ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Dynamic Transition Corridor", fontsize=20)
 
+ax = axs[1]
+degree = 3
+upper_bound, lower_bound = boundary(VT_corr)
+upper, lower, central = poly(degree, VT_corr, upper_bound, lower_bound)
 
+VT_target = VT_corr[-1]
+weighted = weighted_poly(degree, VT_corr, VT_target, upper, lower)
+
+ax.plot(
+    VT_corr, upper_bound, "o", label="Upper Bound Data", color="blue", alpha=0.3
+)
+ax.plot(
+    VT_corr, lower_bound, "o", label="Lower Bound Data", color="orange", alpha=0.3
+)
+ax.plot(VT_corr, upper(VT_corr), "b--", label="Upper Bound Polynomial")
+ax.plot(VT_corr, lower(VT_corr), "y--", label="Lower Bound Polynomial")
+ax.plot(VT_corr, weighted(VT_corr), "k-", label="Weighted Line")
+ax.set_xlabel("VT, m/s", fontsize=15)
+ax.set_ylabel("θ, deg", fontsize=15)
+ax.legend()
+ax.grid()
 
 plt.show()
+
+
