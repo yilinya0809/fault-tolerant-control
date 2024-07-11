@@ -36,3 +36,19 @@ register(
     id="Flat",
     entry_point="ftc.controllers.Flat.flat:FlatController",
 )
+register(
+    id="NMPC",
+    entry_point="ftc.controllers.MPC.nmpc_di:MPC",
+)
+register(
+    id="NMPC-Corr",
+    entry_point="ftc.controllers.MPC.nmpc_corr:MPC_Corr",
+)
+register(
+    id="NMPC-DI",
+    entry_point="ftc.controllers.MPC.mpc_geso:NDIController",
+)
+register(
+    id="NMPC-GESO",
+    entry_point="ftc.controllers.MPC.mpc_geso:GESOController",
+)
