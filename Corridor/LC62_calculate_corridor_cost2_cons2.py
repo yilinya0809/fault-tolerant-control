@@ -582,11 +582,11 @@ class LC62_corridor(fym.BaseEnv):
                     }
                     z0 = list(z0.values())
                     success[i][j] = 1
-                    print(f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, success")
+                    # print(f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, success")
                 else:
-                    print(
-                        f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}"
-                    )
+                    # print(
+                    #     f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}"
+                    # )
                     success[i][j] = np.NaN
 
         Trst_corr = VT_range, theta_range, cost, success
@@ -679,12 +679,12 @@ if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
     Vz_max = 2
-    grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
-    # grid = {"VT": np.arange(0, 40, 1), "theta": np.deg2rad(np.arange(-30, 30, 1))}
-    r0 = np.arange(0.2, 1.0, 0.2)
-    p0 = np.arange(0.2, 1.0, 0.2)
+    # grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
+    grid = {"VT": np.arange(0, 40, 1), "theta": np.deg2rad(np.arange(-30, 30, 2))}
+    r0 = np.arange(0.5, 1.1, 0.3)
+    p0 = np.arange(0.0, 1.1, 0.5)
 
-    for i in range(len(r0)):
+    for i in range(1):
         for j in range(len(p0)):
             z0 = {
                 "rotor1": r0[i],
@@ -707,7 +707,7 @@ if __name__ == "__main__":
             VT_corr, theta_corr, cost, success = Trst_corr
             np.savez(
                 os.path.join(
-                    "Corridor/data4",
+                    "Corridor/data_cost2_cons2",
                     "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
                 ),
                 z0=list(z0.values()),

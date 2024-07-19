@@ -1,4 +1,5 @@
 import fym
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 from fym.utils.rot import angle2quat, quat2dcm
@@ -168,12 +169,12 @@ class LC62R(fym.BaseEnv):
         self.omega = fym.BaseSystem(env_config["init"]["omega"])
 
         self.e3 = np.vstack((0, 0, 1))
-        self.x_trims, self.u_trims_fixed = self.get_trim_fixed(
-            fixed={"h": 10, "VT": 40}
-        )
-        self.u_trims_vtol = self.get_trim_vtol(
-            fixed={"x_trims": self.x_trims, "u_trims_fixed": self.u_trims_fixed}
-        )
+        # self.x_trims, self.u_trims_fixed = self.get_trim_fixed(
+        #     fixed={"h": 10, "VT": 40}
+        # )
+        # self.u_trims_vtol = self.get_trim_vtol(
+        #     fixed={"x_trims": self.x_trims, "u_trims_fixed": self.u_trims_fixed}
+        # )
 
     def deriv(self, pos, vel, quat, omega, FM):
         F, M = FM[0:3], FM[3:]
@@ -217,22 +218,6 @@ class LC62R(fym.BaseEnv):
         dquat = dquat + k * eps * quat
         domega = self.Jinv @ (M - np.cross(omega, self.J @ omega, axis=0)) + domega
         return dpos, dvel, dquat, domega
-
-    def get_dtrb(self, t, omega):
-        # wind dtrb
-        dtrb_wind = (
-            2 * np.sin(0.9 * np.pi * t + 7)
-            + 3 * np.sin(0.7 * np.pi * t + 1)
-            + 1
-            + np.sin(0.2 * np.pi * t + 3)
-        ) * np.vstack((1, 1, 1))
-        # model uncertainty
-        del_J = 0.1 * self.J
-        dtrb_model = np.cross(omega, del_J @ omega, axis=0)
-        # dtrb_model = np.zeros((3, 1))
-
-        dtrb = dtrb_wind + dtrb_model
-        return dtrb
 
     def set_dot(self, t, FM):
         pos, vel, quat, omega = self.observe_list()
@@ -378,171 +363,80 @@ class LC62R(fym.BaseEnv):
         Cm = np.interp(alp, self.tables["alp"], self.tables["Cm"])
         return np.vstack((CL, CD, Cm))
 
-    def get_trim_fixed(
+    def get_trim(
         self,
         z0={
-            "alpha": 0.0,
-            "beta": 0,
-            "pusher1": 0.5,
-            "pusher2": 0.5,
-            "dela": 0,
-            "dele": 0,
-            "delr": 0,
+            "alpha": np.deg2rad(4),
+            "pusher1": 1.0, 
+            "pusher2": 1.0,
         },
-        fixed={"h": 10, "VT": 45},
+        height=10,
         method="SLSQP",
         options={"disp": False, "ftol": 1e-10},
+        VT_range=np.arange(0, 50, 1),
     ):
         z0 = list(z0.values())
-        fixed = list(fixed.values())
-        bounds = (
-            np.deg2rad((0, 20)),
-            np.deg2rad((-10, 10)),
-            self.control_limits["cmd"],
-            self.control_limits["cmd"],
-            self.control_limits["dela"],
-            self.control_limits["dele"],
-            self.control_limits["delr"],
-        )
-        result = scipy.optimize.minimize(
-            self._trim_cost_fixed,
-            z0,
-            args=(fixed,),
-            bounds=bounds,
-            method=method,
-            options=options,
-        )
+        bounds = (np.deg2rad((0, 30)),
+                  self.control_limits["cmd"],
+                  self.control_limits["cmd"],
+                  )
 
-        h, VT = fixed
-        if np.isclose(VT, 0):
-            alp, beta, pusher1, pusher2, dela, dele, delr = np.zeros(
-                7,
+        n = np.size(VT_range)
+        cost = np.ones((n, 1))
+        alp = np.zeros((n, 1))
+        pcmds = np.zeros((n, 2))
+        for i in range(n):
+            VT = VT_range[i]
+            fixed = (height, VT)
+            result = scipy.optimize.minimize(
+                self._trim_cost,
+                z0,
+                args=(fixed,),
+                bounds=bounds,
+                method=method,
+                options=options,
             )
-        else:
-            alp, beta, pusher1, pusher2, dela, dele, delr = result.x
-        pos_trim = np.vstack((0, 0, -h))
-        vel_trim = np.vstack(
-            (VT * cos(alp) * cos(beta), VT * sin(beta), VT * sin(alp) * cos(beta))
-        )
-        quat_trim = np.vstack(angle2quat(0, alp, 0))
-        omega_trim = np.vstack((0, 0, 0))
-        pcmds = np.vstack((pusher1, pusher2))
-        dels = np.vstack((dela, dele, delr))
+            cost[i] = result.fun
+            if np.linalg.norm(cost[i]) < 1e-1:
+                (alp[i], pcmds[i, 0], pcmds[i, 1]) = result.x
+            else:
+                alp[i] = pcmds[i, 0] = pcmds[i, 1] = np.NaN 
 
-        x_trims = (pos_trim, vel_trim, quat_trim, omega_trim)
-        u_trims_fixed = (pcmds, dels)
-        return x_trims, u_trims_fixed
+        Trim_values = VT_range, np.rad2deg(alp), pcmds
+        return Trim_values
 
-    def _trim_cost_fixed(self, z, fixed):
+    def _trim_cost(self, z, fixed):
         h, VT = fixed
-        alp, beta, pusher1, pusher2, dela, dele, delr = z
+        alp, pusher1, pusher2 = z
         pos_trim = np.vstack((0, 0, -h))
-        vel_trim = np.vstack(
-            (VT * cos(alp) * cos(beta), VT * sin(beta), VT * sin(alp) * cos(beta))
-        )
+        vel_trim = np.vstack((VT * cos(alp), 0, VT * sin(alp)))
         quat_trim = np.vstack(angle2quat(0, alp, 0))
         omega_trim = np.vstack((0, 0, 0))
+        rcmds = np.zeros((6, 1))
         pcmds = np.vstack((pusher1, pusher2))
-        dels = np.vstack((dela, dele, delr))
+        dels = np.zeros((3, 1))
 
+        FM_Rotor = self.B_VTOL(rcmds, omega_trim)
         FM_Pusher = self.B_Pusher(pcmds)
         FM_Fuselage = self.B_Fuselage(dels, pos_trim, vel_trim, omega_trim)
         FM_Gravity = self.B_Gravity(quat_trim)
-        FM_Fixed = FM_Fuselage + FM_Pusher + FM_Gravity
+        FM = FM_Fuselage + FM_Pusher + FM_Gravity + FM_Rotor
 
-        dots = self.deriv(pos_trim, vel_trim, quat_trim, omega_trim, FM_Fixed)
-        dxs = np.append(dots[1], dots[3])
-        weight = np.diag([10, 1, 1, 1000, 1000, 1000])
-        return dxs.dot(weight).dot(dxs)
-
-    def get_trim_vtol(
-        self,
-        z0={
-            "rotor1": 0.1,
-            "rotor2": 0.1,
-            "rotor3": 0.1,
-            "rotor4": 0.1,
-            "rotor5": 0.1,
-            "rotor6": 0.1,
-        },
-        fixed={
-            "x_trim": (
-                np.zeros((3, 1)),
-                np.zeros((3, 1)),
-                np.vstack((1, 0, 0, 0)),
-                np.zeros((3, 1)),
-            ),
-            "u_trims_fixed": (np.zeros((5, 1))),
-        },
-        method="SLSQP",
-        options={"disp": False, "ftol": 1e-10},
-    ):
-        z0 = list(z0.values())
-        fixed = list(fixed.values())
-        bounds = (
-            self.control_limits["cmd"],
-            self.control_limits["cmd"],
-            self.control_limits["cmd"],
-            self.control_limits["cmd"],
-            self.control_limits["cmd"],
-            self.control_limits["cmd"],
-        )
-        result = scipy.optimize.minimize(
-            self._trim_cost_vtol,
-            z0,
-            args=(fixed,),
-            bounds=bounds,
-            method=method,
-            options=options,
-        )
-
-        rotor1, rotor2, rotor3, rotor4, rotor5, rotor6 = result.x
-        rcmds = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
-
-        u_trims_vtol = rcmds
-        return u_trims_vtol
-
-    def _trim_cost_vtol(self, z, fixed):
-        x_trims, u_trims_fixed = fixed
-        rotor1, rotor2, rotor3, rotor4, rotor5, rotor6 = z
-        pos_trim, vel_trim, quat_trim, omega_trim = x_trims
-        pcmds, dels = u_trims_fixed
-        rcmds = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
-
-        FM_VTOL = self.B_VTOL(rcmds, omega_trim)
-        FM_Pusher = self.B_Pusher(pcmds)
-        FM_Fuselage = self.B_Fuselage(dels, pos_trim, vel_trim, omega_trim)
-        FM_Gravity = self.B_Gravity(quat_trim)
-        FM = FM_VTOL + FM_Fuselage + FM_Pusher + FM_Gravity
-
-        dots = self.deriv(pos_trim, vel_trim, quat_trim, omega_trim, FM)
-        dxs = np.append(dots[1], dots[3])
-        weight = np.diag([1, 1, 1, 1000, 1000, 1000])
-        return dxs.dot(weight).dot(dxs)
-
-    def saturate(self, ctrls):
-        _ctrls = np.zeros((ctrls.shape))
-        cmd_min, cmd_max = self.control_limits["cmd"]
-        dela_min, dela_max = self.control_limits["dela"]
-        dele_min, dele_max = self.control_limits["dele"]
-        delr_min, delr_max = self.control_limits["delr"]
-        _ctrls[:8] = np.clip(ctrls[:8], cmd_min, cmd_max)
-        _ctrls[8] = np.clip(ctrls[8], dela_min, dela_max)
-        _ctrls[9] = np.clip(ctrls[9], dele_min, dele_max)
-        _ctrls[10] = np.clip(ctrls[10], delr_min, delr_max)
-        return _ctrls
+        dpos, dvel, dquat, domega = self.deriv(pos_trim, vel_trim, quat_trim, omega_trim, FM)
+        dxs = np.vstack((FM[2], FM[4], dpos[2]))
+        weight = np.diag([1, 1, 10])
+        # weight = np.diag([0, 1, 1, 1000, 1000, 1000])
+        return dxs.T.dot(weight).dot(dxs)
 
 
 if __name__ == "__main__":
     system = LC62R()
-    pos, vel, quat, omega = system.x_trims
-    pcmds, dels = system.u_trims_fixed
-    rcmds = system.u_trims_vtol
-    ctrls = np.vstack((rcmds, pcmds, dels))
-    FM = system.get_FM(pos, vel, quat, omega, ctrls)
-    system.set_dot(t=0, FM=FM)
-    print(repr(system))
-    print(rcmds, pcmds, dels)
+    VT_trim, theta_trim, pusher_trim = system.get_trim()
+    breakpoint()
 
-    # pcmds = np.ones((2, 1))
-    # print(system.B_Pusher(pcmds))
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(VT_trim, theta_trim)
+    ax.set_xlabel("VT")
+    ax.set_ylabel("theta")
+
+    plt.show()

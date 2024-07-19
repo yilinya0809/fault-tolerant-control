@@ -58,7 +58,7 @@ class MyEnv(fym.BaseEnv):
     def set_dot(self, t, action):
         tf = self.clock.max_t
         pos, vel, quat, omega = self.plant.observe_list()
-        stated = self.agent.set_ref(t, tf, VT_corr[0], VT_corr[-1])
+        stated = self.agent.set_ref(t, tf, Trst_corr)
         ctrls0, controller_info = self.controller.get_control(t, self, action)
         ctrls = self.plant.saturate(ctrls0)
 

@@ -4,7 +4,7 @@ import fym
 import matplotlib.pyplot as plt
 import numpy as np
 from fym.utils.rot import quat2angle
-from poly_corr import boundary, poly, weighted_poly
+from Corridor.poly_corr import boundary, poly, weighted_poly
 
 import ftc
 from ftc.models.LC62R import LC62R
@@ -60,7 +60,7 @@ class MyEnv(fym.BaseEnv):
     def set_dot(self, t, action):
         tf = self.clock.max_t
         pos, vel, quat, omega = self.plant.observe_list()
-        stated = self.agent.set_ref(t, tf, VT_corr[0], VT_corr[-1])
+        stated = self.agent.set_ref(t, tf, Trst_corr)
         # stated = self.agent.set_ref(t, tf, VT_corr[-1], VT_corr[0])
         ctrls0, controller_info = self.controller.get_control(t, self, action)
         ctrls = self.plant.saturate(ctrls0)

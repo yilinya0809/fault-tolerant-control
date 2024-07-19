@@ -9,8 +9,8 @@ from scipy.interpolate import interp1d
 
 from Corridor.poly_corr import boundary, poly, weighted_poly
 
-# Trst_corr = np.load("corr.npz")
-Trst_corr = np.load("data2/corr_init_r0.5_p0.5.npz")
+# Trst_corr = np.load("corr_2d.npz")
+Trst_corr = np.load("Corridor/data_nocons/corr_init_r0.6_p0.0.npz")
 VT_corr = Trst_corr["VT_corr"]
 # acc_corr = Trst_corr["acc_corr"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])

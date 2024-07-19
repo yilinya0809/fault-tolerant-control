@@ -46,17 +46,20 @@ class MPC_Corr:
     def DM2Arr(self, dm):
         return np.array(dm.full())
 
-    def set_ref(self, t, tf, v0, vf):
+    def set_ref(self, t, tf, Trst_corr):
         # eps = 1.2
         # if t <= tf / eps:
         #     VT_ref = v0 + eps * (vf - v0) / tf * t
         # else:
         #     VT_ref = vf
+        VT_corr = Trst_corr["VT_corr"]
+        v0 = VT_corr[0]
+        vf = VT_corr[-1]
         VT_ref = v0 + (vf - v0) / tf * t
-        upper_bound, lower_bound = boundary(VT_corr)
+        upper_bound, lower_bound = boundary(Trst_corr)
         degree = 2
-        upper, lower, central = poly(degree, VT_corr, upper_bound, lower_bound)
-        weighted = weighted_poly(degree, VT_corr, vf, upper, lower)
+        upper, lower, central = poly(degree, Trst_corr, upper_bound, lower_bound)
+        weighted = weighted_poly(degree, Trst_corr, vf, upper, lower)
         # weighted = weighted_poly(degree, VT_corr, v0, upper, lower)
 
         theta_ref = np.deg2rad(weighted(VT_ref))
