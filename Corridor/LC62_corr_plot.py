@@ -9,8 +9,7 @@ from scipy.interpolate import interp1d
 
 from Corridor.poly_corr import boundary, poly, weighted_poly
 
-# Trst_corr = np.load("corr_2d.npz")
-Trst_corr = np.load("Corridor/data_acc/corr_init_r0.0_p0.0_Fz.npz")
+Trst_corr = np.load("Corridor/data_final/corr.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -72,8 +71,7 @@ success = Trst_corr["success"]
 # cbar.ax.set_xlabel("VT, m/s")
 
 """ Figure 1 """
-fig, axs = plt.subplots(1, 2)
-ax = axs[0]
+fig, ax = plt.subplots(1, 1)
 VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, success.T)
 ax.set_xlabel("VT, m/s", fontsize=15)
