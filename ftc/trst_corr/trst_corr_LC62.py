@@ -1,13 +1,10 @@
 import fym
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-from fym.utils.rot import angle2quat, quat2angle, quat2dcm
-from mpl_toolkits.mplot3d import axes3d
+from fym.utils.rot import angle2quat, quat2dcm
 from numpy import cos, sin
 from scipy.interpolate import interp1d
 
-from ftc.models.LC62R import LC62R
 from ftc.utils import safeupdate
 
 

@@ -32,7 +32,7 @@ class Env(fym.BaseEnv):
         },
     }
 
-    def __init__(self, initial, env_config={}):
+    def __init__(self, initial, fault, env_config={}):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
         pos, vel, angle, omega = initial
@@ -46,11 +46,11 @@ class Env(fym.BaseEnv):
             },
         }
         self.plant = LC62(plant_init)
-        self.controller = ftc.make("INDI", self)
 
         self.posd = lambda t: np.vstack((0, 0, 0))
         self.posd_dot = nd.Derivative(self.posd, n=1)
 
+        self.controller = ftc.make("INDI", self)
         pwm_min, pwm_max = self.plant.control_limits["pwm"]
         self.mfa = MFA(
             pwm_min * np.ones(6),
@@ -61,8 +61,6 @@ class Env(fym.BaseEnv):
                 polytope.contains(nu) for polytope, nu in polynus
             ),
         )
-
-        self.u0 = self.controller.get_u0(self)
 
         dx1, dx2, dx3 = self.plant.dx1, self.plant.dx2, self.plant.dx3
         dy1, dy2 = self.plant.dy1, self.plant.dy2
@@ -75,6 +73,8 @@ class Env(fym.BaseEnv):
                 [-c, c, -c, c, c, -c],
             )
         )
+        self.fault_idx, self.lamb = fault
+        self.lamb = max(self.lamb, 0.1)  # only partial fault
 
     def distribute(self, t, state, pwms_rotor):
         nu = self.B_r2f @ (pwms_rotor - 1000) / 1000 * self.c_th
@@ -132,6 +132,7 @@ class Env(fym.BaseEnv):
             "ctrls": ctrls,
             "FM": FM,
             "Lambda": self.get_Lambda(t),
+            "fault_count": len(np.where(self.get_Lambda(t) != 1)[0]),
         }
 
         return env_info
@@ -141,7 +142,7 @@ class Env(fym.BaseEnv):
 
         Lambda = np.ones(11)
         if t >= 3:
-            Lambda[1] = 0.3
+            Lambda[int(self.fault_idx)] = self.lamb
         return Lambda
 
     def set_Lambda(self, t, ctrls):
@@ -150,9 +151,9 @@ class Env(fym.BaseEnv):
         return ctrls
 
 
-def sim(i, initial, Env, dirpath="data"):
+def sim(i, initial, Env, faut_idx, dirpath="data"):
     loggerpath = Path(dirpath, f"env_{i:04d}.h5")
-    env = Env(initial)
+    env = Env(initial, faut_idx)
     flogger = fym.Logger(loggerpath)
 
     env.reset()
@@ -177,13 +178,17 @@ def sim(i, initial, Env, dirpath="data"):
 
 def parsim(N=1, seed=0):
     np.random.seed(seed)
-    pos = np.random.uniform(0, 0, size=(N, 3, 1))
-    vel = np.random.uniform(0, 0, size=(N, 3, 1))
+    pos = np.random.uniform(-1, 1, size=(N, 3, 1))
+    vel = np.random.uniform(-1, 1, size=(N, 3, 1))
     angle = np.random.uniform(*np.deg2rad((-5, 5)), size=(N, 3, 1))
     omega = np.random.uniform(*np.deg2rad((-1, 1)), size=(N, 3, 1))
 
+    fault_idxs = np.random.randint(6, size=(N))
+    lamb = np.random.rand(N)
+
     initials = np.stack((pos, vel, angle, omega), axis=1)
-    sim_parallel(sim, N, initials, Env)
+    faults = np.stack((fault_idxs, lamb), axis=1)
+    sim_parallel(sim, N, initials, Env, faults)
 
 
 def plot(i):
@@ -312,27 +317,56 @@ def plot(i):
     fig.align_ylabels(axes)
 
     """ Figure 3 - Rotor thrusts """
-    fig, axs = plt.subplots(3, 2, sharex=True)
-    ylabels = np.array(
-        (["Rotor 1", "Rotor 2"], ["Rotor 3", "Rotor 4"], ["Rotor 5", "Rotor 6"])
-    )
-    for i, _ylabel in np.ndenumerate(ylabels):
-        ax = axs[i]
-        ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, sum(i)], "k-", label="Response")
-        ax.plot(
-            data["t"], data["ctrls0"].squeeze(-1)[:, sum(i)], "r--", label="Command"
-        )
-        ax.grid()
-        if i == (0, 1):
-            ax.legend(loc="upper right")
-        plt.setp(ax, ylabel=_ylabel)
-        ax.set_ylim([1000 - 5, 2000 + 5])
-    plt.gcf().supxlabel("Time, sec")
-    plt.gcf().supylabel("Rotor Thrusts")
+    fig, axes = plt.subplots(3, 2, sharex=True)
+
+    ax = axes[0, 0]
+    ax.plot(data["t"], data["ctrls"][:, 0].squeeze(-1), "k-")
+    ax.plot(data["t"], data["ctrls0"][:, 0].squeeze(-1), "r--")
+    ax.set_ylabel("Rotor 1")
+    ax.legend(["Response", "Command"], loc="upper right")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([1000 - 5, 2000 + 5])
+
+    ax = axes[1, 0]
+    ax.plot(data["t"], data["ctrls"][:, 1].squeeze(-1), "k-")
+    ax.plot(data["t"], data["ctrls0"][:, 1].squeeze(-1), "r--")
+    ax.set_ylabel("Rotor 2")
+    ax.set_ylim([1000 - 5, 2000 + 5])
+
+    ax = axes[2, 0]
+    ax.plot(data["t"], data["ctrls"][:, 2].squeeze(-1), "k-")
+    ax.plot(data["t"], data["ctrls0"][:, 2].squeeze(-1), "r--")
+    ax.set_ylabel("Rotor 3")
+    ax.set_ylim([1000 - 5, 2000 + 5])
+
+    ax.set_xlabel("Time, sec")
+
+    ax = axes[0, 1]
+    ax.plot(data["t"], data["ctrls"][:, 3].squeeze(-1), "k-")
+    ax.plot(data["t"], data["ctrls0"][:, 3].squeeze(-1), "r--")
+    ax.set_ylabel("Rotor 4")
+    ax.set_ylim([1000 - 5, 2000 + 5])
+
+    ax = axes[1, 1]
+    ax.plot(data["t"], data["ctrls"][:, 4].squeeze(-1), "k-")
+    ax.plot(data["t"], data["ctrls0"][:, 4].squeeze(-1), "r--")
+    ax.set_ylabel("Rotor 5")
+    ax.set_ylim([1000 - 5, 2000 + 5])
+
+    ax = axes[2, 1]
+    ax.plot(data["t"], data["ctrls"][:, 5].squeeze(-1), "k-")
+    ax.plot(data["t"], data["ctrls0"][:, 5].squeeze(-1), "r--")
+    ax.set_ylabel("Rotor 6")
+    ax.set_ylim([1000 - 5, 2000 + 5])
+
+    ax.set_xlabel("Time, sec")
+
+    # plt.gcf().supxlabel("Time, sec")
+    # plt.gcf().supylabel("Rotor Thrusts")
 
     plt.tight_layout()
     fig.subplots_adjust(wspace=0.5)
-    fig.align_ylabels(axs)
+    fig.align_ylabels(axes)
 
     """ Figure 4 - Pusher and Control surfaces """
     fig, axs = plt.subplots(5, 1, sharex=True)
@@ -366,7 +400,7 @@ def main(args, N, seed, i):
     else:
         parsim(N, seed)
         evaluate_mfa_success_rate(
-            N, time_from=2, error_type=None, threshold=np.ones(3), verbose=True
+            N, time_from=2, threshold=1, weight=np.ones(6), verbose=True, is_plot=True
         )
 
         if args.plot:

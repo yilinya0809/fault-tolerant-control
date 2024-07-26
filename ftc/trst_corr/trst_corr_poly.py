@@ -1,16 +1,7 @@
-import fym
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
-import statsmodels.api as sm
-from fym.utils.rot import angle2quat, quat2angle, quat2dcm
-from mpl_toolkits.mplot3d import axes3d
-from numpy import cos, sin
-from numpy.polynomial.polynomial import Polynomial
-from scipy.interpolate import interp1d
-from statsmodels.regression.quantile_regression import QuantReg
 
-Trst_corr = np.load("data/corr.npz")
+Trst_corr = np.load("ftc/trst_corr/corr.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc_corr"]
 theta_corr = Trst_corr["theta_corr"]

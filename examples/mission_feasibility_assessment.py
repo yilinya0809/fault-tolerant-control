@@ -8,7 +8,7 @@ import numpy as np
 import ftc
 from ftc.mfa import MFA
 from ftc.models.LC62 import LC62
-from ftc.sim_parallel import calculate_mae, evaluate_mfa
+from ftc.sim_parallel import calculate_mse, evaluate_mfa
 from ftc.utils import safeupdate
 
 np.seterr(all="raise")
@@ -42,11 +42,11 @@ class MyEnv(fym.BaseEnv):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
         self.plant = LC62(env_config["plant"])
-        self.controller = ftc.make("INDI", self)
 
         self.posd = lambda t: np.vstack((0, 0, 0))
         self.posd_dot = nd.Derivative(self.posd, n=1)
 
+        self.controller = ftc.make("INDI", self)
         pwm_min, pwm_max = self.plant.control_limits["pwm"]
         self.mfa = MFA(
             pwm_min * np.ones(6),
@@ -57,8 +57,6 @@ class MyEnv(fym.BaseEnv):
                 polytope.contains(nu) for polytope, nu in polynus
             ),
         )
-
-        self.u0 = self.controller.get_u0(self)
 
         dx1, dx2, dx3 = self.plant.dx1, self.plant.dx2, self.plant.dx3
         dy1, dy2 = self.plant.dy1, self.plant.dy2
@@ -367,7 +365,9 @@ def main(args):
         run()
         data = fym.load("data.h5")
         evaluate_mfa(
-            np.all(data["env"]["mfa"]), calculate_mae(data, time_from=2), verbose=True
+            np.all(data["env"]["mfa"]),
+            calculate_mse(data, time_from=2, weight=np.ones(6)),
+            verbose=True,
         )
 
         if args.plot:

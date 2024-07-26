@@ -21,6 +21,7 @@ class INDIController(fym.BaseEnv):
         self.lpf_nu = fym.BaseSystem(np.zeros((4, 1)))
         self.tau = 0.05
         self.pos_int = fym.BaseSystem(np.zeros((3, 1)))
+        self.u0 = self.get_u0(env)
 
     def get_control(self, t, env):
         pos, vel, quat, omega = env.plant.observe_list()
@@ -48,7 +49,7 @@ class INDIController(fym.BaseEnv):
         ei = xi - xid
         ei_dot = xi_dot - xid_dot
         Ki1 = 5 * np.diag((5, 10, 10, 10))
-        Ki2 = 1 * np.diag((5, 10, 10, 10))
+        Ki2 = 5 * np.diag((5, 10, 10, 10))
         g = np.zeros((4, 4))
         g[0, 0] = quat2dcm(quat).T[2, 2] / env.plant.m
         g[1:4, 1:4] = env.plant.Jinv
@@ -63,7 +64,7 @@ class INDIController(fym.BaseEnv):
         """ active FTC with FDI """
         _B = env.get_Lambda(t)[:6] * self.B_r2f
 
-        u0 = env.u0
+        u0 = self.u0
         nu0 = _B @ ((u0[:6] - 1000) / 1000 * self.c_th)
         nu = nu0 + du
 
@@ -72,7 +73,7 @@ class INDIController(fym.BaseEnv):
 
         ctrls = np.vstack((pwms_rotor, np.vstack(env.plant.u_trims_fixed)))
 
-        env.u0 = ctrls
+        self.u0 = ctrls
 
         """ set derivatives """
         self.lpf_dxi.dot = -(xi_dot_f - xi_dot) / self.tau

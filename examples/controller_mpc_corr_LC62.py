@@ -7,12 +7,11 @@ from fym.utils.rot import quat2angle
 
 import ftc
 from ftc.models.LC62R import LC62R
-from ftc.trst_corr_poly import boundary, poly, weighted_poly
 from ftc.utils import safeupdate
 
 np.seterr(all="raise")
 
-Trst_corr = np.load("data/corr.npz")
+Trst_corr = np.load("ftc/trst_corr/corr.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc_corr"]
 theta_corr = Trst_corr["theta_corr"]
