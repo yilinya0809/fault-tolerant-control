@@ -366,8 +366,8 @@ class LC62R(fym.BaseEnv):
     def get_trim(
         self,
         z0={
-            "alpha": np.deg2rad(4),
-            "pusher1": 1.0, 
+            "alpha": np.deg2rad(0),
+            "pusher1": 1.0,
             "pusher2": 1.0,
         },
         height=10,
@@ -376,10 +376,11 @@ class LC62R(fym.BaseEnv):
         VT_range=np.arange(0, 50, 1),
     ):
         z0 = list(z0.values())
-        bounds = (np.deg2rad((0, 30)),
-                  self.control_limits["cmd"],
-                  self.control_limits["cmd"],
-                  )
+        bounds = (
+            np.deg2rad((0, 30)),
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+        )
 
         n = np.size(VT_range)
         cost = np.ones((n, 1))
@@ -397,10 +398,10 @@ class LC62R(fym.BaseEnv):
                 options=options,
             )
             cost[i] = result.fun
-            if np.linalg.norm(cost[i]) < 1e-1:
+            if np.linalg.norm(cost[i]) < 1e-3:
                 (alp[i], pcmds[i, 0], pcmds[i, 1]) = result.x
             else:
-                alp[i] = pcmds[i, 0] = pcmds[i, 1] = np.NaN 
+                alp[i] = pcmds[i, 0] = pcmds[i, 1] = np.NaN
 
         Trim_values = VT_range, np.rad2deg(alp), pcmds
         return Trim_values
@@ -422,9 +423,11 @@ class LC62R(fym.BaseEnv):
         FM_Gravity = self.B_Gravity(quat_trim)
         FM = FM_Fuselage + FM_Pusher + FM_Gravity + FM_Rotor
 
-        dpos, dvel, dquat, domega = self.deriv(pos_trim, vel_trim, quat_trim, omega_trim, FM)
-        dxs = np.vstack((FM[2], FM[4], dpos[2]))
-        weight = np.diag([1, 1, 10])
+        dpos, dvel, dquat, domega = self.deriv(
+            pos_trim, vel_trim, quat_trim, omega_trim, FM
+        )
+        dxs = np.vstack((FM[2], FM[3], FM[4], FM[5], dpos[2]))
+        weight = np.diag([1, 1, 1, 1, 10])
         # weight = np.diag([0, 1, 1, 1000, 1000, 1000])
         return dxs.T.dot(weight).dot(dxs)
 

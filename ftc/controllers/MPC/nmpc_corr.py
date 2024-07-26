@@ -6,10 +6,10 @@ from fym.utils.rot import quat2angle
 from Corridor.poly_corr import boundary, poly, weighted_poly
 from ftc.models.LC62S import LC62
 
-Trst_corr = np.load("corr_conti.npz")
-VT_corr = Trst_corr["VT_corr"]
-acc_corr = Trst_corr["acc_corr"]
-theta_corr = Trst_corr["theta_corr"]
+# Trst_corr = np.load("corr_conti.npz")
+# VT_corr = Trst_corr["VT_corr"]
+# acc_corr = Trst_corr["acc_corr"]
+# theta_corr = Trst_corr["theta_corr"]
 
 
 class MPC_Corr:

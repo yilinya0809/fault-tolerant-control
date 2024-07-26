@@ -10,9 +10,9 @@ from scipy.interpolate import interp1d
 from Corridor.poly_corr import boundary, poly, weighted_poly
 
 # Trst_corr = np.load("corr_2d.npz")
-Trst_corr = np.load("Corridor/data_nocons/corr_init_r0.6_p0.0.npz")
+Trst_corr = np.load("Corridor/data_acc/corr_init_r0.0_p0.0_Fz.npz")
 VT_corr = Trst_corr["VT_corr"]
-# acc_corr = Trst_corr["acc_corr"]
+acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
 cost = Trst_corr["cost"]
 success = Trst_corr["success"]
@@ -80,22 +80,30 @@ ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Dynamic Transition Corridor", fontsize=20)
 
-ax = axs[1]
-degree = 3
-upper_bound, lower_bound = boundary(Trst_corr)
-upper, lower, central = poly(degree, Trst_corr, upper_bound, lower_bound)
+# ax = axs[1]
+# degree = 3
+# upper_bound, lower_bound = boundary(Trst_corr)
+# upper, lower, central = poly(degree, Trst_corr, upper_bound, lower_bound)
 
-VT_target = VT_corr[-1]
-weighted = weighted_poly(degree, Trst_corr, VT_target, upper, lower)
+# VT_target = VT_corr[-1]
+# weighted = weighted_poly(degree, Trst_corr, VT_target, upper, lower)
 
-ax.plot(VT_corr, upper_bound, "o", label="Upper Bound Data", color="blue", alpha=0.3)
-ax.plot(VT_corr, lower_bound, "o", label="Lower Bound Data", color="orange", alpha=0.3)
-ax.plot(VT_corr, upper(VT_corr), "b--", label="Upper Bound Polynomial")
-ax.plot(VT_corr, lower(VT_corr), "y--", label="Lower Bound Polynomial")
-ax.plot(VT_corr, weighted(VT_corr), "k-", label="Weighted Line")
+# ax.plot(VT_corr, upper_bound, "o", label="Upper Bound Data", color="blue", alpha=0.3)
+# ax.plot(VT_corr, lower_bound, "o", label="Lower Bound Data", color="orange", alpha=0.3)
+# ax.plot(VT_corr, upper(VT_corr), "b--", label="Upper Bound Polynomial")
+# ax.plot(VT_corr, lower(VT_corr), "y--", label="Lower Bound Polynomial")
+# ax.plot(VT_corr, weighted(VT_corr), "k-", label="Weighted Line")
+# ax.set_xlabel("VT, m/s", fontsize=15)
+# ax.set_ylabel("θ, deg", fontsize=15)
+# ax.legend()
+# ax.grid()
+
+""" Figure 2 """
+fig, ax = plt.subplots(1, 1)
+# ax = axs[1]
+VT, theta = np.meshgrid(VT_corr, theta_corr)
+ax.scatter(VT.T, acc_corr, s=3)
 ax.set_xlabel("VT, m/s", fontsize=15)
-ax.set_ylabel("θ, deg", fontsize=15)
-ax.legend()
-ax.grid()
+ax.set_ylabel(r"$a_x, m/s^{2}$", fontsize=15)
 
 plt.show()

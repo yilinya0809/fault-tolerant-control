@@ -4,7 +4,7 @@ import fym
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-from fym.utils.rot import angle2quat, quat2angle, quat2dcm
+from fym.utils.rot import angle2dcm, angle2quat, quat2angle, quat2dcm
 from mpl_toolkits.mplot3d import axes3d
 from numpy import cos, sin
 from scipy.interpolate import interp1d
@@ -590,15 +590,17 @@ class LC62_corridor(fym.BaseEnv):
                     dels = np.vstack((0, 0, 0))
                     ctrls = np.vstack((rcmds, pcmds, dels))
                     FM = self.get_FM(pos_trim, vel_trim, quat_trim, omega_trim, ctrls)
-                    a_x = FM[0] / self.m
+                    R = quat2dcm(quat_trim)
+                    F = R.T @ FM[:3]
+                    a_x = F[0] / self.m
                     acc[i][j] = a_x[0]
 
                     success[i][j] = 1
-                    # print(f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, success")
+                    print(f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, success")
                 else:
-                    # print(
-                    #     f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}"
-                    # )
+                    print(
+                        f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}"
+                    )
                     success[i][j] = np.NaN
                     acc[i][j] = np.NaN
 
@@ -635,16 +637,22 @@ class LC62_corridor(fym.BaseEnv):
         # x5 = dvel[1]
         # x6 = (np.sign(dvel[2]) + 1) * dvel[2]
         # x7 = domega
-        x1 = (np.sign(FM[0]) - 1) * FM[0]
-        x2 = (np.sign(FM[2]) + 1) * FM[2]
+        # x1 = (np.sign(FM[0]) - 1) * FM[0]
         # x2 = FM[2]
-        x3 = FM[4]
-        x4 = (np.sign(dpos[2] ** 2 - Vz_max * dpos[2]) + 1) * (
-            dpos[2] ** 2 - Vz_max * dpos[2]
-        )
+        # x3 = FM[4]
+        # x4 = (np.sign(dpos[2] ** 2 - Vz_max * dpos[2]) + 1) * (
+        #     dpos[2] ** 2 - Vz_max * dpos[2]
+        # )
 
-        dxs = np.vstack((x1, x2, x3, x4))
-        weight = np.diag([1, 1, 1, 10])
+        # R = angle2dcm(0, theta, 0)
+        R = quat2dcm(quat_trim)
+        F = R.T @ FM[:3]
+        M = R.T @ FM[3:]
+        x1 = dpos[2]
+        x2 = (np.sign(F[0]) - 1) * F[0]
+        x3 = F[2]
+        dxs = np.vstack((x1, x2, x3, M))
+        weight = np.diag([1, 1, 1, 1, 1, 1])
         cost = dxs.T @ weight @ dxs
         return cost
 
@@ -674,20 +682,20 @@ if __name__ == "__main__":
 
     for i in range(1):
         for j in range(1):
-            z0 = {
-                "rotor1": r0[i],
-                "rotor2": r0[i],
-                "rotor3": r0[i],
-                "rotor4": r0[i],
-                "rotor5": r0[i],
-                "rotor6": r0[i],
-                "pusher1": p0[j],
-                "pusher2": p0[j],
-            }
-            print(f"r0={r0[i]:.1f}, p0={p0[j]:.1f}")
+            # z0 = {
+            #     "rotor1": r0[i],
+            #     "rotor2": r0[i],
+            #     "rotor3": r0[i],
+            #     "rotor4": r0[i],
+            #     "rotor5": r0[i],
+            #     "rotor6": r0[i],
+            #     "pusher1": p0[j],
+            #     "pusher2": p0[j],
+            # }
+            # print(f"r0={r0[i]:.1f}, p0={p0[j]:.1f}")
 
             Trst_corr = system.get_corr(
-                z0=z0,
+                # z0=z0,
                 height=height,
                 Vz_max=Vz_max,
                 grid=grid,
@@ -695,10 +703,10 @@ if __name__ == "__main__":
             VT_corr, theta_corr, cost, success, acc = Trst_corr
             np.savez(
                 os.path.join(
-                    "Corridor/data_acc",
-                    "corr_init_r{0:.1f}_p{1:.1f}_Fz.npz".format(r0[i], p0[j]),
+                    "Corridor/data_final/corr.npz",
+                    # "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
                 ),
-                z0=list(z0.values()),
+                # z0=list(z0.values()),
                 VT_corr=VT_corr,
                 theta_corr=theta_corr,
                 cost=cost,
