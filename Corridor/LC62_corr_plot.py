@@ -9,13 +9,17 @@ from scipy.interpolate import interp1d
 
 from Corridor.poly_corr import boundary, poly, weighted_poly
 
-Trst_corr = np.load("Corridor/data_final/corr.npz")
+Trst_corr = np.load("Corridor/data_final/corr2.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
 cost = Trst_corr["cost"]
 success = Trst_corr["success"]
-
+Fz = Trst_corr["Fz"]
+zdot = Trst_corr["zdot"]
+n_success = np.reshape(success, -1).tolist().count(1)
+n_Fz = np.reshape(Fz, -1).tolist().count(1)
+n_zdot = np.reshape(zdot, -1).tolist().count(1)
 # """ Figure 1 - Trim """
 # theta_trim = theta_corr[:, 0]
 # fig, ax = plt.subplots(1, 1)
@@ -73,7 +77,10 @@ success = Trst_corr["success"]
 """ Figure 1 """
 fig, ax = plt.subplots(1, 1)
 VT, theta = np.meshgrid(VT_corr, theta_corr)
-ax.scatter(VT, theta, success.T)
+s = [100 for i in range(np.size(VT))]
+ax.scatter(VT, theta, s=144 * success.T, c="b")
+ax.scatter(VT, theta, s=64 * Fz.T, c="y")
+ax.scatter(VT, theta, s=16 * zdot.T, c="r")
 ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Dynamic Transition Corridor", fontsize=20)

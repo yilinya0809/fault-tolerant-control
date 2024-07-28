@@ -13,6 +13,10 @@ register(
     entry_point="ftc.controllers.LQR.lqr_LC62:LQRController",
 )
 register(
+    id="LQR-LC62-FW",
+    entry_point="ftc.controllers.LQR.lqr_LC62_fw:LQRController",
+)
+register(
     id="BLF",
     entry_point="ftc.controllers.BLF.BLF_g:BLFController",
 )

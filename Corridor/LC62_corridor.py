@@ -540,7 +540,7 @@ class LC62_corridor(fym.BaseEnv):
         m = np.size(theta_range)
 
         cost = np.ones((n, m))
-        success = np.zeros((n, m))
+        success = Fz = zdot = np.zeros((n, m))
         acc = np.zeros((n, m))
 
         for i in range(n):
@@ -597,14 +597,27 @@ class LC62_corridor(fym.BaseEnv):
 
                     success[i][j] = 1
                     print(f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, success")
+                    if np.isclose(F[2], 0, atol=eps):
+                        Fz[i][j] = 1
+                    else:
+                        Fz[i][j] = np.NaN
+                    dpos, dvel, dquat, domega = self.deriv(
+                        pos_trim, vel_trim, quat_trim, omega_trim, FM
+                    )
+                    if np.isclose(dpos[2], 0, atol=eps):
+                        zdot[i][j] = 1
+                    else:
+                        zdot[i][j] = np.NaN
+
                 else:
                     print(
                         f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}"
                     )
                     success[i][j] = np.NaN
                     acc[i][j] = np.NaN
+                    Fz[i][j] = zdot[i][j] = np.NaN
 
-        Trst_corr = VT_range, theta_range, cost, success, acc
+        Trst_corr = VT_range, theta_range, cost, success, acc, Fz, zdot
         return Trst_corr
 
     def _cost_fixed(self, z, fixed):
@@ -675,8 +688,8 @@ if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
     Vz_max = 2
-    grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
-    # grid = {"VT": np.arange(0, 40, 1), "theta": np.deg2rad(np.arange(-30, 30, 2))}
+    # grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
+    grid = {"VT": np.arange(0, 40, 5), "theta": np.deg2rad(np.arange(-30, 30, 5))}
     r0 = np.arange(0.0, 1.0, 0.2)
     p0 = np.arange(0.0, 1.0, 0.2)
 
@@ -700,10 +713,10 @@ if __name__ == "__main__":
                 Vz_max=Vz_max,
                 grid=grid,
             )
-            VT_corr, theta_corr, cost, success, acc = Trst_corr
+            VT_corr, theta_corr, cost, success, acc, Fz, zdot = Trst_corr
             np.savez(
                 os.path.join(
-                    "Corridor/data_final/corr.npz",
+                    "Corridor/data_final/corr2.npz",
                     # "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
                 ),
                 # z0=list(z0.values()),
@@ -712,4 +725,6 @@ if __name__ == "__main__":
                 cost=cost,
                 success=success,
                 acc=acc,
+                Fz=Fz,
+                zdot=zdot,
             )

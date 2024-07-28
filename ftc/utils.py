@@ -58,49 +58,46 @@ def linearization(statefunc, states, ctrls, ptrb):
     dxdot = Adx + Bdu
     """
 
-#     n = np.size(states)
-#     m = np.size(ctrls)
-#     A = np.zeros((n, n))
-#     B = np.zeros((n, m))
-    n = states.size1()
-    m = ctrls.size1()
-    A = MX.zeros((n, n)) 
-    B = MX.zeros((n, m))
-    
+    n = np.size(states)
+    m = np.size(ctrls)
+    A = np.zeros((n, n))
+    B = np.zeros((n, m))
+    # n = states.size1()
+    # m = ctrls.size1()
+    # A = MX.zeros((n, n))
+    # B = MX.zeros((n, m))
+
     f_x = statefunc(states, ctrls)
 
-    for i in range(n):
-        for j in range(n):
-            perturbation = MX.zeros(n)
-            perturbation[i] = ptrb
-            A[i, j] = (statefunc(states + perturbation, ctrls)[j] - f_x[j]) / ptrb
+    # for i in range(n):
+    #     for j in range(n):
+    #         perturbation = MX.zeros(n)
+    #         perturbation[i] = ptrb
+    #         A[i, j] = (statefunc(states + perturbation, ctrls)[j] - f_x[j]) / ptrb
 
-
-
-    for i in range(m):
-        for j in range(n):
-            perturbation = MX.zeros(m)
-            perturbation[i] = ptrb
-            B[i, j] = (statefunc(states, ctrls + perturbation)[j] - f_x[j]) / ptrb
-
+    # for i in range(m):
+    #     for j in range(n):
+    #         perturbation = MX.zeros(m)
+    #         perturbation[i] = ptrb
+    #         B[i, j] = (statefunc(states, ctrls + perturbation)[j] - f_x[j]) / ptrb
 
     # statefunc = statefunc.full()
-    # for i in np.arange(n):
-    #     ptrbvec_x = np.zeros((n, 1))
-    #     ptrbvec_x[i] = ptrb
-    #     x_ptrb = states + ptrbvec_x
+    for i in np.arange(n):
+        ptrbvec_x = np.zeros((n, 1))
+        ptrbvec_x[i] = ptrb
+        x_ptrb = states + ptrbvec_x
 
-    #     dfdx = (statefunc(x_ptrb, ctrls) - statefunc(states, ctrls)) / ptrb
-    #     for j in np.arange(n):
-    #         A[j, i] = dfdx[j]
+        dfdx = (statefunc(x_ptrb, ctrls) - statefunc(states, ctrls)) / ptrb
+        for j in np.arange(n):
+            A[j, i] = dfdx[j]
 
-    # for i in np.arange(m):
-    #     ptrbvec_u = np.zeros((m, 1))
-    #     ptrbvec_u[i] = ptrb
-    #     u_ptrb = ctrls + ptrbvec_u
+    for i in np.arange(m):
+        ptrbvec_u = np.zeros((m, 1))
+        ptrbvec_u[i] = ptrb
+        u_ptrb = ctrls + ptrbvec_u
 
-    #     dfdu = (statefunc(states, u_ptrb) - statefunc(states, ctrls)) / ptrb
-    #     for j in np.arange(n):
-    #         B[j, i] = dfdu[j]
+        dfdu = (statefunc(states, u_ptrb) - statefunc(states, ctrls)) / ptrb
+        for j in np.arange(n):
+            B[j, i] = dfdu[j]
 
     return A, B
