@@ -9,7 +9,7 @@ from scipy.interpolate import interp1d
 
 from Corridor.poly_corr import boundary, poly, weighted_poly
 
-Trst_corr = np.load("Corridor/data_final/corr4.npz")
+Trst_corr = np.load("Corridor/data_final/corr_ineq.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -114,4 +114,18 @@ fig = plt.figure()
 ax = fig.add_subplot(projection="3d")
 ax.scatter(VT, theta, acc_corr.T, cmap="plasma", edgecolor="none")
 ax.contourf(VT, theta, acc_corr.T, zdir="z", offset=7, cmap="plasma")
+
+""" Figure 4 - Trst 2D """
+fig = plt.figure()
+ax = fig.add_subplot(111)
+contour = ax.contourf(
+    VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis"
+)
+ax.scatter(VT, theta, s=36 * Fz.T, c="r")
+ax.set_xlabel("VT, m/s", fontsize=15)
+ax.set_ylabel(r"$\theta$, deg", fontsize=15)
+ax.set_title("Dynamic Transition Corridor", fontsize=20)
+cbar = fig.colorbar(contour)
+cbar.ax.set_xlabel(r"$a_x, m/s^{2}$")
+
 plt.show()

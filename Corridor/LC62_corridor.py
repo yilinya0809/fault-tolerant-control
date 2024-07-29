@@ -598,7 +598,7 @@ class LC62_corridor(fym.BaseEnv):
 
                     success[i][j] = 1
                     print(f"vel: {vel:.1f}, theta: {np.rad2deg(theta):.1f}, success")
-                    if np.isclose(F[2], 0, atol=eps):
+                    if np.isclose(F[2], 0, atol=1e-2):
                         Fz[i][j] = 1
                     else:
                         Fz[i][j] = np.NaN
@@ -692,8 +692,8 @@ if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
     Fz_max = 100
-    # grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.5))}
-    grid = {"VT": np.arange(0, 40, 2), "theta": np.deg2rad(np.arange(-30, 30, 2))}
+    grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
+    # grid = {"VT": np.arange(0, 40, 2), "theta": np.deg2rad(np.arange(-30, 30, 2))}
     r0 = np.arange(0.0, 1.0, 0.2)
     p0 = np.arange(0.0, 1.0, 0.2)
 
@@ -720,7 +720,7 @@ if __name__ == "__main__":
             VT_corr, theta_corr, cost, success, acc, Fz = Trst_corr
             np.savez(
                 os.path.join(
-                    "Corridor/data_final/corr4.npz",
+                    "Corridor/data_final/corr_eq2.npz",
                     # "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
                 ),
                 # z0=list(z0.values()),
