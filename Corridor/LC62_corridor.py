@@ -517,7 +517,7 @@ class LC62_corridor(fym.BaseEnv):
             "pusher2": 0.0,
         },
         height=50,
-        Vz_max=4,
+        Fz_max=10,
         grid={"VT": np.arange(0, 40, 1), "theta": np.deg2rad(np.arange(-20, 20, 1))},
         method="SLSQP",
         options={"disp": False, "ftol": 1e-10},
@@ -540,14 +540,15 @@ class LC62_corridor(fym.BaseEnv):
         m = np.size(theta_range)
 
         cost = np.ones((n, m))
-        success = Fz = zdot = np.zeros((n, m))
+        success = np.zeros((n, m))
+        Fz = np.zeros((n, m))
         acc = np.zeros((n, m))
 
         for i in range(n):
             for j in range(m):
                 theta = theta_range[j]
                 vel = VT_range[i]
-                fixed = (height, vel, theta, Vz_max)
+                fixed = (height, vel, theta, Fz_max)
                 result = scipy.optimize.minimize(
                     self._cost_fixed,
                     z0,
@@ -604,10 +605,10 @@ class LC62_corridor(fym.BaseEnv):
                     dpos, dvel, dquat, domega = self.deriv(
                         pos_trim, vel_trim, quat_trim, omega_trim, FM
                     )
-                    if np.isclose(dpos[2], 0, atol=eps):
-                        zdot[i][j] = 1
-                    else:
-                        zdot[i][j] = np.NaN
+                    # if np.isclose(dpos[2], 0, atol=eps):
+                    #     zdot[i][j] = 1
+                    # else:
+                    #     zdot[i][j] = np.NaN
 
                 else:
                     print(
@@ -615,13 +616,13 @@ class LC62_corridor(fym.BaseEnv):
                     )
                     success[i][j] = np.NaN
                     acc[i][j] = np.NaN
-                    Fz[i][j] = zdot[i][j] = np.NaN
+                    Fz[i][j] = np.NaN
 
-        Trst_corr = VT_range, theta_range, cost, success, acc, Fz, zdot
+        Trst_corr = VT_range, theta_range, cost, success, acc, Fz
         return Trst_corr
 
     def _cost_fixed(self, z, fixed):
-        h, vel, theta, Vz_max = fixed
+        h, vel, theta, Fz_max = fixed
         rotor1, rotor2, rotor3, rotor4, rotor5, rotor6, pusher1, pusher2 = z
         pos_trim = np.vstack((0, 0, -h))
         vel_trim = np.vstack((vel * cos(theta), 0, vel * sin(theta)))
@@ -663,6 +664,9 @@ class LC62_corridor(fym.BaseEnv):
         M = R.T @ FM[3:]
         x1 = dpos[2]
         x2 = (np.sign(F[0]) - 1) * F[0]
+        # x3 = (np.sign(F[2] ** 2 - Fz_max * F[2]) + 1) * (F[2] ** 2 - Fz_max * F[2])
+        # x3 = (np.sign(F[2]) + 1) * F[2]
+        # x4 = np.sign(F[2] + Fz_max) - 1
         x3 = F[2]
         dxs = np.vstack((x1, x2, x3, M))
         weight = np.diag([1, 1, 1, 1, 1, 1])
@@ -687,9 +691,9 @@ class LC62_corridor(fym.BaseEnv):
 if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
-    Vz_max = 2
-    # grid = {"VT": np.arange(0, 40, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
-    grid = {"VT": np.arange(0, 40, 5), "theta": np.deg2rad(np.arange(-30, 30, 5))}
+    Fz_max = 100
+    # grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.5))}
+    grid = {"VT": np.arange(0, 40, 2), "theta": np.deg2rad(np.arange(-30, 30, 2))}
     r0 = np.arange(0.0, 1.0, 0.2)
     p0 = np.arange(0.0, 1.0, 0.2)
 
@@ -710,13 +714,13 @@ if __name__ == "__main__":
             Trst_corr = system.get_corr(
                 # z0=z0,
                 height=height,
-                Vz_max=Vz_max,
+                Fz_max=Fz_max,
                 grid=grid,
             )
-            VT_corr, theta_corr, cost, success, acc, Fz, zdot = Trst_corr
+            VT_corr, theta_corr, cost, success, acc, Fz = Trst_corr
             np.savez(
                 os.path.join(
-                    "Corridor/data_final/corr2.npz",
+                    "Corridor/data_final/corr4.npz",
                     # "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
                 ),
                 # z0=list(z0.values()),
@@ -726,5 +730,4 @@ if __name__ == "__main__":
                 success=success,
                 acc=acc,
                 Fz=Fz,
-                zdot=zdot,
             )
