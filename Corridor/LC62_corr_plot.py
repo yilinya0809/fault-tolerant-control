@@ -108,4 +108,10 @@ ax.scatter(VT.T, acc_corr, s=3)
 ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$a_x, m/s^{2}$", fontsize=15)
 
+
+""" Figure 3 """
+fig = plt.figure()
+ax = fig.add_subplot(projection="3d")
+ax.scatter(VT, theta, acc_corr.T, cmap="plasma", edgecolor="none")
+ax.contourf(VT, theta, acc_corr.T, zdir="z", offset=7, cmap="plasma")
 plt.show()
