@@ -665,9 +665,9 @@ class LC62_corridor(fym.BaseEnv):
         x1 = dpos[2]
         x2 = (np.sign(F[0]) - 1) * F[0]
         # x3 = (np.sign(F[2] ** 2 - Fz_max * F[2]) + 1) * (F[2] ** 2 - Fz_max * F[2])
-        # x3 = (np.sign(F[2]) + 1) * F[2]
+        x3 = (np.sign(F[2]) + 1) * F[2]
         # x4 = np.sign(F[2] + Fz_max) - 1
-        x3 = F[2]
+        # x3 = F[2]
         dxs = np.vstack((x1, x2, x3, M))
         weight = np.diag([1, 1, 1, 1, 1, 1])
         cost = dxs.T @ weight @ dxs
@@ -720,7 +720,7 @@ if __name__ == "__main__":
             VT_corr, theta_corr, cost, success, acc, Fz = Trst_corr
             np.savez(
                 os.path.join(
-                    "Corridor/data_final/corr_eq2.npz",
+                    "Corridor/data_final/corr_ineq2.npz",
                     # "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
                 ),
                 # z0=list(z0.values()),

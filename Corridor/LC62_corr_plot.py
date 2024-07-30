@@ -9,7 +9,7 @@ from scipy.interpolate import interp1d
 
 from Corridor.poly_corr import boundary, poly, weighted_poly
 
-Trst_corr = np.load("Corridor/data_final/corr_ineq.npz")
+Trst_corr = np.load("Corridor/data_final/corr_ineq2.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -76,8 +76,8 @@ n_Fz = np.reshape(Fz, -1).tolist().count(1)
 fig, ax = plt.subplots(1, 1)
 VT, theta = np.meshgrid(VT_corr, theta_corr)
 s = [100 for i in range(np.size(VT))]
-ax.scatter(VT, theta, s=100 * success.T, c="b")
-ax.scatter(VT, theta, s=36 * Fz.T, c="y")
+ax.scatter(VT, theta, s=success.T, c="b")
+# ax.scatter(VT, theta, s=36 * Fz.T, c="y")
 ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Dynamic Transition Corridor", fontsize=20)
@@ -119,9 +119,8 @@ ax.contourf(VT, theta, acc_corr.T, zdir="z", offset=7, cmap="plasma")
 fig = plt.figure()
 ax = fig.add_subplot(111)
 contour = ax.contourf(
-    VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis"
-)
-ax.scatter(VT, theta, s=36 * Fz.T, c="r")
+    VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=0.8)
+# ax.scatter(VT, theta, s=36 * Fz.T, c="r")
 ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Dynamic Transition Corridor", fontsize=20)
