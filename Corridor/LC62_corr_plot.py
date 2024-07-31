@@ -9,7 +9,7 @@ from scipy.interpolate import interp1d
 
 from Corridor.poly_corr import boundary, poly, weighted_poly
 
-Trst_corr = np.load("Corridor/data/corr.npz")
+Trst_corr = np.load("Corridor/data/corr2.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -115,7 +115,7 @@ ax.contourf(VT, theta, acc_corr.T, zdir="z", offset=7, cmap="plasma")
 fig = plt.figure()
 ax = fig.add_subplot(111)
 contour = ax.contourf(
-    VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=0.8
+    VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
 ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)

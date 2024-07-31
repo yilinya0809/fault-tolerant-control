@@ -432,8 +432,8 @@ class LC62_corridor(fym.BaseEnv):
 if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
-    # grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
-    grid = {"VT": np.arange(0, 40, 2), "theta": np.deg2rad(np.arange(-30, 30, 2))}
+    grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
+    # grid = {"VT": np.arange(0, 40, 2), "theta": np.deg2rad(np.arange(-30, 30, 2))}
 
     Trst_corr = system.get_corr(
         z0={"Fr": system.m * system.g, "Fp": 0.0, "q": 0.0},
@@ -443,7 +443,7 @@ if __name__ == "__main__":
     VT_corr, theta_corr, cost, success, acc, Fr, Fp, q = Trst_corr
     np.savez(
         os.path.join(
-            "Corridor/data/corr.npz",
+            "Corridor/data/corr2.npz",
             # "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
         ),
         VT_corr=VT_corr,
