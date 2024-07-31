@@ -1,11 +1,17 @@
+import fym
 import numpy as np
 import scipy
 from casadi import *
+from fym.utils.rot import quat2angle
 
+from ftc.models.LinearLC62 import LinearLC62
 from ftc.utils import linearization
 
 
 class LC62:
+    h_ref = 10
+    VT_ref = 45
+
     def __init__(self):
 
         self.g = 9.81  # [m / sec^2]
@@ -24,11 +30,25 @@ class LC62:
         }
         self.th_r_max = 159.2089
         self.th_p_max = 91.5991
-        self.X_trim = np.vstack((0, 45, 0))
-        self.U_trim = np.vstack((0, 69.69042, 3.15312039e-02))
-        self.X_hover = np.vstack((-50, 0, 0))
+
+        self.model_FW = LinearLC62()
+        x_trims, u_trims_FW = self.model_FW.get_trim_fixed(
+            fixed={"h": self.h_ref, "VT": self.VT_ref}
+        )
+        theta_trim = quat2angle(x_trims[2])[1]
+        Fp_trim = self.model_FW.B_Pusher(u_trims_FW[0])[0, 0]
+        Fr_trim = 0
+        self.X_trim = np.vstack(
+            (
+                -self.h_ref,
+                self.VT_ref * np.cos(theta_trim),
+                self.VT_ref * np.sin(theta_trim),
+            )
+        )
+        self.U_trim = np.vstack((Fr_trim, Fp_trim, theta_trim))
+        self.X_hover = np.vstack((-self.h_ref, 0, 0))
         self.U_hover = np.vstack((self.m * self.g, 0, 0))
-     
+
     def aero_coeff_lin(self, alp):
         CL = 0.2764 * alp - 0.0779
         CD = 1.0075 * alp - 0.0121
@@ -54,7 +74,6 @@ class LC62:
         D = qbar * S * CD
         return L, D
 
-
     def deriv(self, X, U):
         g = self.g
         m = self.m
@@ -69,7 +88,7 @@ class LC62:
         #     dgamma = 0
         # else:
         #     dgamma = (L + Fp * sin(alp) + Fr * cos(alp) - W *cos(gamma))/(self.m * V)
-        dgamma = (L + Fp * sin(alp) + Fr * cos(alp) - W *cos(gamma))/(self.m * V)
+        dgamma = (L + Fp * sin(alp) + Fr * cos(alp) - W * cos(gamma)) / (self.m * V)
 
         return vertcat(dz, dV, dgamma)
 
@@ -117,7 +136,7 @@ class LC62:
         alp, gamma, Fr, Fp = z
         # pos_trim = np.vstack((0, -h))
         # vel_trim = np.vstack((VT * cos(gamma), -VT * sin(gamma)))
-        
+
         X_trim = np.vstack((-h, VT, gamma))
         U_trim = np.vstack((Fr, Fp, alp))
         theta = gamma + alp
@@ -128,12 +147,11 @@ class LC62:
         return dX.T @ weight @ dX
 
 
-
 if __name__ == "__main__":
     sys = LC62()
     # print(sys.A)
     # print(sys.B)
-    
+
     Xdot1 = sys.deriv(sys.X_trim, sys.U_trim)
     Xdot2 = sys.deriv(sys.X_hover, sys.U_hover)
     breakpoint()
