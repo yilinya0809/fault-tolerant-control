@@ -13,7 +13,7 @@ class NDIController(fym.BaseEnv):
         super().__init__()
         dx1, dx2, dx3 = env.plant.dx1, env.plant.dx2, env.plant.dx3
         dy1, dy2 = env.plant.dy1, env.plant.dy2
-        self.r1 , r2 = 130, 0.0338  # th_r/rcmds, tq_r/th_r
+        self.r1, r2 = 130, 0.0338  # th_r/rcmds, tq_r/th_r
         self.B_r2FM = np.array(
             (
                 [-1, -1, -1, -1, -1, -1],
@@ -22,7 +22,7 @@ class NDIController(fym.BaseEnv):
                 [-r2, r2, -r2, r2, r2, -r2],
             )
         )
-        self.p1, p2 = 70, 0.0835 # th_p/pcmds, tq_p/th_p
+        self.p1, p2 = 70, 0.0835  # th_p/pcmds, tq_p/th_p
         # self.B_p2FM = np.array(
         #     (
         #         [1, 1],
@@ -37,7 +37,7 @@ class NDIController(fym.BaseEnv):
         self.mg = env.plant.m * env.plant.g
         self.ang_lim = np.deg2rad(30)
         # self.W = np.diag((200/(self.ang_lim), 1/self.p1))
-        self.W = np.diag((600/(self.ang_lim), 1/self.p1))
+        self.W = np.diag((600 / (self.ang_lim), 1 / self.p1))
         self.eo_int = fym.BaseSystem(np.zeros((2, 1)))
 
     def get_control(self, t, env):
@@ -59,7 +59,7 @@ class NDIController(fym.BaseEnv):
         xo_dot, xod_dot = vel[0:2], veld[0:2]
         eo, eo_dot = xo - xod, xo_dot - xod_dot
         eo_int = self.eo_int.state
-         
+
         Ko1 = 0.01 * np.diag((0, 4))
         Ko2 = 0.01 * np.diag((22, 1))
         Ko3 = 0.001 * np.diag((12, 0))
@@ -67,9 +67,9 @@ class NDIController(fym.BaseEnv):
         # outer-loop virtual control input
         nuo = (-Ko1 @ eo - Ko2 @ eo_dot - Ko3 @ eo_int) * env.plant.m
         phi = nuo[1] / self.mg
-        
+
         # control effectiveness vector
-        bo = np.vstack((-self.mg, 1)) 
+        bo = np.vstack((-self.mg, 1))
         Winv = np.linalg.inv(self.W)
         Pw = Winv @ bo @ np.linalg.inv(bo.T @ Winv @ bo)
         uo = nuo[0] * Pw

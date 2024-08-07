@@ -41,6 +41,7 @@ class MyEnv(fym.BaseEnv):
             fixed={"h": 10, "VT": self.VT_ref}
         )
         self.u_trims_vtol_FW = 1e3 * np.ones((6, 1))
+        breakpoint()
 
         # self.Q_FW = 10 * np.diag([100, 1, 2000, 2000, 1, 200, 100, 100, 100, 0, 0, 0])
         # self.R_FW = np.diag([1, 1, 10, 1000, 10])

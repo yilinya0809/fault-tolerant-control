@@ -6,10 +6,9 @@ from fym.utils.rot import quat2angle
 from Corridor.poly_corr import boundary, poly, weighted_poly
 from ftc.models.LC62S import LC62
 
-# Trst_corr = np.load("corr_conti.npz")
-# VT_corr = Trst_corr["VT_corr"]
-# acc_corr = Trst_corr["acc_corr"]
-# theta_corr = Trst_corr["theta_corr"]
+Trst_corr = np.load("corr_final.npz")
+VT_corr = Trst_corr["VT_corr"]
+theta_corr = Trst_corr["theta_corr"]
 
 
 class MPC_Corr:
@@ -29,7 +28,7 @@ class MPC_Corr:
         self.control_init = ca.DM([-self.plant.m * self.plant.g, 0, theta_init])
 
         VT_target = VT_corr[0]
-        theta_target = np.deg2rad(theta_corr[0, 0])
+        theta_target = np.deg2rad(theta_corr[-1])
         vx_target = VT_target * np.cos(theta_target)
         vz_target = VT_target * np.sin(theta_target)
         self.Fr_target = 0
