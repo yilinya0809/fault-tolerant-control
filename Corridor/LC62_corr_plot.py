@@ -2,8 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from Corridor.poly_corr import boundary, poly, weighted_poly
+from ftc.models.LC62S import LC62
 
-Trst_corr = np.load("Corridor/data/corr_final.npz")
+plant = LC62()
+Fr_max = 6 * plant.th_r_max
+Fp_max = 2 * plant.th_p_max
+
+Trst_corr = np.load("Corridor/data/corr3.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -11,6 +16,33 @@ cost = Trst_corr["cost"]
 success = Trst_corr["success"]
 Fr = Trst_corr["Fr"]
 Fp = Trst_corr["Fp"]
+
+eta = 0.85
+Fr_margin = np.zeros((np.size(VT_corr), 1))
+Fp_margin = np.zeros((np.size(VT_corr), 1))
+
+
+# for i in range(np.size(VT_corr)):
+#     for j in range(np.size(theta_corr)):
+#         if Fr[i, j] > eta * Fr_max:
+#             # success[i, j] = np.NaN
+#             # Fr[i, j] = np.NaN
+#             # Fp[i, j] = np.NaN
+#             Fr_margin[i] = theta_corr[j]
+
+#     for j in reversed(range(np.size(theta_corr))):
+#         if Fp[i, j] > eta * Fp_max:
+#             # success[i, j] = np.NaN
+#             # Fr[i, j] = np.NaN
+#             # Fp[i, j] = np.NaN
+#             Fp_margin[i] = theta_corr[j]
+        
+
+# for i in range(np.size(VT_corr)):
+#     if Fr_margin[i, 0] == 0:
+#         Fr_margin[i, 0] = np.NaN
+#     if Fp_margin[i, 0] == 0:
+#         Fp_margin[i, 0] = np.NaN
 
 """ Figure 1 """
 fig, axs = plt.subplots(1, 2)
@@ -72,6 +104,7 @@ ax = axs[0, 0]
 contour = ax.contourf(
     VT, theta, Fr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
+ax.plot(VT_corr, Fr_margin, 'r--')
 ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Rotor Force Corridor", fontsize=20)
@@ -82,6 +115,7 @@ ax = axs[0, 1]
 contour = ax.contourf(
     VT, theta, Fp.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
+ax.plot(VT_corr, Fp_margin, 'r--')
 ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Pusher Force Corridor", fontsize=20)

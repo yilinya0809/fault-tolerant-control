@@ -165,6 +165,9 @@ class LC62_corridor(fym.BaseEnv):
 
         self.e3 = np.vstack((0, 0, 1))
         self.plant = LC62()
+        self.Fr_max = 6 * self.plant.th_r_max
+        self.Fp_max = 2 * self.plant.th_p_max
+        self.eta = 0.8
 
     def B_Pusher(self, Fp):
         Fx = Fp
@@ -273,8 +276,8 @@ class LC62_corridor(fym.BaseEnv):
         grid = list(grid.values())
         VT_range, theta_range = grid
         bounds = (
-            (0, 6 * self.plant.th_r_max),
-            (0, 2 * self.plant.th_p_max),
+            (0, self.eta * self.Fr_max),
+            (0, self.eta * self.Fp_max),
             (0, 10),
         )
         n = np.size(VT_range)
@@ -409,7 +412,7 @@ if __name__ == "__main__":
     VT_corr, theta_corr, cost, success, acc, Fr, Fp, q = Trst_corr
     np.savez(
         os.path.join(
-            "Corridor/data/corr2.npz",
+            "Corridor/data/corr3.npz",
             # "corr_init_r{0:.1f}_p{1:.1f}.npz".format(r0[i], p0[j]),
         ),
         VT_corr=VT_corr,
