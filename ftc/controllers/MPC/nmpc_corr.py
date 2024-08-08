@@ -1,10 +1,12 @@
 import casadi as ca
+import fym
 import numpy as np
+from ftc.models.LC62S import LC62
+from fym.utils.rot import quat2angle
 
-from ftc.models.LC62_mpc import LC62
-from ftc.trst_corr.trst_corr_poly import boundary, poly, weighted_poly
+from poly_corr import boundary, poly, weighted_poly
 
-Trst_corr = np.load("ftc/trst_corr/corr.npz")
+Trst_corr = np.load("corr.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc_corr"]
 theta_corr = Trst_corr["theta_corr"]

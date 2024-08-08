@@ -3,7 +3,7 @@ import fym
 import numpy as np
 from fym.utils.rot import quat2angle
 
-from ftc.models.LC62_mpc import LC62
+from ftc.models.LC62S import LC62
 
 
 class MPC:
@@ -66,8 +66,12 @@ class MPC:
         return args
 
     def get_action(self):
-        agent_info = {"Xd": self.state_target, "Ud": self.control_target, "qd": 0}
-
+        agent_info = {
+             "Xd": self.state_target,
+             "Ud": self.control_target,
+             "qd": 0
+        }
+        
         return self.control_init, agent_info
 
     def solve_mpc(self, obs):
@@ -98,8 +102,8 @@ class MPC:
         Q = ca.diagcat(300, 300, 300)
         R = ca.diagcat(0.01, 0.1, 200000)
 
-        # Xdot = self.plant.deriv_lin(states, controls, q)
-        Xdot = self.plant.derivnox(states, controls, q)
+        Xdot = self.plant.deriv_lin(states, controls, q)
+        # Xdot1 = self.plant.derivnox(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
 
         cost_fn = 0  # cost function
@@ -161,7 +165,6 @@ class MPC:
 
         self.control_init = u[:, 0]
 
-
 class NDIController(fym.BaseEnv):
     def __init__(self, env):
         super().__init__()
@@ -202,7 +205,6 @@ class NDIController(fym.BaseEnv):
 
         th_p = Fpd / 2
         pcmds = th_p / self.cp_th * np.ones((2, 1))
-
         dels = np.zeros((3, 1))
         ctrls = np.vstack((rcmds, pcmds, dels))
 

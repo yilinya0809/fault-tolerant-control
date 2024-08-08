@@ -1,22 +1,17 @@
 import fym
 import numpy as np
 import scipy
-from fym.utils.rot import angle2quat, quat2dcm
+from fym.utils.rot import angle2quat, quat2dcm, quat2angle
 from numpy import cos, sin
 from scipy.interpolate import interp1d
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 
-from ftc.utils import linearization, safeupdate
+from ftc.utils import safeupdate
+from ftc.models.LC62R import LC62R
 
 
-class LC62(fym.BaseEnv):
-    """LC62 Model
-    Variables:
-        pos: position in I-coord
-        vel: velocity in I-coord
-        quat: unit quaternion.
-            Corresponding to the rotation matrix from I- to B-coord.
-    """
-
+class LC62_corridor(fym.BaseEnv):
     temp_y = 0.0
     # Aircraft paramters
     dx1 = 0.9325 + 0.049  # dx1 = 0.9815
@@ -79,7 +74,7 @@ class LC62(fym.BaseEnv):
     Cy_del_R = 0.0534
 
     """
-    pwm: 1000 ~ 2000
+    cmd: 0 ~ 1
     th_p: pusher thrust [N]
     tq_p: pusher torque [N * m]
     """
@@ -104,8 +99,21 @@ class LC62(fym.BaseEnv):
                 -0.2548,
             ]
         ),
-        "pwm": np.array(
-            [1000, 1200, 1255, 1310, 1365, 1420, 1475, 1530, 1585, 1640, 1695, 1750]
+        "cmd": np.array(
+            [
+                0,
+                0.2,
+                0.255,
+                0.310,
+                0.365,
+                0.420,
+                0.475,
+                0.530,
+                0.585,
+                0.640,
+                0.695,
+                0.750,
+            ]
         ),
         "th_p": np.array(
             [
@@ -130,13 +138,13 @@ class LC62(fym.BaseEnv):
         "tq_r": [-6.3961, 12.092, -0.3156, 0],
     }
 
+
     control_limits = {
-        "pwm": (1000, 2000),
+        "cmd": (0, 1),
         "dela": np.deg2rad((-10, 10)),
         "dele": np.deg2rad((-10, 10)),
         "delr": np.deg2rad((-10, 10)),
     }
-
     ENV_CONFIG = {
         "init": {
             "pos": np.zeros((3, 1)),
@@ -148,18 +156,13 @@ class LC62(fym.BaseEnv):
 
     def __init__(self, env_config={}):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
-        super().__init__(max_t=10)
+        super().__init__()
         self.pos = fym.BaseSystem(env_config["init"]["pos"])
         self.vel = fym.BaseSystem(env_config["init"]["vel"])
         self.quat = fym.BaseSystem(env_config["init"]["quat"])
         self.omega = fym.BaseSystem(env_config["init"]["omega"])
 
         self.e3 = np.vstack((0, 0, 1))
-        # if VT >=40, the initial guess, z0, should be changed from default to 2000
-        self.x_trims, self.u_trims_fixed = self.get_trim_fixed(fixed={"h": 10, "VT": 0})
-        self.u_trims_vtol = self.get_trim_vtol(
-            fixed={"x_trims": self.x_trims, "u_trims_fixed": self.u_trims_fixed}
-        )
 
     def deriv(self, pos, vel, quat, omega, FM):
         F, M = FM[0:3], FM[3:]
@@ -182,31 +185,11 @@ class LC62(fym.BaseEnv):
         domega = self.Jinv @ (M - np.cross(omega, self.J @ omega, axis=0)) + domega
         return dpos, dvel, dquat, domega
 
-    def deriv_lin(self, pos, vel, quat, ang, omega, FM):
-        F, M = FM[0:3], FM[3:]
-        dcm = quat2dcm(quat)
-        phi, theta, psi = np.ravel(ang)
-        p, q, r = np.ravel(omega)
-
-        """ disturbances """
-        dv = np.zeros((3, 1))
-        domega = self.Jinv @ np.zeros((3, 1))
-
-        """ dynamics """
-        dpos = dcm.T @ vel
-        dvel = F / self.m - np.cross(omega, vel, axis=0) + dv
-        dphi = p + sin(phi) * tan(theta) * q + cos(phi) * tan(theta) * r
-        dtheta = cos(phi) * q - sin(phi) * r
-        dpsi = (sin(phi) * q + cos(phi) * r) / cos(theta)
-        dang = np.vstack((dphi, dtheta, dpsi))
-        domega = self.Jinv @ (M - np.cross(omega, self.J @ omega, axis=0)) + domega
-        return dpos, dvel, dang, domega
 
     def set_dot(self, t, FM):
         states = self.observe_list()
         dots = self.deriv(*states, FM)
         self.pos.dot, self.vel.dot, self.quat.dot, self.omega.dot = dots
-        return {"t": t, "states": states, "dots": dots}
 
     def get_FM(
         self,
@@ -221,15 +204,15 @@ class LC62(fym.BaseEnv):
         """
         ctrls: PWMs (rotor, pusher) and control surfaces
         """
-        pwms_rotor = ctrls[:6]
-        pwms_pusher = ctrls[6:8]
+        rcmds = ctrls[:6]
+        pcmds = ctrls[6:8]
         dels = ctrls[8:]  # control surfaces
 
         """ multicopter """
-        FM_VTOL = self.B_VTOL(pwms_rotor, omega)
+        FM_VTOL = self.B_VTOL(rcmds, omega)
 
         """ fixed-wing """
-        FM_Pusher = self.B_Pusher(pwms_pusher)
+        FM_Pusher = self.B_Pusher(pcmds)
         FM_Fuselage = self.B_Fuselage(dels, pos, vel - vel_wind, omega + omega_wind)
         FM_Gravity = self.B_Gravity(quat)
 
@@ -237,7 +220,7 @@ class LC62(fym.BaseEnv):
         FM = FM_VTOL + FM_Fuselage + FM_Pusher + FM_Gravity
         return FM
 
-    def B_VTOL(self, pwms_rotor, omega):
+    def B_VTOL(self, rcmds, omega):
         """
         R1: mid right,   [CW]
         R2: mid left,    [CCW]
@@ -246,11 +229,10 @@ class LC62(fym.BaseEnv):
         R5: front right, [CCW]
         R6: rear left,   [CW]
         """
-        rcmds = self.pwm2cmd(pwms_rotor)
-        th = (-19281 * rcmds**3 + 36503 * rcmds**2 - 992.75 * rcmds) * self.g / 1000
-        tq = -6.3961 * rcmds**3 + 12.092 * rcmds**2 - 0.3156 * rcmds
-        # th = np.polyval(self.tables["th_r"], rcmds) * self.g / 1000
-        # tq = np.polyval(self.tables["tq_r"], rcmds)
+        # th = (-19281 * rcmds**3 + 36503 * rcmds**2 - 992.75 * rcmds) * self.g / 1000
+        # tq = -6.3961 * rcmds**3 + 12.092 * rcmds**2 - 0.3156 * rcmds
+        th = np.polyval(self.tables["th_r"], rcmds) * self.g / 1000
+        tq = np.polyval(self.tables["tq_r"], rcmds)
         Fx = Fy = 0
         Fz = -th[0] - th[1] - th[2] - th[3] - th[4] - th[5]
         l = self.dy1 * (th[1] + th[2] + th[5]) - self.dy2 * (th[0] + th[3] + th[4])
@@ -266,15 +248,15 @@ class LC62(fym.BaseEnv):
         n = n - 1 * np.rad2deg(omega[2])
         return np.vstack((Fx, Fy, Fz, l, m, n))
 
-    def B_Pusher(self, pwms_pusher):
+    def B_Pusher(self, pcmds):
         th_p = interp1d(
-            self.tables["pwm"], self.tables["th_p"], fill_value="extrapolate"
+            self.tables["cmd"], self.tables["th_p"], fill_value="extrapolate"
         )
         tq_p = interp1d(
-            self.tables["pwm"], self.tables["tq_p"], fill_value="extrapolate"
+            self.tables["cmd"], self.tables["tq_p"], fill_value="extrapolate"
         )
-        th = th_p(pwms_pusher)
-        tq = tq_p(pwms_pusher)
+        th = th_p(pcmds)
+        tq = tq_p(pcmds)
         Fx = th[0] + th[1]
         Fy = Fz = 0
         l = tq[0] - tq[1]
@@ -341,48 +323,36 @@ class LC62(fym.BaseEnv):
         return pressure / (287 * temperature)
 
     def aero_coeff(self, alp):
-        CL = np.interp(alp, self.tables["alp"], self.tables["CL"])
-        CD = np.interp(alp, self.tables["alp"], self.tables["CD"])
-        Cm = np.interp(alp, self.tables["alp"], self.tables["Cm"])
+        _CL = interp1d(self.tables["alp"], self.tables["CL"], kind="linear", fill_value="extrapolate")
+        _CD = interp1d(self.tables["alp"], self.tables["CD"], kind="linear", fill_value='extrapolate')
+        _Cm = interp1d(self.tables["alp"], self.tables["Cm"], kind="linear", fill_value='extrapolate')
+        CL = _CL(alp)
+        CD = _CD(alp)
+        Cm = _Cm(alp)
         return np.vstack((CL, CD, Cm))
-
-    def pwm2cmd(self, pwm):
-        """
-        pwm: 1000 ~ 2000
-        cmd: 0 ~ 1
-        """
-        return (pwm - 1000) / 1000
-
-    def cmd2pwm(self, cmd):
-        """
-        cmd: 0 ~ 1
-        pwm: 1000 ~ 2000
-        """
-        return cmd * 1000 + 1000
 
     def get_trim_fixed(
         self,
         z0={
             "alpha": 0.0,
             "beta": 0,
-            "pusher1": 1500,
-            "pusher2": 1500,
+            "pusher1": 0.5,
+            "pusher2": 0.5,
             "dela": 0,
             "dele": 0,
             "delr": 0,
         },
-        fixed={"h": 10, "VT": 10},
+        fixed={"h": 10, "VT": 45},
         method="SLSQP",
         options={"disp": False, "ftol": 1e-10},
-        verbose=False,
     ):
         z0 = list(z0.values())
         fixed = list(fixed.values())
         bounds = (
             np.deg2rad((0, 20)),
             np.deg2rad((-10, 10)),
-            self.control_limits["pwm"],
-            self.control_limits["pwm"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
             self.control_limits["dela"],
             self.control_limits["dele"],
             self.control_limits["delr"],
@@ -398,7 +368,9 @@ class LC62(fym.BaseEnv):
 
         h, VT = fixed
         if np.isclose(VT, 0):
-            alp, beta, pusher1, pusher2, dela, dele, delr = 0, 0, 1000, 1000, 0, 0, 0
+            alp, beta, pusher1, pusher2, dela, dele, delr = np.zeros(
+                7,
+            )
         else:
             alp, beta, pusher1, pusher2, dela, dele, delr = result.x
         pos_trim = np.vstack((0, 0, -h))
@@ -407,11 +379,11 @@ class LC62(fym.BaseEnv):
         )
         quat_trim = np.vstack(angle2quat(0, alp, 0))
         omega_trim = np.vstack((0, 0, 0))
-        pwms_pusher = np.vstack((pusher1, pusher2))
+        pcmds = np.vstack((pusher1, pusher2))
         dels = np.vstack((dela, dele, delr))
 
         x_trims = (pos_trim, vel_trim, quat_trim, omega_trim)
-        u_trims_fixed = (pwms_pusher, dels)
+        u_trims_fixed = (pcmds, dels)
         return x_trims, u_trims_fixed
 
     def _trim_cost_fixed(self, z, fixed):
@@ -423,10 +395,10 @@ class LC62(fym.BaseEnv):
         )
         quat_trim = np.vstack(angle2quat(0, alp, 0))
         omega_trim = np.vstack((0, 0, 0))
-        pwms_pusher = np.vstack((pusher1, pusher2))
+        pcmds = np.vstack((pusher1, pusher2))
         dels = np.vstack((dela, dele, delr))
 
-        FM_Pusher = self.B_Pusher(pwms_pusher)
+        FM_Pusher = self.B_Pusher(pcmds)
         FM_Fuselage = self.B_Fuselage(dels, pos_trim, vel_trim, omega_trim)
         FM_Gravity = self.B_Gravity(quat_trim)
         FM_Fixed = FM_Fuselage + FM_Pusher + FM_Gravity
@@ -439,12 +411,12 @@ class LC62(fym.BaseEnv):
     def get_trim_vtol(
         self,
         z0={
-            "rotor1": 1100,
-            "rotor2": 1100,
-            "rotor3": 1100,
-            "rotor4": 1100,
-            "rotor5": 1100,
-            "rotor6": 1100,
+            "rotor1": 0.1,
+            "rotor2": 0.1,
+            "rotor3": 0.1,
+            "rotor4": 0.1,
+            "rotor5": 0.1,
+            "rotor6": 0.1,
         },
         fixed={
             "x_trim": (
@@ -453,21 +425,20 @@ class LC62(fym.BaseEnv):
                 np.vstack((1, 0, 0, 0)),
                 np.zeros((3, 1)),
             ),
-            "u_trims_fixed": (1000 * np.ones((2, 1)), np.zeros((3, 1))),
+            "u_trims_fixed": (np.zeros((5, 1))),
         },
         method="SLSQP",
         options={"disp": False, "ftol": 1e-10},
-        verbose=False,
     ):
         z0 = list(z0.values())
         fixed = list(fixed.values())
         bounds = (
-            self.control_limits["pwm"],
-            self.control_limits["pwm"],
-            self.control_limits["pwm"],
-            self.control_limits["pwm"],
-            self.control_limits["pwm"],
-            self.control_limits["pwm"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
         )
         result = scipy.optimize.minimize(
             self._trim_cost_vtol,
@@ -479,20 +450,20 @@ class LC62(fym.BaseEnv):
         )
 
         rotor1, rotor2, rotor3, rotor4, rotor5, rotor6 = result.x
-        pwms_rotor = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
+        rcmds = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
 
-        u_trims_vtol = pwms_rotor
+        u_trims_vtol = rcmds
         return u_trims_vtol
 
     def _trim_cost_vtol(self, z, fixed):
         x_trims, u_trims_fixed = fixed
         rotor1, rotor2, rotor3, rotor4, rotor5, rotor6 = z
         pos_trim, vel_trim, quat_trim, omega_trim = x_trims
-        pwms_pusher, dels = u_trims_fixed
-        pwms_rotor = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
+        pcmds, dels = u_trims_fixed
+        rcmds = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
 
-        FM_VTOL = self.B_VTOL(pwms_rotor, omega_trim)
-        FM_Pusher = self.B_Pusher(pwms_pusher)
+        FM_VTOL = self.B_VTOL(rcmds, omega_trim)
+        FM_Pusher = self.B_Pusher(pcmds)
         FM_Fuselage = self.B_Fuselage(dels, pos_trim, vel_trim, omega_trim)
         FM_Gravity = self.B_Gravity(quat_trim)
         FM = FM_VTOL + FM_Fuselage + FM_Pusher + FM_Gravity
@@ -504,151 +475,144 @@ class LC62(fym.BaseEnv):
 
     def saturate(self, ctrls):
         _ctrls = np.zeros((ctrls.shape))
-        pwm_min, pwm_max = self.control_limits["pwm"]
+        cmd_min, cmd_max = self.control_limits["cmd"]
         dela_min, dela_max = self.control_limits["dela"]
         dele_min, dele_max = self.control_limits["dele"]
         delr_min, delr_max = self.control_limits["delr"]
-        _ctrls[:8] = np.clip(ctrls[:8], pwm_min, pwm_max)
+        _ctrls[:8] = np.clip(ctrls[:8], cmd_min, cmd_max)
         _ctrls[8] = np.clip(ctrls[8], dela_min, dela_max)
         _ctrls[9] = np.clip(ctrls[9], dele_min, dele_max)
         _ctrls[10] = np.clip(ctrls[10], delr_min, delr_max)
         return _ctrls
 
-    # Linearization mathematically
-    def perturb_deriv(self, x, u_FM):
-        pos, vel, quat, omega = x
-        px, py, pz = np.ravel(pos)
-        vx, vy, vz = np.ravel(vel)
-        q0, q1, q2, q3 = np.ravel(quat)
-        p, q, r = np.ravel(omega)
-        eps = 1 - (q0**2 + q1**2 + q2**2 + q3**2)
-        F, M = u_FM[0:3], u_FM[3:]
 
-        Adpos_v = quat2dcm(quat).T
-        Adpx_quat = 2 * np.array(
-            [
-                q0 * vx - q3 * vy + q2 * vz,
-                q1 * vx + q2 * vy + q3 * vz,
-                -q2 * vx + q1 * vy + q0 * vz,
-                -q3 * vx - q0 * vy + q1 * vz,
-            ]
+    def get_corr(
+        self,
+        z0={
+            "alpha": 0.0,
+            "beta": 0,
+            "rotor1": 0.5,
+            "rotor2": 0.5,
+            "rotor3": 0.5,
+            "rotor4": 0.5,
+            "rotor5": 0.5,
+            "rotor6": 0.5,
+            "pusher1": 0.0,
+            "pusher2": 0.0,
+
+        },
+        height = 50,
+        corr = {"VT": np.arange(1, 46, 1), "acc": np.arange(-4, 6, 1)},
+        method="SLSQP",
+        options={"disp": False, "ftol": 1e-10},
+    ):
+        corr = list(corr.values())
+        VT_corr, acc_corr = corr
+        bounds = (
+            np.deg2rad((-20, 20)),
+            np.deg2rad((-10, 10)),
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
+            self.control_limits["cmd"],
         )
-        Adpy_quat = 2 * np.array(
-            [
-                q3 * vx + q0 * vy - q1 * vz,
-                q2 * vx - q1 * vy - q0 * vz,
-                q1 * vx + q2 * vy + q3 * vz,
-                q0 * vx - q3 * vy + q2 * vz,
-            ]
+        n = np.size(VT_corr)
+        m = np.size(acc_corr)
+
+        theta_corr = np.zeros((n, m))
+        cost = np.ones((n, m)) * 200
+        success = np.zeros((n, m))
+
+        for i in range(n):
+            vel = VT_corr[i]
+            if vel < 10:
+                r0 = 0.5
+                p0 = 0.0
+            elif 10 <= vel < 20:
+                r0 = 0.3
+                p0 = 0.2
+            elif 20 <= vel < 30:
+                r0 = 0.1
+                p0 = 0.4
+            else:
+                r0 = 0.0
+                p0 = 0.5
+
+            for j in range(m):
+                acc = acc_corr[j]
+                vel = VT_corr[i]
+                if vel > 30 and acc > 3:
+                    r0 = 0.0
+                    p0 = 0.7
+                z0={
+                    "alpha": 0,
+                    "beta": 0,
+                    "rotor1": r0,
+                    "rotor2": r0,
+                    "rotor3": r0,
+                    "rotor4": r0,
+                    "rotor5": r0,
+                    "rotor6": r0,
+                    "pusher1": p0,
+                    "pusher2": p0,
+                }
+                z0 = list(z0.values())
+                fixed = (height, vel, acc)
+                result = scipy.optimize.minimize(
+                    self._cost_fixed,
+                    z0,
+                    args = (fixed,),
+                    bounds = bounds,
+                    method = method,
+                    options = options,
+                )
+                cost[i][j] = result.fun
+                alp, beta, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.p1, self.p2 = result.x
+                if np.linalg.norm(cost[i][j]) < 1:
+                    theta_corr[i][j] = np.rad2deg(alp)
+                    success[i][j]=1
+                    print(f'vel: {vel:.1f}, acc: {acc:.1f}, success')
+                else:
+                    print(f'vel: {vel:.1f}, acc: {acc:.1f}, cost: {cost[i][j]:.3f}')
+
+
+        Trst_corr = VT_corr, acc_corr, theta_corr, cost, success
+        return Trst_corr
+
+    def _cost_fixed(self, z, fixed):
+        h, VT, acc = fixed
+        alp, beta, rotor1, rotor2, rotor3, rotor4, rotor5, rotor6, pusher1, pusher2 = z
+        pos_trim = np.vstack((0, 0, -h))
+        vel_trim = np.vstack(
+            (VT * cos(alp) * cos(beta), VT * sin(beta), VT * sin(alp) * cos(beta))
         )
-        Adpz_quat = 2 * np.array(
-            [
-                -q2 * vx + q1 * vy + q0 * vz,
-                q3 * vx + q0 * vy - q1 * vz,
-                -q0 * vx + q3 * vy - q2 * vz,
-                q1 * vx + q2 * vy + q3 * vz,
-            ]
-        )
-        Adpos_quat = np.vstack((Adpx_quat, Adpy_quat, Adpz_quat))
+        quat_trim = np.vstack(angle2quat(0, alp, 0))
+        omega_trim = np.vstack((0, 0, 0))
+        rcmds = np.vstack((rotor1, rotor2, rotor3, rotor4, rotor5, rotor6))
+        pcmds = np.vstack((pusher1, pusher2))
+        dels = np.vstack((0, 0, 0))
 
-        Adv_v = np.array([[0, r, -q], [-r, 0, p], [q, -p, 0]])
-        Adv_w = np.array([[0, -vz, vy], [vz, 0, -vx], [-vy, vx, 0]])
+        FM_Rotor = self.B_VTOL(rcmds, omega_trim)
+        FM_Pusher = self.B_Pusher(pcmds)
+        FM_Fuselage = self.B_Fuselage(dels, pos_trim, vel_trim, omega_trim)
+        FM_Gravity = self.B_Gravity(quat_trim)
+        FM_Fixed = FM_Fuselage + FM_Pusher + FM_Gravity + FM_Rotor
 
-        Adquat_quat = (
-            0.5
-            * np.array(
-                [[0.0, -p, -q, -r], [p, 0.0, r, -q], [q, -r, 0.0, p], [r, q, -p, 0.0]]
-            )
-            + np.diag(np.full((1, 4), eps))
-            - 2 * quat * quat.T
-        )
-        Adquat_w = 0.5 * np.array(
-            [[-q1, -q2, -q3], [q0, -q3, q2], [q3, q0, -q1], [-q2, q1, q0]]
-        )
-
-        J = self.J
-        Ixx, Iyy, Izz, Ixz = J[0, 0], J[1, 1], J[2, 2], J[0, 2]
-        m = self.m
-        det = Ixx * Izz - Ixz**2
-        Adp_w = -(1 / det) * np.array(
-            [
-                Ixz * (Ixx - Iyy + Izz) * q,
-                Ixz * (Ixx - Iyy + Izz) * p + (Ixz**2 + Izz**2 - Iyy * Izz) * r,
-                (Ixz**2 + Izz**2 - Iyy * Izz) * q,
-            ]
-        )
-        Adq_w = (1 / Iyy) * np.array(
-            [2 * Ixz * p - (Ixx - Izz) * r, 0, -2 * Ixz * r - (Ixx - Izz) * p]
-        )
-        Adr_w = (1 / det) * np.array(
-            [
-                (Ixz**2 + Ixx**2 - Ixx * Iyy) * q,
-                (Ixz**2 + Ixx**2 - Ixx * Iyy) * p + Ixz * (Ixx - Iyy + Izz) * r,
-                Ixz * (Ixx - Iyy + Izz) * q,
-            ]
-        )
-        Adw_w = np.vstack((Adp_w, Adq_w, Adr_w))
-
-        Bdv_F = np.array([[1 / m, 0, 0], [0, 1 / m, 0], [0, 0, 1 / m]])
-        Bdw_M = np.linalg.inv(J)
-
-        A = np.zeros((13, 13))
-        A[0:3, 3:6] = Adpos_v
-        A[0:3, 6:10] = Adpos_quat
-        A[3:6, 3:6] = Adv_v
-        A[3:6, 10:] = Adv_w
-        A[6:10, 6:10] = Adquat_quat
-        A[6:10, 10:] = Adquat_w
-        A[10:, 10:] = Adw_w
-
-        B = np.zeros((13, 6))
-        B[3:6, 0:3] = Bdv_F
-        B[10:, 3:] = Bdw_M
-
-        return A, B
-
-    def lin_model_deriv(self, FM):
-        A_deriv, B_deriv = self.perturb_deriv(self.x_trims, FM)
-        return A_deriv, B_deriv
-
-    # Linearization numerically 
-    def statefunc(self, states, ctrls):
-        pos = states[0:3]
-        vel = states[3:6]
-        ang = states[6:9]
-        omega = states[9:12]
-        quat = np.vstack(angle2quat(ang[2], ang[1], ang[0]))
-
-        FM = self.get_FM(pos, vel, quat, omega, ctrls)
-        dots = self.deriv_lin(pos, vel, quat, ang, omega, FM)
-        return np.vstack((dots))
-
-    def statefunc_FM(self, states, FM):
-        pos = states[0:3]
-        vel = states[3:6]
-        ang = states[6:9]
-        omega = states[9:12]
-        quat = np.vstack(angle2quat(ang[2], ang[1], ang[0]))
-
-        dots = self.deriv_lin(pos, vel, quat, ang, omega, FM)
-        return np.vstack((dots))
-
-    def lin_model(self, x, u, ptrb):
-        self.A, self.B = linearization(self.statefunc, x, u, ptrb)
-        return self.A, self.B
-
-    def lin_model_FM(self, x, FM, ptrb):
-        self.A_FM, self.B_FM = linearization(self.statefunc_FM, x, FM, ptrb)
-        return self.A_FM, self.B_FM
+        dpos, dvel, dquat, domega= self.deriv(pos_trim, vel_trim, quat_trim, omega_trim, FM_Fixed)
+        dxs = np.vstack((dpos[0]-VT, dpos[1:3], dvel[0]-acc, dvel[1:3], domega))
+        weight = np.diag([10, 1, 1, 10, 1, 1, 1000, 1000, 1000])
+        cost = dxs.T @ weight @ dxs
+        return cost
 
 
 if __name__ == "__main__":
-    system = LC62()
-    pos, vel, quat, omega = system.x_trims
-    pwms_pusher, dels = system.u_trims_fixed
-    pwms_rotor = system.u_trims_vtol
-    ctrls = np.vstack((pwms_rotor, pwms_pusher, dels))
-    FM = system.get_FM(pos, vel, quat, omega, ctrls)
+    system = LC62_corridor()
+    height = 50
+    Trst_corr = system.get_corr(corr={"VT": np.arange(0, 40, 0.5), "acc": np.arange(0, 3.8, 0.2)})
+    VT_corr, acc_corr, theta_corr, cost, success = Trst_corr
+    np.savez('corr.npz', VT_corr=VT_corr, acc_corr=acc_corr, theta_corr=theta_corr, cost=cost, success=success)
 
-    system.set_dot(t=0, FM=FM)
-    print(repr(system))

@@ -49,6 +49,7 @@ class LQRController(fym.BaseEnv):
 
         pos, vel, quat, omega = env.plant.observe_list()
         ang = np.vstack(quat2angle(quat)[::-1])
+
         x = np.vstack((pos, vel, ang, omega))
 
         posd, veld = env.get_ref(t, "posd", "posd_dot")

@@ -3,19 +3,14 @@ import argparse
 import fym
 import matplotlib.pyplot as plt
 import numpy as np
-from fym.utils.rot import quat2angle
-from poly_corr import boundary, poly, weighted_poly
+from fym.utils.rot import angle2quat, quat2angle
+from numpy import cos, sin
 
 import ftc
 from ftc.models.LC62R import LC62R
 from ftc.utils import safeupdate
 
 np.seterr(all="raise")
-
-Trst_corr = np.load("corr.npz")
-VT_corr = Trst_corr["VT_corr"]
-acc_corr = Trst_corr["acc_corr"]
-theta_corr = Trst_corr["theta_corr"]
 
 
 class MyEnv(fym.BaseEnv):
@@ -26,7 +21,7 @@ class MyEnv(fym.BaseEnv):
         },
         "plant": {
             "init": {
-                "pos": np.vstack((0.0, 0.0, -50.0)),
+                "pos": np.vstack((0.0, 0.0, -10.0)),
                 "vel": np.zeros((3, 1)),
                 "quat": np.vstack((1, 0, 0, 0)),
                 "omega": np.zeros((3, 1)),
@@ -38,28 +33,34 @@ class MyEnv(fym.BaseEnv):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
         self.plant = LC62R(env_config["plant"])
+        self.controller = ftc.make("NDI-C", self)
+        self.cruise_speed = 45
         self.ang_lim = np.deg2rad(45)
-        self.controller = ftc.make("NMPC-GESO", self)
-        self.agent = ftc.make("NMPC-Corr", self)
-        # self.controller = ftc.make("NMPC-DI-test", self)
 
-    def step(self, action):
-        env_info, done = self.update(action=action)
-        obs = self.observation()
-
-        return obs, done, env_info
+    def step(self):
+        env_info, done = self.update()
+        return done, env_info
 
     def observation(self):
-        pos, vel, quat, omega = self.plant.observe_list()
-        ang = np.vstack(quat2angle(quat)[::-1])
-        obs = (pos[2], vel[0], vel[2], ang[1], omega[1])  # Current state
-        return obs
+        return self.observe_flat()
 
-    def set_dot(self, t, action):
-        tf = self.clock.max_t
+    def get_ref(self, t, *args):
         pos, vel, quat, omega = self.plant.observe_list()
-        stated = self.agent.set_ref(t, tf, VT_corr[0], VT_corr[-1])
-        ctrls0, controller_info = self.controller.get_control(t, self, action)
+        ang0 = np.vstack(quat2angle(quat)[::-1])
+        ang_min, ang_max = -self.ang_lim, self.ang_lim
+        ang = np.clip(ang0, ang_min, ang_max)
+        alp = ang[1]
+
+        VT = self.cruise_speed
+        posd = np.vstack((t * VT * cos(alp), 0, -10))
+        posd_dot = np.vstack((VT * cos(alp), 0, VT * sin(alp)))
+
+        refs = {"posd": posd, "posd_dot": posd_dot}
+        return [refs[key] for key in args]
+
+    def set_dot(self, t):
+        pos, vel, quat, omega = self.plant.observe_list()
+        ctrls0, controller_info = self.controller.get_control(t, self)
         ctrls = self.plant.saturate(ctrls0)
 
         FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
@@ -74,7 +75,6 @@ class MyEnv(fym.BaseEnv):
             "FM": FM,
             "Fr": self.plant.B_VTOL(ctrls[:6], omega)[2],
             "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
-            "stated": stated,
         }
 
         return env_info
@@ -82,18 +82,15 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    # agent = ftc.make("NMPC-Corr", env)
-    flogger = fym.Logger("data_corr.h5")
+    flogger = fym.Logger("data_NDI.h5")
 
     env.reset()
     try:
         while True:
             env.render()
 
-            action, agent_info = env.agent.get_action()
-            obs, done, env_info = env.step(action=action)
-            env.agent.solve_mpc(obs)
-            flogger.record(env=env_info, agent=agent_info)
+            done, env_info = env.step()
+            flogger.record(env=env_info)
 
             if done:
                 break
@@ -104,7 +101,7 @@ def run():
 
 
 def plot():
-    data = fym.load("data_corr.h5")["env"]
+    data = fym.load("data_NDI.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
@@ -119,35 +116,35 @@ def plot():
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "k-")
-    # ax.plot(data["t"], data["posd"][:, 1].squeeze(-1), "r--")
+    ax.plot(data["t"], data["posd"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$y$, m")
     ax.legend(["Response", "Command"], loc="upper right")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], data["stated"][:, 0].squeeze(-1), "r--")
+    ax.plot(data["t"], data["posd"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$z$, m")
-    # ax.set_ylim([-12, -9])
+    ax.set_ylim([-12, -9])
 
     ax.set_xlabel("Time, sec")
 
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "k-")
-    ax.plot(data["t"], data["stated"][:, 1].squeeze(-1), "r--")
+    ax.plot(data["t"], data["veld"][:, 0].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_x$, m/s")
     ax.set_ylim([0, 50])
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "k-")
-    # ax.plot(data["t"], data["veld"][:, 1].squeeze(-1), "r--")
+    ax.plot(data["t"], data["veld"][:, 1].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_y$, m/s")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "k-")
-    ax.plot(data["t"], data["stated"][:, 2].squeeze(-1), "r--")
+    ax.plot(data["t"], data["veld"][:, 2].squeeze(-1), "r--")
     ax.set_ylabel(r"$v_z$, m/s")
 
     ax.set_xlabel("Time, sec")
