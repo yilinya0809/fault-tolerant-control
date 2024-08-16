@@ -98,8 +98,8 @@ class MPC:
         Q = ca.diagcat(300, 300, 300)
         R = ca.diagcat(0.01, 0.1, 200000)
 
-        # Xdot = self.plant.deriv_lin(states, controls, q)
-        Xdot = self.plant.derivnox(states, controls, q)
+        Xdot = self.plant.deriv_lin(states, controls, q)
+        # Xdot = self.plant.derivnox(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
 
         cost_fn = 0  # cost function
