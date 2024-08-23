@@ -34,7 +34,7 @@ class TrajectoryOptimizer:
         Xdot = self.plant.deriv(self.states, self.controls)
         self.f = ca.Function("f", [self.states, self.controls], [Xdot])
         self.Q = 1000 * ca.diagcat(1, 1, 1, 1, 1, 1, 1)
-        self.R = ca.diagcat(1, 0, 0)
+        self.R = ca.diagcat(0, 0, 0)
 
         # Boundary conditions
         Trst_corr = np.load("ftc/trst_corr/corr_safe.npz")
@@ -314,32 +314,32 @@ def plot():
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    contour = ax.contourf(
-        VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
+    # contour = ax.contourf(
+    #     VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
+    # )
+    ax.plot(
+        VT_corr,
+        np.rad2deg(upper_bound),
+        "o",
+        label="Upper Bound Data",
+        color="blue",
+        alpha=0.3,
     )
-    # ax.plot(
-    #     VT_corr,
-    #     np.rad2deg(upper_bound),
-    #     "o",
-    #     label="Upper Bound Data",
-    #     color="blue",
-    #     alpha=0.3,
-    # )
-    # ax.plot(
-    #     VT_corr,
-    #     np.rad2deg(lower_bound),
-    #     "o",
-    #     label="Lower Bound Data",
-    #     color="orange",
-    #     alpha=0.3,
-    # )
+    ax.plot(
+        VT_corr,
+        np.rad2deg(lower_bound),
+        "o",
+        label="Lower Bound Data",
+        color="orange",
+        alpha=0.3,
+    )
 
     ax.plot(VT_traj, theta_traj, "k-")
     ax.set_xlabel("VT, m/s", fontsize=15)
     ax.set_ylabel(r"$\theta$, deg", fontsize=15)
     ax.set_title("Forward Acceleration Corridor", fontsize=20)
-    cbar = fig.colorbar(contour)
-    cbar.ax.set_xlabel(r"$a_x, m/s^{2}$", fontsize=15)
+    # cbar = fig.colorbar(contour)
+    # cbar.ax.set_xlabel(r"$a_x, m/s^{2}$", fontsize=15)
 
     plt.show()
 
