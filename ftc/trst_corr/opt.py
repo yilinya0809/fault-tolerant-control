@@ -85,7 +85,12 @@ theta = U[2, :]
 T = opti.variable()
 
 # ---- objective          ---------
+Fr_max = 6 * plant.th_r_max
+Fp_max = 2 * plant.th_p_max
+theta_max = np.deg2rad(50)
+
 W = diag([1, 1, 10000])
+# W = diag([1/Fr_max, 1/Fp_max, 1/theta_max])
 opti.minimize(dot(U, W @ U))
 
 dt = T / N
@@ -109,8 +114,6 @@ for k in range(N):  # loop over control intervals
     VT_k = norm_2(X[1:3, k])
     opti.subject_to(opti.bounded(lower_func(VT_k), theta_k, upper_func(VT_k)))
 
-Fr_max = 6 * plant.th_r_max
-Fp_max = 2 * plant.th_p_max
 # ---- input constraints --------
 opti.subject_to(opti.bounded(0, Fr, Fr_max))
 opti.subject_to(opti.bounded(0, Fp, Fp_max))
@@ -119,7 +122,7 @@ opti.subject_to(opti.bounded(np.deg2rad(-50), theta, np.deg2rad(50)))
 # ---- state constraints --------
 z_eps = 2
 opti.subject_to(opti.bounded(x_trim[1] - z_eps, z, x_trim[1] + z_eps))
-opti.subject_to(opti.bounded(0, T, 20))
+opti.subject_to(opti.bounded(0, T, 50))
 
 # ---- boundary conditions --------
 opti.subject_to(z[0] == x_trim[1])
@@ -143,7 +146,7 @@ opti.set_initial(vz, x_trim[3] / 2)
 opti.set_initial(Fr, plant.m * plant.g / 2)
 opti.set_initial(Fp, u_trim[1] / 2)
 opti.set_initial(theta, np.deg2rad(0))
-opti.set_initial(T, 20)
+opti.set_initial(T, 50)
 
 # ---- solve NLP              ------
 opti.solver("ipopt")  # set numerical backend
@@ -202,6 +205,13 @@ def plot_results(data):
     ax.set_ylabel(r"$\theta$, deg", fontsize=15)
     ax.set_title("Dynamic Transition Corridor", fontsize=20)
 
+
+    """ Cost plot """
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(range(len(data["cost"])), data["cost"])
+    ax.set_xlabel("Iteration", fontsize=15)
+    ax.set_ylabel("Cost", fontsize=15)
+
     plt.show()
 
 
@@ -210,13 +220,16 @@ try:
     results["tf"] = sol.value(T)
     results["X"] = sol.value(X)
     results["U"] = sol.value(U)
+    stats = opti.stats()
+    results["cost"] = stats["iterations"]["obj"]
     plot_results(results)
-
 
 except RuntimeError as e:
     print("Solver Failed!")
     results["tf"] = float(opti.debug.value(T))
     results["X"] = opti.debug.value(X)
     results["U"] = opti.debug.value(U)
-
+    stats = opti.stats()
+    results["cost"] = stats["iterations"]["obj"]
     plot_results(results)
+

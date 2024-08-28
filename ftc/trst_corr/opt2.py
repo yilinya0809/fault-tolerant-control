@@ -91,7 +91,13 @@ q = U[2, :]
 T = opti.variable()
 
 # ---- objective          ---------
+Fr_max = 6 * plant.th_r_max
+Fp_max = 2 * plant.th_p_max
+q_max = np.deg2rad(50)
+
+
 W = diag([1, 1, 10000])
+# W = diag([1/Fr_max, 1/Fp_max, 1/q_max])
 obj = dot(U, W @ U)
 opti.minimize(obj)
 
@@ -123,7 +129,7 @@ opti.subject_to(opti.bounded(np.deg2rad(-50), theta, np.deg2rad(50)))
 z_eps = 2
 opti.subject_to(opti.bounded(X_target[0] - z_eps, z, X_target[0] + z_eps))
 # opti.subject_to(-z >= 0)
-opti.subject_to(opti.bounded(0, T, 20))
+opti.subject_to(opti.bounded(0, T, 50))
 
 # ---- boundary conditions --------
 opti.subject_to(z[0] == X_target[0])
@@ -150,7 +156,7 @@ opti.set_initial(theta, X_target[3] / 2)
 opti.set_initial(Fr, plant.m * plant.g / 2)
 opti.set_initial(Fp, U_target[1] / 2)
 opti.set_initial(q, U_target[2] / 2)
-opti.set_initial(T, 20)
+opti.set_initial(T, 50)
 
 # ---- solve NLP              ------
 opti.solver("ipopt")  # set numerical backend
@@ -209,6 +215,13 @@ def plot_results(data):
     ax.set_ylabel(r"$\theta$, deg", fontsize=15)
     ax.set_title("Dynamic Transition Corridor", fontsize=20)
 
+    """ Cost plot """
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(range(len(data["cost"])), data["cost"])
+    ax.set_xlabel("Iteration", fontsize=15)
+    ax.set_ylabel("Cost", fontsize=15)
+
+
     plt.show()
 
 
@@ -217,6 +230,8 @@ try:
     results["tf"] = sol.value(T)
     results["X"] = sol.value(X)
     results["U"] = sol.value(U)
+    stats = opti.stats()
+    results["cost"] = stats["iterations"]["obj"]
     plot_results(results)
 
 
@@ -225,5 +240,6 @@ except RuntimeError as e:
     results["tf"] = float(opti.debug.value(T))
     results["X"] = opti.debug.value(X)
     results["U"] = opti.debug.value(U)
-
+    stats = opti.stats()
+    results["cost"] = stats["iterations"]["obj"]
     plot_results(results)
