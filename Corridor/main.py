@@ -29,7 +29,8 @@ T = opti.variable()
 
 # ---- objective          ---------
 W = diag([1, 1, 10000])
-opti.minimize(dot(U, W @ U))
+# opti.minimize(dot(U, W @ U))
+opti.minimize(T)
 
 dt = T / N
 for k in range(N):  # loop over control intervals
@@ -55,9 +56,10 @@ opti.subject_to(opti.bounded(0, Fp, Fp_max))
 opti.subject_to(opti.bounded(np.deg2rad(-50), theta, np.deg2rad(50)))
 
 # ---- state constraints --------
-z_eps = 2
+z_eps = 5
 opti.subject_to(opti.bounded(x_trim[1] - z_eps, z, x_trim[1] + z_eps))
-opti.subject_to(opti.bounded(0, T, 20))
+# opti.subject_to(opti.bounded(0, T, 20))
+opti.subject_to(T >= 0)
 
 # ---- boundary conditions --------
 opti.subject_to(z[0] == x_trim[1])
@@ -81,7 +83,7 @@ opti.set_initial(vz, x_trim[3] / 2)
 opti.set_initial(Fr, plant.m * plant.g / 2)
 opti.set_initial(Fp, u_trim[1] / 2)
 opti.set_initial(theta, u_trim[2] / 2)
-opti.set_initial(T, 20)
+# opti.set_initial(T, 10)
 
 # ---- solve NLP              ------
 opti.solver("ipopt")  # set numerical backend
