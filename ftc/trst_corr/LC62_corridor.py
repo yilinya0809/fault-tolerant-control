@@ -7,7 +7,7 @@ import scipy
 from fym.utils.rot import angle2quat, quat2dcm
 from scipy.interpolate import interp1d
 
-from ftc.models.LC62_mpc import LC62
+from ftc.models.LC62_opt import LC62
 from ftc.utils import safeupdate
 
 
@@ -263,7 +263,6 @@ class LC62_corridor(fym.BaseEnv):
         z0={
             "Fr": 0.0,
             "Fp": 0.0,
-            "q": 0.0,
         },
         height=10,
         grid={"VT": np.arange(0, 40, 1), "theta": np.deg2rad(np.arange(-20, 20, 1))},
@@ -277,7 +276,6 @@ class LC62_corridor(fym.BaseEnv):
         bounds = (
             (0, self.eta * self.Fr_max),
             (0, self.eta * self.Fp_max),
-            (0, 10),
         )
         n = np.size(VT_range)
         m = np.size(theta_range)
@@ -286,7 +284,6 @@ class LC62_corridor(fym.BaseEnv):
         success = np.zeros((n, m))
         Fr = np.zeros((n, m))
         Fp = np.zeros((n, m))
-        q = np.zeros((n, m))
         acc = np.zeros((n, m))
 
         for i in range(n):
@@ -307,12 +304,10 @@ class LC62_corridor(fym.BaseEnv):
                     (
                         self.Fr,
                         self.Fp,
-                        self.q,
                     ) = result.x
                     z0 = {
                         "Fr": self.Fr,
                         "Fp": self.Fp,
-                        "q": self.q,
                     }
                     z0 = list(z0.values())
                     dels = np.zeros((3, 1))
@@ -335,7 +330,6 @@ class LC62_corridor(fym.BaseEnv):
                     success[i][j] = 1
                     Fr[i][j] = self.Fr
                     Fp[i][j] = self.Fp
-                    q[i][j] = self.q
                     print(f"vel: {VT:.1f}, theta: {np.rad2deg(theta):.1f}, success")
                 else:
                     print(
@@ -344,19 +338,18 @@ class LC62_corridor(fym.BaseEnv):
                     success[i][j] = np.NaN
                     Fr[i][j] = np.NaN
                     Fp[i][j] = np.NaN
-                    q[i][j] = np.NaN
                     acc[i][j] = np.NaN
 
-        Trst_corr = VT_range, theta_range, cost, success, acc, Fr, Fp, q
+        Trst_corr = VT_range, theta_range, cost, success, acc, Fr, Fp
         return Trst_corr
 
     def _cost_fixed(self, z, fixed):
         h, VT, theta = fixed
-        Fr, Fp, q = z
-        X = np.vstack((-h, VT * np.cos(theta), VT * np.sin(theta), theta))
-        U = np.vstack((Fr, Fp, q))
+        Fr, Fp = z
+        X = np.vstack((-h, VT * np.cos(theta), VT * np.sin(theta)))
+        U = np.vstack((Fr, Fp, theta))
 
-        dX = self.plant.deriv(X, U)
+        dX = self.plant.derivq(X, U, q=0.0)
 
         dels = np.zeros((3, 1))
         pos = np.vstack((0, 0, -h))
@@ -373,12 +366,11 @@ class LC62_corridor(fym.BaseEnv):
         F = R.T @ (FM[:3] + np.vstack((0, 0, -Fr)))
 
         x1 = dX[0]
-        x2 = dX[3]
-        x3 = (np.sign(F[0]) - 1) * F[0]
+        x2 = (np.sign(F[0]) - 1) * F[0]
         # x3 = (np.sign(F[2]) + 1) * F[2]
-        x4 = F[2]
-        dxs = np.vstack((x1, x2, x3, x4))
-        weight = np.diag([1, 1, 1, 1])
+        x3 = F[2]
+        dxs = np.vstack((x1, x2, x3))
+        weight = np.diag([1, 1, 1])
         cost = dxs.T @ weight @ dxs
         return cost
 
@@ -403,14 +395,14 @@ if __name__ == "__main__":
     grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
 
     Trst_corr = system.get_corr(
-        z0={"Fr": system.m * system.g, "Fp": 0.0, "q": 0.0},
+        z0={"Fr": system.m * system.g, "Fp": 0.0},
         height=height,
         grid=grid,
     )
-    VT_corr, theta_corr, cost, success, acc, Fr, Fp, q = Trst_corr
+    VT_corr, theta_corr, cost, success, acc, Fr, Fp = Trst_corr
     np.savez(
         os.path.join(
-            "ftc/trst_corr/corr_safe.npz",
+            "ftc/trst_corr/corr_noq_safe.npz",
         ),
         VT_corr=VT_corr,
         theta_corr=theta_corr,
@@ -419,5 +411,4 @@ if __name__ == "__main__":
         acc=acc,
         Fr=Fr,
         Fp=Fp,
-        q=q,
     )

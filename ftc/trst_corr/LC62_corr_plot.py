@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ftc.models.LC62_mpc import LC62
+from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary, poly, weighted_poly
 
 plant = LC62()
@@ -9,10 +9,10 @@ Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 
 # Using maximum power of rotors and pushers
-Trst_corr = np.load("ftc/trst_corr/corr.npz")
+# Trst_corr = np.load("ftc/trst_corr/corr.npz")
 
 # Using 80% of maximum power of rotors and pushers
-# Trst_corr = np.load("ftc/trst_corr/corr_safe.npz")
+Trst_corr = np.load("ftc/trst_corr/corr_safe.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
