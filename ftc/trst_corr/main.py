@@ -70,13 +70,13 @@ theta = U[2, :]
 T = opti.variable()
 
 # ---- objective          ---------
-R = diag([1, 10, 500000])
-cost = 0
+W = diag([1, 1, 10000])
+# opti.minimize(dot(U, W @ U))
+opti.minimize(T)
 
 dt = T / N
 for k in range(N):  # loop over control intervals
     # Runge-Kutta 4 integration
-    cost += U[:, k].T @ R @ U[:, k] * dt
     q = 0.0
     k1 = plant.derivq(X[:, k], U[:, k], q)
     k2 = plant.derivq(X[:, k] + dt / 2 * k1, U[:, k], q)
@@ -94,16 +94,11 @@ for k in range(N):  # loop over control intervals
     theta_k = U[2, k]
     VT_k = norm_2(X[1:3, k])
     # opti.subject_to(opti.bounded(lower_func(VT_k), theta_k, upper_func(VT_k)))
-    # cost += if_else(theta_k < lower_func(VT_k), 100000, 0)
-    # cost += if_else(theta_k > upper_func(VT_k), 100000, 0)
 
-
-# opti.minimize(T)
-opti.minimize(cost)
 
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
-theta_max = np.deg2rad(30)
+theta_max = np.deg2rad(50)
 # ---- input constraints --------
 opti.subject_to(opti.bounded(0, Fr, Fr_max))
 opti.subject_to(opti.bounded(0, Fp, Fp_max))
@@ -137,7 +132,7 @@ opti.set_initial(vz, x_trim[3] / 2)
 opti.set_initial(Fr, plant.m * plant.g / 2)
 opti.set_initial(Fp, u_trim[1] / 2)
 opti.set_initial(theta, u_trim[2] / 2)
-# opti.set_initial(T, 50)
+# opti.set_initial(T, 10)
 
 # ---- solve NLP              ------
 p_opts = {"expand": False}
