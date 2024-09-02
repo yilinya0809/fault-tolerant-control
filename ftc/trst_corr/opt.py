@@ -1,12 +1,10 @@
 import matplotlib.pyplot as plt
-import numpy as np
 from casadi import *
-from pylab import figure, legend, plot, show
 
-# q = 0
 from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary
 
+""" Pre-processing - Transition Corridor """
 Trst_corr = np.load("ftc/trst_corr/corr_safe.npz")
 VT_corr = Trst_corr["VT_corr"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -50,19 +48,6 @@ for i in range(np.size(VT_corr)):
     lower_data[i] = lower_func(VT_corr[i])
 
 
-# fig, ax = plt.subplots(1, 1)
-# VT, theta = np.meshgrid(VT_corr, theta_corr)
-# ax.scatter(VT, theta, s=success.T, c="b")
-# ax.plot(VT_corr, np.rad2deg(upper_data))
-# ax.plot(VT_corr, np.rad2deg(lower_data))
-# ax.set_xlabel("VT, m/s", fontsize=15)
-# ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-# ax.set_title("Dynamic Transition Corridor", fontsize=20)
-
-# plt.show()
-
-# breakpoint()
-
 plant = LC62()
 
 """ Get trim """
@@ -85,17 +70,13 @@ theta = U[2, :]
 T = opti.variable()
 
 # ---- objective          ---------
-Fr_max = 6 * plant.th_r_max
-Fp_max = 2 * plant.th_p_max
-theta_max = np.deg2rad(50)
-
-W = diag([1, 1, 10000])
-# W = diag([1/Fr_max, 1/Fp_max, 1/theta_max])
-opti.minimize(dot(U, W @ U))
+R = diag([1, 1, 500000])
+cost = 0
 
 dt = T / N
 for k in range(N):  # loop over control intervals
     # Runge-Kutta 4 integration
+    cost += U[:, k].T @ R @ U[:, k] * dt
     q = 0.0
     k1 = plant.derivq(X[:, k], U[:, k], q)
     k2 = plant.derivq(X[:, k] + dt / 2 * k1, U[:, k], q)
@@ -112,17 +93,25 @@ for k in range(N):  # loop over control intervals
     # Transition Corridor
     theta_k = U[2, k]
     VT_k = norm_2(X[1:3, k])
-    opti.subject_to(opti.bounded(lower_func(VT_k), theta_k, upper_func(VT_k)))
+    # opti.subject_to(opti.bounded(lower_func(VT_k), theta_k, upper_func(VT_k)))
 
+
+# opti.minimize(T)
+opti.minimize(cost)
+
+Fr_max = 6 * plant.th_r_max
+Fp_max = 2 * plant.th_p_max
+theta_max = np.deg2rad(40)
 # ---- input constraints --------
 opti.subject_to(opti.bounded(0, Fr, Fr_max))
 opti.subject_to(opti.bounded(0, Fp, Fp_max))
-opti.subject_to(opti.bounded(np.deg2rad(-50), theta, np.deg2rad(50)))
+opti.subject_to(opti.bounded(-theta_max, theta, theta_max))
 
 # ---- state constraints --------
-z_eps = 2
+z_eps = 5
 opti.subject_to(opti.bounded(x_trim[1] - z_eps, z, x_trim[1] + z_eps))
-opti.subject_to(opti.bounded(0, T, 50))
+# opti.subject_to(opti.bounded(0, T, 20))
+opti.subject_to(T >= 0)
 
 # ---- boundary conditions --------
 opti.subject_to(z[0] == x_trim[1])
@@ -145,11 +134,23 @@ opti.set_initial(vx, x_trim[2] / 2)
 opti.set_initial(vz, x_trim[3] / 2)
 opti.set_initial(Fr, plant.m * plant.g / 2)
 opti.set_initial(Fp, u_trim[1] / 2)
-opti.set_initial(theta, np.deg2rad(0))
-opti.set_initial(T, 50)
+opti.set_initial(theta, u_trim[2] / 2)
+# opti.set_initial(T, 10)
 
 # ---- solve NLP              ------
-opti.solver("ipopt")  # set numerical backend
+p_opts = {"expand": False}
+s_opts = {
+    "tol": 1e-6,
+    "acceptable_tol": 1e-5,
+    "acceptable_iter": 15,
+    "max_iter": 2000,
+    "max_cpu_time": 1e4,
+    "print_level": 5,
+}
+
+
+opti.solver("ipopt", p_opts, s_opts)  # set numerical backend
+
 results = {}
 
 
@@ -205,7 +206,6 @@ def plot_results(data):
     ax.set_ylabel(r"$\theta$, deg", fontsize=15)
     ax.set_title("Dynamic Transition Corridor", fontsize=20)
 
-
     """ Cost plot """
     fig, ax = plt.subplots(1, 1)
     ax.plot(range(len(data["cost"])), data["cost"])
@@ -232,4 +232,3 @@ except RuntimeError as e:
     stats = opti.stats()
     results["cost"] = stats["iterations"]["obj"]
     plot_results(results)
-
