@@ -1,5 +1,7 @@
+import h5py
 import matplotlib.pyplot as plt
 from casadi import *
+import numpy as np
 
 from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary
@@ -8,7 +10,6 @@ from ftc.trst_corr.poly_corr import boundary
 Trst_corr = np.load("ftc/trst_corr/corr_safe.npz")
 VT_corr = Trst_corr["VT_corr"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
-cost = Trst_corr["cost"]
 success = Trst_corr["success"]
 upper_bound, lower_bound = boundary(Trst_corr)
 
@@ -70,13 +71,16 @@ theta = U[2, :]
 T = opti.variable()
 
 # ---- objective          ---------
-R = diag([1, 10, 500000])
-cost = 0
+W_t = 1000
+W_z = 50000
+W_u = diag([1, 10, 500000])
+
+cost = W_t * T
 
 dt = T / N
 for k in range(N):  # loop over control intervals
     # Runge-Kutta 4 integration
-    cost += U[:, k].T @ R @ U[:, k] * dt
+    cost += U[:, k].T @ W_u @ U[:, k] * dt
     q = 0.0
     k1 = plant.derivq(X[:, k], U[:, k], q)
     k2 = plant.derivq(X[:, k] + dt / 2 * k1, U[:, k], q)
@@ -90,12 +94,14 @@ for k in range(N):  # loop over control intervals
     x_next = X[:, k] + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
     opti.subject_to(X[:, k + 1] == x_next)  # close the gaps
 
+    # zdot = x_next[0] - X[0, k]
+    # cost += W_z * zdot ** 2
+    cost += W_z * (X[0, k] - x_trim[1])**2
+
     # Transition Corridor
     theta_k = U[2, k]
     VT_k = norm_2(X[1:3, k])
-    # opti.subject_to(opti.bounded(lower_func(VT_k), theta_k, upper_func(VT_k)))
-    # cost += if_else(theta_k < lower_func(VT_k), 100000, 0)
-    # cost += if_else(theta_k > upper_func(VT_k), 100000, 0)
+    opti.subject_to(opti.bounded(lower_func(VT_k), theta_k, upper_func(VT_k)))
 
 
 # opti.minimize(T)
@@ -110,7 +116,7 @@ opti.subject_to(opti.bounded(0, Fp, Fp_max))
 opti.subject_to(opti.bounded(-theta_max, theta, theta_max))
 
 # ---- state constraints --------
-z_eps = 5
+z_eps = 1
 opti.subject_to(opti.bounded(x_trim[1] - z_eps, z, x_trim[1] + z_eps))
 # opti.subject_to(opti.bounded(0, T, 20))
 opti.subject_to(T >= 0)
@@ -126,24 +132,44 @@ opti.subject_to(theta[0] == np.deg2rad(0))
 opti.subject_to(z[-1] == x_trim[1])
 opti.subject_to(vx[-1] == x_trim[2])
 opti.subject_to(vz[-1] == x_trim[3])
-opti.subject_to(Fr[-1] == u_trim[0])
-opti.subject_to(Fp[-1] == u_trim[1])
-opti.subject_to(theta[-1] == u_trim[2])
+
+u_eps = 0.5
+opti.subject_to(opti.bounded(u_trim[0] * (1 - u_eps), Fr[-1], u_trim[0] * (1 + u_eps)))
+opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
+opti.subject_to(opti.bounded(u_trim[2] * (1 - u_eps), theta[-1], u_trim[2] * (1 + u_eps)))
+
+# opti.subject_to(Fr[-1] == u_trim[0])
+# opti.subject_to(Fp[-1] == u_trim[1])
+# opti.subject_to(theta[-1] == u_trim[2])
+
+
+with h5py.File("ftc/trst_corr/opt.h5", "r") as f:
+    tf_init = f["tf"][()]
+    X_init = f["X"][:]
+    U_init = f["U"][:]
+    # cost = f["cost"]
 
 # ---- initial values for solver ---
-opti.set_initial(z, x_trim[1])
-opti.set_initial(vx, x_trim[2] / 2)
-opti.set_initial(vz, x_trim[3] / 2)
-opti.set_initial(Fr, plant.m * plant.g / 2)
-opti.set_initial(Fp, u_trim[1] / 2)
-opti.set_initial(theta, u_trim[2] / 2)
-# opti.set_initial(T, 50)
+opti.set_initial(T, tf_init)
+opti.set_initial(z, X_init[0, :])
+opti.set_initial(vx, X_init[1, :])
+opti.set_initial(vz, X_init[2, :])
+opti.set_initial(Fr, U_init[0, :])
+opti.set_initial(Fp, U_init[1, :])
+opti.set_initial(theta, U_init[2, :])
+# opti.set_initial(z, x_trim[1])
+# opti.set_initial(vx, x_trim[2] / 2)
+# opti.set_initial(vz, x_trim[3] / 2)
+# opti.set_initial(Fr, plant.m * plant.g / 2)
+# opti.set_initial(Fp, u_trim[1] / 2)
+# opti.set_initial(theta, u_trim[2] / 2)
+
 
 # ---- solve NLP              ------
 p_opts = {"expand": False}
 s_opts = {
-    "tol": 1e-6,
-    "acceptable_tol": 1e-5,
+    "tol": 1e-1,
+    "acceptable_tol": 1e-1,
     "acceptable_iter": 15,
     "max_iter": 2000,
     "max_cpu_time": 1e4,
@@ -164,6 +190,7 @@ def plot_results(data):
     ax = axs[0, 0]
     ax.plot(tspan, -data["X"][0, :], "k")
     ax.set_ylabel("$h$, m")
+    ax.set_ylim([9, 11])
     ax.grid()
 
     ax = axs[1, 0]
@@ -175,6 +202,7 @@ def plot_results(data):
     ax.plot(tspan, data["X"][2, :], "k")
     ax.set_ylabel("$V_z$, m/s")
     ax.set_xlabel("Time, s")
+    ax.set_ylim([-10, 10])
     ax.grid()
 
     ax = axs[0, 1]
@@ -191,6 +219,7 @@ def plot_results(data):
     ax.plot(tspan[:-1], np.rad2deg(data["U"][2, :]), "k")
     ax.set_ylabel(r"$\theta$, m/s")
     ax.set_xlabel("Time, s")
+    ax.set_ylim([-40, 20])
     ax.grid()
 
     """ VT, theta traj """
@@ -213,6 +242,7 @@ def plot_results(data):
     ax.plot(range(len(data["cost"])), data["cost"])
     ax.set_xlabel("Iteration", fontsize=15)
     ax.set_ylabel("Cost", fontsize=15)
+    ax.grid()
 
     plt.show()
 
@@ -223,8 +253,25 @@ try:
     results["X"] = sol.value(X)
     results["U"] = sol.value(U)
     stats = opti.stats()
-    results["cost"] = stats["iterations"]["obj"]
+
+    iter_costs = stats['iterations']['obj']
+    iter_primal_infeas = stats['iterations']['inf_pr']
+    iter_dual_infeas = stats['iterations']['inf_du']
+
+    cost = []
+    for i in range(len(iter_costs)):
+        if iter_primal_infeas[i] < s_opts['tol'] and iter_dual_infeas[i] < s_opts['tol']:
+            cost.append(iter_costs[i])
+
+
+    results["cost"] = cost
     plot_results(results)
+
+    with h5py.File("opt.h5", "w") as f:
+        f.create_dataset("tf", data=results["tf"])
+        f.create_dataset("X", data=results["X"])
+        f.create_dataset("U", data=results["U"])
+        f.create_dataset("cost", data=results["cost"])
 
 except RuntimeError as e:
     print("Solver Failed!")
@@ -233,4 +280,32 @@ except RuntimeError as e:
     results["U"] = opti.debug.value(U)
     stats = opti.stats()
     results["cost"] = stats["iterations"]["obj"]
+
+    t_final = results["tf"]
+    z_final = results["X"][0, :]
+    vx_final = results["X"][1, :]
+    vz_final = results["X"][2, :]
+    Fr_final = results["U"][0, :]
+    Fp_final = results["U"][1, :]
+    theta_final = results["U"][2, :]
+    
+    if np.any(z_final < x_trim[1] - z_eps) or np.any(z_final > x_trim[1] + z_eps):
+        print("Altitude constraint violated")
+
+    if np.any(Fr_final < 0) or np.any(Fr_final > Fr_max):
+        print("Fr constraint violated")
+    if np.any(Fp_final < 0) or np.any(Fp_final > Fp_max):
+        print("Fp constraint violated")
+    if np.any(theta_final < -theta_max) or np.any(theta_final > theta_max):
+        print("theta constraint violated")
+
+    if (Fr_final[-1] < u_trim[0] * (1 - u_eps)) or (Fr_final[-1] > u_trim[0] * (1 + u_eps)):
+        print("Fr terminal condition violated")
+
+    if (Fp_final[-1] < u_trim[1] * (1 - u_eps)) or (Fp_final[-1] > u_trim[1] * (1 + u_eps)):
+        print("Fp terminal condition violated")
+
+    if (theta_final[-1] < u_trim[2] * (1 - u_eps)) or (theta_final[-1] > u_trim[2] * (1 + u_eps)):
+        print("theta terminal condition violated")
+    
     plot_results(results)
