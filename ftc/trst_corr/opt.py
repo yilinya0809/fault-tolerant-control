@@ -1,7 +1,7 @@
 import h5py
 import matplotlib.pyplot as plt
-from casadi import *
 import numpy as np
+from casadi import *
 
 from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary
@@ -80,6 +80,9 @@ cost = W_t * T
 dt = T / N
 for k in range(N):  # loop over control intervals
     # Runge-Kutta 4 integration
+    # if k > 0.7 * N:
+    #     W_z = 500000
+    #     W_u = diag([10, 10, 500000])
     cost += U[:, k].T @ W_u @ U[:, k] * dt
     q = 0.0
     k1 = plant.derivq(X[:, k], U[:, k], q)
@@ -96,7 +99,7 @@ for k in range(N):  # loop over control intervals
 
     # zdot = x_next[0] - X[0, k]
     # cost += W_z * zdot ** 2
-    cost += W_z * (X[0, k] - x_trim[1])**2
+    cost += W_z * (X[0, k] - x_trim[1]) ** 2
 
     # Transition Corridor
     theta_k = U[2, k]
@@ -134,9 +137,11 @@ opti.subject_to(vx[-1] == x_trim[2])
 opti.subject_to(vz[-1] == x_trim[3])
 
 u_eps = 0.5
-opti.subject_to(opti.bounded(u_trim[0] * (1 - u_eps), Fr[-1], u_trim[0] * (1 + u_eps)))
+opti.subject_to(opti.bounded(0, Fr[-1], 10))
 opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
-opti.subject_to(opti.bounded(u_trim[2] * (1 - u_eps), theta[-1], u_trim[2] * (1 + u_eps)))
+opti.subject_to(
+    opti.bounded(u_trim[2] * (1 - u_eps), theta[-1], u_trim[2] * (1 + u_eps))
+)
 
 # opti.subject_to(Fr[-1] == u_trim[0])
 # opti.subject_to(Fp[-1] == u_trim[1])
@@ -186,40 +191,51 @@ def plot_results(data):
     tspan = linspace(0, data["tf"], N + 1)
 
     """ States trajectory """
-    fig, axs = plt.subplots(3, 2, squeeze=False, sharex=True)
+    fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
     ax = axs[0, 0]
-    ax.plot(tspan, -data["X"][0, :], "k")
-    ax.set_ylabel("$h$, m")
+    ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
+    ax.set_ylabel("$h$, m", fontsize=15)
     ax.set_ylim([9, 11])
     ax.grid()
+    ax.set_xlim([0, data["tf"]])
 
     ax = axs[1, 0]
-    ax.plot(tspan, data["X"][1, :], "k")
-    ax.set_ylabel("$V_x$, m/s")
+    ax.plot(tspan, data["X"][1, :], "k", linewidth=3)
+    ax.set_ylabel("$V_x^B$, m/s", fontsize=15)
+    ax.set_xlim([0, data["tf"]])
     ax.grid()
 
     ax = axs[2, 0]
-    ax.plot(tspan, data["X"][2, :], "k")
-    ax.set_ylabel("$V_z$, m/s")
-    ax.set_xlabel("Time, s")
+    ax.plot(tspan, data["X"][2, :], "k", linewidth=3)
+    ax.set_ylabel("$V_z^B$, m/s", fontsize=15)
+    ax.set_xlabel("Time, s", fontsize=15)
     ax.set_ylim([-10, 10])
+    ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    ax = axs[0, 1]
-    ax.plot(tspan[:-1], data["U"][0, :], "k")
-    ax.set_ylabel("Rotor, N")
+    fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
+    ax = axs[0, 0]
+    ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
+    ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
+    ax.set_ylabel("$F^{rotor}$, N", fontsize=15)
+    ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    ax = axs[1, 1]
-    ax.plot(tspan[:-1], data["U"][1, :], "k")
-    ax.set_ylabel("Pusher, N")
+    ax = axs[1, 0]
+    ax.plot(tspan[:-1], data["U"][1, :], "k", linewidth=3)
+    ax.plot(tspan[:-1], Fp_max * np.ones((N, 1)), "r--")
+    ax.set_ylabel("$F^{pusher}$, N", fontsize=15)
+    ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    ax = axs[2, 1]
-    ax.plot(tspan[:-1], np.rad2deg(data["U"][2, :]), "k")
-    ax.set_ylabel(r"$\theta$, m/s")
-    ax.set_xlabel("Time, s")
-    ax.set_ylim([-40, 20])
+    ax = axs[2, 0]
+    ax.plot(tspan[:-1], np.rad2deg(data["U"][2, :]), "k", linewidth=3)
+    ax.plot(tspan[:-1], -30 * np.ones((N, 1)), "r--")
+    ax.plot(tspan[:-1], 30 * np.ones((N, 1)), "r--")
+    ax.set_ylabel(r"$\theta$, deg", fontsize=15)
+    ax.set_xlabel("Time, s", fontsize=15)
+    ax.set_ylim([-35, 35])
+    ax.set_xlim([0, data["tf"]])
     ax.grid()
 
     """ VT, theta traj """
@@ -230,19 +246,19 @@ def plot_results(data):
         VT_traj[i] = norm_2(data["X"][1:3, i])
         theta_traj[i] = np.rad2deg(data["U"][2, i])
 
-    ax.plot(VT_traj, theta_traj, "r--")
+    ax.plot(VT_traj[1:], theta_traj[1:], "r-", linewidth=5)
     VT, theta = np.meshgrid(VT_corr, theta_corr)
     ax.scatter(VT, theta, s=success.T, c="b")
-    ax.set_xlabel("VT, m/s", fontsize=15)
+    ax.set_xlabel("V, m/s", fontsize=15)
     ax.set_ylabel(r"$\theta$, deg", fontsize=15)
     ax.set_title("Dynamic Transition Corridor", fontsize=20)
 
-    """ Cost plot """
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(range(len(data["cost"])), data["cost"])
-    ax.set_xlabel("Iteration", fontsize=15)
-    ax.set_ylabel("Cost", fontsize=15)
-    ax.grid()
+    #     """ Cost plot """
+    #     fig, ax = plt.subplots(1, 1)
+    #     ax.plot(range(len(data["cost"])), data["cost"])
+    #     ax.set_xlabel("Iteration", fontsize=15)
+    #     ax.set_ylabel("Cost", fontsize=15)
+    #     ax.grid()
 
     plt.show()
 
@@ -254,15 +270,17 @@ try:
     results["U"] = sol.value(U)
     stats = opti.stats()
 
-    iter_costs = stats['iterations']['obj']
-    iter_primal_infeas = stats['iterations']['inf_pr']
-    iter_dual_infeas = stats['iterations']['inf_du']
+    iter_costs = stats["iterations"]["obj"]
+    iter_primal_infeas = stats["iterations"]["inf_pr"]
+    iter_dual_infeas = stats["iterations"]["inf_du"]
 
     cost = []
     for i in range(len(iter_costs)):
-        if iter_primal_infeas[i] < s_opts['tol'] and iter_dual_infeas[i] < s_opts['tol']:
+        if (
+            iter_primal_infeas[i] < s_opts["tol"]
+            and iter_dual_infeas[i] < s_opts["tol"]
+        ):
             cost.append(iter_costs[i])
-
 
     results["cost"] = cost
     plot_results(results)
@@ -272,6 +290,8 @@ try:
         f.create_dataset("X", data=results["X"])
         f.create_dataset("U", data=results["U"])
         f.create_dataset("cost", data=results["cost"])
+        # f.create_dataset("Fr_max", data=)
+        # f.create_dataset("Fp_max", data=Fp_max * np.ones((len(results["tf"], 1)))
 
 except RuntimeError as e:
     print("Solver Failed!")
@@ -288,7 +308,7 @@ except RuntimeError as e:
     Fr_final = results["U"][0, :]
     Fp_final = results["U"][1, :]
     theta_final = results["U"][2, :]
-    
+
     if np.any(z_final < x_trim[1] - z_eps) or np.any(z_final > x_trim[1] + z_eps):
         print("Altitude constraint violated")
 
@@ -299,13 +319,19 @@ except RuntimeError as e:
     if np.any(theta_final < -theta_max) or np.any(theta_final > theta_max):
         print("theta constraint violated")
 
-    if (Fr_final[-1] < u_trim[0] * (1 - u_eps)) or (Fr_final[-1] > u_trim[0] * (1 + u_eps)):
+    if (Fr_final[-1] < u_trim[0] * (1 - u_eps)) or (
+        Fr_final[-1] > u_trim[0] * (1 + u_eps)
+    ):
         print("Fr terminal condition violated")
 
-    if (Fp_final[-1] < u_trim[1] * (1 - u_eps)) or (Fp_final[-1] > u_trim[1] * (1 + u_eps)):
+    if (Fp_final[-1] < u_trim[1] * (1 - u_eps)) or (
+        Fp_final[-1] > u_trim[1] * (1 + u_eps)
+    ):
         print("Fp terminal condition violated")
 
-    if (theta_final[-1] < u_trim[2] * (1 - u_eps)) or (theta_final[-1] > u_trim[2] * (1 + u_eps)):
+    if (theta_final[-1] < u_trim[2] * (1 - u_eps)) or (
+        theta_final[-1] > u_trim[2] * (1 + u_eps)
+    ):
         print("theta terminal condition violated")
-    
+
     plot_results(results)
