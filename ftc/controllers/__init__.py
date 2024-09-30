@@ -52,3 +52,7 @@ register(
     id="NMPC-GESO",
     entry_point="ftc.controllers.MPC.mpc_geso:GESOController",
 )
+register(
+    id="OPT-NDI",
+    entry_point="ftc.trst_corr.ndi:NDIController",
+)

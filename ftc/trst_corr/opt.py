@@ -283,7 +283,6 @@ try:
             cost.append(iter_costs[i])
 
     results["cost"] = cost
-    plot_results(results)
 
     with h5py.File("opt.h5", "w") as f:
         f.create_dataset("tf", data=results["tf"])
@@ -292,6 +291,7 @@ try:
         f.create_dataset("cost", data=results["cost"])
         # f.create_dataset("Fr_max", data=)
         # f.create_dataset("Fp_max", data=Fp_max * np.ones((len(results["tf"], 1)))
+    plot_results(results)
 
 except RuntimeError as e:
     print("Solver Failed!")
