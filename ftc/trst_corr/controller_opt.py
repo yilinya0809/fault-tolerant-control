@@ -62,15 +62,14 @@ class MyEnv(fym.BaseEnv):
         Fpd = opt_traj["U"][1, 0]
         thetad = opt_traj["U"][2, 0]
 
-        for i in range(N):
-            if t == tspan[i]:
-                zd = opt_traj["X"][0, i]
-                Vxd = opt_traj["X"][1, i]
-                Vzd = opt_traj["X"][2, i]
-                Frd = opt_traj["U"][0, i]
-                Fpd = opt_traj["U"][1, i]
-                thetad = opt_traj["U"][2, i]
-                print("t: %f, zd: %f" % (t, zd))
+        i = np.argmin(np.abs(tspan - t))
+        zd = opt_traj["X"][0, i]
+        Vxd = opt_traj["X"][1, i]
+        Vzd = opt_traj["X"][2, i]
+        Frd = opt_traj["U"][0, i]
+        Fpd = opt_traj["U"][1, i]
+        thetad = opt_traj["U"][2, i]
+        print("t: %f, zd: %f" % (t, zd))
 
         return zd, Vxd, Vzd, Frd, Fpd, thetad
 

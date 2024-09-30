@@ -90,7 +90,7 @@ ax = fig.add_subplot(111)
 contour = ax.contourf(
     VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
-ax.set_xlabel("VT, m/s", fontsize=15)
+ax.set_xlabel("V, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Forward Acceleration Corridor", fontsize=20)
 cbar = fig.colorbar(contour)
@@ -103,7 +103,7 @@ contour = ax.contourf(
     VT, theta, Fr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
 ax.plot(VT_corr, Fr_margin, "r--")
-ax.set_xlabel("VT, m/s", fontsize=15)
+ax.set_xlabel("V, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Rotor Force Corridor", fontsize=20)
 cbar = fig.colorbar(contour)
@@ -114,7 +114,7 @@ contour = ax.contourf(
     VT, theta, Fp.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
 ax.plot(VT_corr, Fp_margin, "r--")
-ax.set_xlabel("VT, m/s", fontsize=15)
+ax.set_xlabel("V, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 ax.set_title("Pusher Force Corridor", fontsize=20)
 cbar = fig.colorbar(contour)
