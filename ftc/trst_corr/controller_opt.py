@@ -27,8 +27,8 @@ tspan = np.linspace(0, opt_traj["tf"], N + 1)
 class MyEnv(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
-            "dt": opt_traj["tf"] / N,
-            "max_t": opt_traj["tf"],
+            "dt": 0.01,
+            "max_t": tspan[-1],
         },
         "plant": {
             "init": {
@@ -55,23 +55,12 @@ class MyEnv(fym.BaseEnv):
         return self.observe_flat()
 
     def get_ref(self, t):
-        zd = opt_traj["X"][0, 0]
-        Vxd = opt_traj["X"][1, 0]
-        Vzd = opt_traj["X"][2, 0]
-        Frd = opt_traj["U"][0, 0]
-        Fpd = opt_traj["U"][1, 0]
-        thetad = opt_traj["U"][2, 0]
-
-        i = np.argmin(np.abs(tspan - t))
-        zd = opt_traj["X"][0, i]
-        Vxd = opt_traj["X"][1, i]
-        Vzd = opt_traj["X"][2, i]
-        Frd = opt_traj["U"][0, i]
-        Fpd = opt_traj["U"][1, i]
-        thetad = opt_traj["U"][2, i]
-        print("t: %f, zd: %f" % (t, zd))
-
-        return zd, Vxd, Vzd, Frd, Fpd, thetad
+        zd = np.interp(t, tspan, opt_traj["X"][0, :])
+        Vxd = np.interp(t, tspan, opt_traj["X"][1, :])
+        Vzd = np.interp(t, tspan, opt_traj["X"][2, :])
+        veld = np.vstack((Vxd, 0, Vzd))
+        thetad = np.interp(t, tspan[1:], opt_traj["U"][2, :])
+        return zd, veld, thetad
 
     def set_dot(self, t):
         pos, vel, quat, omega = self.plant.observe_list()
@@ -88,7 +77,7 @@ class MyEnv(fym.BaseEnv):
             "ctrls0": ctrls0,
             "ctrls": ctrls,
             "FM": FM,
-            "Fr": self.plant.B_VTOL(ctrls[:6], omega)[2],
+            "Fr": -self.plant.B_VTOL(ctrls[:6], omega)[2],
             "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
         }
 
@@ -254,25 +243,16 @@ def plot():
     fig, axes = plt.subplots(2, 1, sharex=True)
 
     ax = axes[0]
-    ax.plot(data["t"], -data["Frd"], "r--")
-    ax.plot(data["t"], -data["Fr"].squeeze(-1), "b-")
+    ax.plot(data["t"], data["Frd"], "r--")
+    ax.plot(data["t"], data["Fr"].squeeze(-1), "b-")
     ax.set_ylabel(r"$F_{rotors}$, N")
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1]
-    l1 = ax.plot(data["t"], data["Fpd"], "r--")
-    l2 = ax.plot(data["t"], data["Fp"].squeeze(-1), "b-")
+    ax.plot(data["t"], data["Fpd"], "r--")
+    ax.plot(data["t"], data["Fp"].squeeze(-1), "b-")
     ax.set_ylabel(r"$F_{pushers}$, N")
     ax.set_xlabel("Time, sec")
-
-    fig.legend(
-        [l1, l2],
-        labels=["Commands from NMPC", "Results"],
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0),
-        fontsize=13,
-        ncol=2,
-    )
 
     plt.tight_layout()
     fig.align_ylabels(axes)

@@ -55,7 +55,7 @@ plant = LC62()
 x_trim, u_trim = plant.get_trim()
 
 """ Optimization """
-N = 100  # number of control intervals
+N = 200  # number of control intervals
 
 opti = Opti()  # Optimization problem
 
@@ -152,7 +152,7 @@ with h5py.File("ftc/trst_corr/opt.h5", "r") as f:
     tf_init = f["tf"][()]
     X_init = f["X"][:]
     U_init = f["U"][:]
-    # cost = f["cost"]
+# cost = f["cost"]
 
 # ---- initial values for solver ---
 opti.set_initial(T, tf_init)
@@ -162,6 +162,7 @@ opti.set_initial(vz, X_init[2, :])
 opti.set_initial(Fr, U_init[0, :])
 opti.set_initial(Fp, U_init[1, :])
 opti.set_initial(theta, U_init[2, :])
+# opti.set_initial(T, 20)
 # opti.set_initial(z, x_trim[1])
 # opti.set_initial(vx, x_trim[2] / 2)
 # opti.set_initial(vz, x_trim[3] / 2)
