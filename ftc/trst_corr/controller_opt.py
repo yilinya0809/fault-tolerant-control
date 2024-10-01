@@ -187,7 +187,7 @@ def plot():
 
     ax.set_xlabel("Time, sec")
 
-    # fig.tight_layout()
+    fig.tight_layout()
 
     """ Figure 2 - Rotor inputs """
     fig, axes = plt.subplots(3, 2, sharex=True)
