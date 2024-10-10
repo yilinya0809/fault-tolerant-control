@@ -107,7 +107,7 @@ def plot():
     data = fym.load("data.h5")["env"]
 
     """ Figure 1 - States """
-    fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
+    fig, axes = plt.subplots(2, 3, figsize=(18, 5), squeeze=False, sharex=True)
 
     """ Column 1 - States: Position """
     ax = axes[0, 0]
@@ -116,30 +116,20 @@ def plot():
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1, 0]
-    ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "b-")
-    ax.set_ylabel(r"$y$, m")
-    ax.set_ylim([-1, 1])
-
-    ax = axes[2, 0]
-    ax.plot(tspan, opt_traj["X"][0, :], "r--")
-    ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
-    ax.set_ylabel(r"$z$, m")
-    ax.set_ylim([-15, -5])
+    ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "b-")
+    ax.plot(tspan, opt_traj["X"][1, :], "r--")
+    ax.set_ylabel(r"$v_x$, m/s")
 
     ax.set_xlabel("Time, sec")
 
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
-    ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "b-")
-    ax.plot(tspan, opt_traj["X"][1, :], "r--")
-    ax.set_ylabel(r"$v_x$, m/s")
+    ax.plot(tspan, opt_traj["X"][0, :], "r--")
+    ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
+    ax.set_ylabel(r"$z$, m")
+    ax.set_ylim([-15, -5])
 
     ax = axes[1, 1]
-    ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "b-")
-    ax.set_ylabel(r"$v_y$, m/s")
-    ax.set_ylim([-1, 1])
-
-    ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "b-")
     ax.plot(tspan, opt_traj["X"][2, :], "r--")
     ax.set_ylabel(r"$v_z$, m/s")
@@ -149,94 +139,74 @@ def plot():
 
     """ Column 3 - States: Euler angles """
     ax = axes[0, 2]
-    ax.plot(data["t"], np.rad2deg(data["ang"][:, 0].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data["angd"][:, 0].squeeze(-1)), "r--")
-    ax.set_ylabel(r"$\phi$, deg")
-    ax.set_ylim([-1, 1])
-
-    ax = axes[1, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$\theta$, deg")
 
-    ax = axes[2, 2]
-    ax.plot(data["t"], np.rad2deg(data["ang"][:, 2].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data["angd"][:, 2].squeeze(-1)), "r--")
-    ax.set_ylabel(r"$\psi$, deg")
-    ax.set_ylim([-1, 1])
-
-    ax.set_xlabel("Time, sec")
-
-    """ Column 4 - States: Angular rates """
-    ax = axes[0, 3]
-    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 0].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data["omegad"][:, 0].squeeze(-1)), "r--")
-    ax.set_ylabel(r"$p$, deg/s")
-    ax.set_ylim([-1, 1])
-
-    ax = axes[1, 3]
+    ax = axes[1, 2]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-")
     ax.plot(data["t"], np.rad2deg(data["omegad"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$q$, deg/s")
 
-    ax = axes[2, 3]
-    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 2].squeeze(-1)), "b-")
-    ax.plot(data["t"], np.rad2deg(data["omegad"][:, 2].squeeze(-1)), "r--")
-    ax.set_ylabel(r"$r$, deg/s")
-    ax.set_ylim([-1, 1])
-
     ax.set_xlabel("Time, sec")
-
     fig.tight_layout()
 
     """ Figure 2 - Rotor inputs """
-    fig, axes = plt.subplots(3, 2, sharex=True)
+    fig, axes = plt.subplots(2, 4, sharex=True)
 
     ax = axes[0, 0]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "b-")
     ax.set_ylabel("Rotor 1")
     ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim(-0.1, 1.1)
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "b-")
     ax.set_ylabel("Rotor 2")
-
-    ax = axes[2, 0]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "b-")
-    ax.set_ylabel("Rotor 3")
+    ax.set_ylim(-0.1, 1.1)
+    ax.set_xlim(data["t"][0], data["t"][-1])
     ax.set_xlabel("Time, sec")
 
     ax = axes[0, 1]
-    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "b-")
-    ax.set_ylabel("Rotor 4")
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "b-")
+    ax.set_ylabel("Rotor 3")
+    ax.set_ylim(-0.1, 1.1)
 
     ax = axes[1, 1]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "b-")
+    ax.set_ylabel("Rotor 4")
+    ax.set_xlabel("Time, sec")
+    ax.set_ylim(-0.1, 1.1)
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    ax = axes[0, 2]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "b-")
     ax.set_ylabel("Rotor 5")
+    ax.set_ylim(-0.1, 1.1)
+    ax.set_xlim(data["t"][0], data["t"][-1])
 
-    ax = axes[2, 1]
+    ax = axes[1, 2]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "b-")
+    ax.set_ylim(-0.1, 1.1)
+    ax.set_xlim(data["t"][0], data["t"][-1])
     ax.set_ylabel("Rotor 6")
     ax.set_xlabel("Time, sec")
 
-    plt.tight_layout()
-    fig.subplots_adjust(wspace=0.3)
-    fig.align_ylabels(axes)
-
-    """ Figure 3 - Pusher input """
-    fig, axes = plt.subplots(2, 1, sharex=True)
-
-    ax = axes[0]
+    ax = axes[0, 3]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "b-")
     ax.set_ylabel("Pusher 1")
     ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim(-0.1, 1.1)
 
-    ax = axes[1]
+    ax = axes[1, 3]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "b-")
     ax.set_ylabel("Pusher 2")
     ax.set_xlabel("Time, sec")
+    ax.set_ylim(-0.1, 1.1)
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    fig.tight_layout()
 
-    plt.tight_layout()
+    fig.subplots_adjust(wspace=0.3)
     fig.align_ylabels(axes)
 
     """ Figure 5 - Thrust """
