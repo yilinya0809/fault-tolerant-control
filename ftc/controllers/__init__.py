@@ -53,6 +53,10 @@ register(
     entry_point="ftc.controllers.MPC.mpc_geso:GESOController",
 )
 register(
-    id="OPT-NDI",
-    entry_point="ftc.trst_corr.ndi:NDIController",
+    id="Trst",
+    entry_point="ftc.controllers.switching:NDIController",
+)
+register(
+    id="FW",
+    entry_point="ftc.controllers.switching:LQRController",
 )
