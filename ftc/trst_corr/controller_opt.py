@@ -112,43 +112,43 @@ def plot():
     """ Column 1 - States: Position """
     ax = axes[0, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "b-")
-    ax.set_ylabel(r"$x$, m")
+    ax.set_ylabel(r"$x$, m", fontsize=14)
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "b-")
     ax.plot(tspan, opt_traj["X"][1, :], "r--")
-    ax.set_ylabel(r"$v_x$, m/s")
+    ax.set_ylabel(r"$v_x$, m/s", fontsize=14)
 
-    ax.set_xlabel("Time, sec")
+    ax.set_xlabel("Time, sec", fontsize=14)
 
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
     ax.plot(tspan, opt_traj["X"][0, :], "r--")
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
-    ax.set_ylabel(r"$z$, m")
+    ax.set_ylabel(r"$z$, m", fontsize=14)
     ax.set_ylim([-15, -5])
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "b-")
     ax.plot(tspan, opt_traj["X"][2, :], "r--")
-    ax.set_ylabel(r"$v_z$, m/s")
+    ax.set_ylabel(r"$v_z$, m/s", fontsize=14)
     ax.set_ylim([-10, 10])
 
-    ax.set_xlabel("Time, sec")
+    ax.set_xlabel("Time, sec", fontsize=14)
 
     """ Column 3 - States: Euler angles """
     ax = axes[0, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-")
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
-    ax.set_ylabel(r"$\theta$, deg")
+    ax.set_ylabel(r"$\theta$, deg", fontsize=14)
 
     ax = axes[1, 2]
     ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-")
     ax.plot(data["t"], np.rad2deg(data["omegad"][:, 1].squeeze(-1)), "r--")
-    ax.set_ylabel(r"$q$, deg/s")
+    ax.set_ylabel(r"$q$, deg/s", fontsize=14)
 
-    ax.set_xlabel("Time, sec")
+    ax.set_xlabel("Time, sec", fontsize=14)
     fig.tight_layout()
 
     """ Figure 2 - Rotor inputs """
@@ -156,32 +156,32 @@ def plot():
 
     ax = axes[0, 0]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "b-")
-    ax.set_ylabel("Rotor 1")
+    ax.set_ylabel("Rotor 1", fontsize=14)
     ax.set_xlim(data["t"][0], data["t"][-1])
     ax.set_ylim(-0.1, 1.1)
 
     ax = axes[1, 0]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "b-")
-    ax.set_ylabel("Rotor 2")
+    ax.set_ylabel("Rotor 2", fontsize=14)
     ax.set_ylim(-0.1, 1.1)
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_xlabel("Time, sec")
+    ax.set_xlabel("Time, sec", fontsize=14)
 
     ax = axes[0, 1]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "b-")
-    ax.set_ylabel("Rotor 3")
+    ax.set_ylabel("Rotor 3", fontsize=14)
     ax.set_ylim(-0.1, 1.1)
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "b-")
-    ax.set_ylabel("Rotor 4")
-    ax.set_xlabel("Time, sec")
+    ax.set_ylabel("Rotor 4", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
     ax.set_ylim(-0.1, 1.1)
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[0, 2]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "b-")
-    ax.set_ylabel("Rotor 5")
+    ax.set_ylabel("Rotor 5", fontsize=14)
     ax.set_ylim(-0.1, 1.1)
     ax.set_xlim(data["t"][0], data["t"][-1])
 
@@ -189,19 +189,19 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "b-")
     ax.set_ylim(-0.1, 1.1)
     ax.set_xlim(data["t"][0], data["t"][-1])
-    ax.set_ylabel("Rotor 6")
-    ax.set_xlabel("Time, sec")
+    ax.set_ylabel("Rotor 6", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
 
     ax = axes[0, 3]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "b-")
-    ax.set_ylabel("Pusher 1")
+    ax.set_ylabel("Pusher 1", fontsize=14)
     ax.set_xlim(data["t"][0], data["t"][-1])
     ax.set_ylim(-0.1, 1.1)
 
     ax = axes[1, 3]
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "b-")
-    ax.set_ylabel("Pusher 2")
-    ax.set_xlabel("Time, sec")
+    ax.set_ylabel("Pusher 2", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
     ax.set_ylim(-0.1, 1.1)
     ax.set_xlim(data["t"][0], data["t"][-1])
     fig.tight_layout()

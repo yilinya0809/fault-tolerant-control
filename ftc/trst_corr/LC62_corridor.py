@@ -165,8 +165,8 @@ class LC62_corridor(fym.BaseEnv):
         self.plant = LC62()
         self.Fr_max = 6 * self.plant.th_r_max
         self.Fp_max = 2 * self.plant.th_p_max
-        # self.eta = 1.0
-        self.eta = 0.8
+        self.eta = 1.0
+        # self.eta = 0.8
 
     def B_Pusher(self, Fp):
         Fx = Fp
@@ -285,6 +285,7 @@ class LC62_corridor(fym.BaseEnv):
         Fr = np.zeros((n, m))
         Fp = np.zeros((n, m))
         acc = np.zeros((n, m))
+        cause = np.zeros((n, m))
 
         for i in range(n):
             for j in range(m):
@@ -300,47 +301,65 @@ class LC62_corridor(fym.BaseEnv):
                     options=options,
                 )
                 cost[i][j] = result.fun
+                (
+                    self.Fr,
+                    self.Fp,
+                ) = result.x
+                z0 = {
+                    "Fr": self.Fr,
+                    "Fp": self.Fp,
+                }
+                z0 = list(z0.values())
+                dels = np.zeros((3, 1))
+                pos = np.vstack((0, 0, -height))
+                vel = np.vstack((VT * np.cos(theta), 0, VT * np.sin(theta)))
+                quat = np.vstack(angle2quat(0, theta, 0))
+                omega = np.zeros((3, 1))
+
+                FM = (
+                    self.B_Pusher(self.Fp)
+                    + self.B_Fuselage(dels, pos, vel, omega)
+                    + self.B_Gravity(quat)
+                )
+                R = quat2dcm(quat)
+                F = R.T @ (FM[:3] + np.vstack((0, 0, -self.Fr)))
+                a_x = F[0] / self.m
+
                 if np.linalg.norm(cost[i][j]) < eps:
-                    (
-                        self.Fr,
-                        self.Fp,
-                    ) = result.x
-                    z0 = {
-                        "Fr": self.Fr,
-                        "Fp": self.Fp,
-                    }
-                    z0 = list(z0.values())
-                    dels = np.zeros((3, 1))
-                    pos = np.vstack((0, 0, -height))
-                    vel = np.vstack((VT * np.cos(theta), 0, VT * np.sin(theta)))
-                    quat = np.vstack(angle2quat(0, theta, 0))
-                    omega = np.zeros((3, 1))
-
-                    FM = (
-                        self.B_Pusher(self.Fp)
-                        + self.B_Fuselage(dels, pos, vel, omega)
-                        + self.B_Gravity(quat)
-                    )
-                    R = quat2dcm(quat)
-                    F = R.T @ (FM[:3] + np.vstack((0, 0, -self.Fr)))
-
-                    a_x = F[0] / self.m
+                    cause[i][j] = np.NaN
                     acc[i][j] = a_x[0]
-
                     success[i][j] = 1
                     Fr[i][j] = self.Fr
                     Fp[i][j] = self.Fp
                     print(f"vel: {VT:.1f}, theta: {np.rad2deg(theta):.1f}, success")
                 else:
-                    print(
-                        f"vel: {VT:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}"
-                    )
                     success[i][j] = np.NaN
                     Fr[i][j] = np.NaN
                     Fp[i][j] = np.NaN
                     acc[i][j] = np.NaN
+                    h, VT, theta = fixed
+                    X = np.vstack((-h, VT * np.cos(theta), VT * np.sin(theta)))
+                    U = np.vstack((self.Fr, self.Fp, theta))
+                    dX = self.plant.derivq(X, U, q=0.0)
+                    x_tilde = np.vstack((dX[0], (np.sign(F[0]) - 1) * F[0], F[2]))
+                    x_cost =np.diagonal(x_tilde @ x_tilde.T)
+                    cause[i][j] = np.argmax(x_cost)
+                    if cause[i][j] == 0:
+                        print(
+                            f"vel: {VT:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}, cause: zdot"
+                        )
+                    elif cause[i][j] == 1:
+                        print(
+                            f"vel: {VT:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}, cause: Fx"
+                        )
+                    elif cause[i][j] == 2:
+                        print(
+                            f"vel: {VT:.1f}, theta: {np.rad2deg(theta):.1f}, cost: {cost[i][j]:.3f}, cause: Fz"
+                        )
 
-        Trst_corr = VT_range, theta_range, cost, success, acc, Fr, Fp
+
+
+        Trst_corr = VT_range, theta_range, cost, success, acc, Fr, Fp, cause
         return Trst_corr
 
     def _cost_fixed(self, z, fixed):
@@ -399,10 +418,10 @@ if __name__ == "__main__":
         height=height,
         grid=grid,
     )
-    VT_corr, theta_corr, cost, success, acc, Fr, Fp = Trst_corr
+    VT_corr, theta_corr, cost, success, acc, Fr, Fp, cause = Trst_corr
     np.savez(
         os.path.join(
-            "ftc/trst_corr/corr_safe.npz",
+            "ftc/trst_corr/corr_safe_cause_eta1.npz",
         ),
         VT_corr=VT_corr,
         theta_corr=theta_corr,
@@ -411,4 +430,5 @@ if __name__ == "__main__":
         acc=acc,
         Fr=Fr,
         Fp=Fp,
+        cause=cause,
     )

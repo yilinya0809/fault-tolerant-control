@@ -3,6 +3,12 @@ import numpy as np
 
 from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary, poly, weighted_poly
+plt.rcParams.update({
+    # "text.usetex": True,
+    "font.family": "serif",
+    "mathtext.fontset": "stix",
+    # "font.serif": "Times New Roman",
+})
 
 plant = LC62()
 Fr_max = 6 * plant.th_r_max
@@ -12,7 +18,7 @@ Fp_max = 2 * plant.th_p_max
 # Trst_corr = np.load("ftc/trst_corr/corr.npz")
 
 # Using 80% of maximum power of rotors and pushers
-Trst_corr = np.load("ftc/trst_corr/corr_safe.npz")
+Trst_corr = np.load("ftc/trst_corr/corr_safe_cause.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -20,6 +26,7 @@ cost = Trst_corr["cost"]
 success = Trst_corr["success"]
 Fr = Trst_corr["Fr"]
 Fp = Trst_corr["Fp"]
+cause = Trst_corr["cause"]
 
 # Check safety
 eta = 0.8
@@ -85,42 +92,51 @@ ax.scatter(VT, theta, acc_corr.T, cmap="plasma", edgecolor="none")
 ax.contourf(VT, theta, acc_corr.T, zdir="z", offset=7, cmap="plasma")
 
 """ Figure 4 - Trst 2D """
-fig = plt.figure()
+fig = plt.figure(figsize=(12, 8))
 ax = fig.add_subplot(111)
 contour = ax.contourf(
     VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
-ax.set_xlabel("V, m/s", fontsize=15)
-ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-ax.set_title("Forward Acceleration Corridor", fontsize=20)
+ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# ax.set_title("Forward Acceleration Corridor", fontsize=20)
 cbar = fig.colorbar(contour)
-cbar.ax.set_xlabel(r"$a_x, m/s^{2}$", fontsize=15)
+cbar.ax.set_xlabel(r"$a_x^I,\, m/s^{2}$", fontsize=20, labelpad=15)
+fig.tight_layout()
 
 """ Figure 5 - Fr, Fp """
-fig, axs = plt.subplots(1, 2, figsize=(18, 5), squeeze=False, sharex=True)
-ax = axs[0, 0]
+# fig, axs = plt.subplots(1, 2, figsize=(18, 5), squeeze=False, sharex=True)
+# ax = axs[0, 0]
+fig = plt.figure(figsize=(12, 8))
+ax = fig.add_subplot(111)
 contour = ax.contourf(
     VT, theta, Fr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
-ax.plot(VT_corr, Fr_margin, "r--")
-ax.set_xlabel("V, m/s", fontsize=15)
-ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-ax.set_title("Rotor Force Corridor", fontsize=20)
+# ax.plot(VT_corr, Fr_margin, "r--")
+ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
 cbar = fig.colorbar(contour)
-cbar.ax.set_xlabel(r"$Fr, N$", fontsize=15)
+cbar.ax.set_xlabel(r"$F_{rotors},\, N$", fontsize=20, labelpad=15)
+# cbar.ax.xaxis.set_label_position('bottom')
+# cbar.ax.xaxis.tick_top()
+fig.tight_layout()
 
-ax = axs[0, 1]
+""" Figure 6 - Fp """
+# ax = axs[0, 1]
+
+fig = plt.figure(figsize=(12, 8))
+ax = fig.add_subplot(111)
 contour = ax.contourf(
     VT, theta, Fp.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
-ax.plot(VT_corr, Fp_margin, "r--")
-ax.set_xlabel("V, m/s", fontsize=15)
-ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-ax.set_title("Pusher Force Corridor", fontsize=20)
+ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
 cbar = fig.colorbar(contour)
-cbar.ax.set_xlabel(r"$Fp, N$", fontsize=15)
-
+cbar.ax.set_xlabel(r"$F_{pushers},\, N$", fontsize=20, labelpad=15)
 fig.tight_layout()
-fig.subplots_adjust(wspace=0.2)
+
+""" Figure 7 - non-corridor """
+fig, ax = plt.subplots(1, 1)
+ax.scatter(VT, theta, c=cause.T)
 
 plt.show()
