@@ -402,7 +402,7 @@ if __name__ == "__main__":
     VT_corr, theta_corr, cost, success, acc, Fr, Fp = Trst_corr
     np.savez(
         os.path.join(
-            "ftc/trst_corr/corr_noq_safe.npz",
+            "ftc/trst_corr/corr_safe.npz",
         ),
         VT_corr=VT_corr,
         theta_corr=theta_corr,

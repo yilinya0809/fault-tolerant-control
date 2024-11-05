@@ -1,363 +1,338 @@
-import argparse
-
-import casadi as ca
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import curve_fit
+from casadi import *
 
-import ftc
-from ftc.models.LC62_mpc import LC62
+from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary
 
+""" Pre-processing - Transition Corridor """
+Trst_corr = np.load("ftc/trst_corr/corr_safe.npz")
+VT_corr = Trst_corr["VT_corr"]
+theta_corr = np.rad2deg(Trst_corr["theta_corr"])
+success = Trst_corr["success"]
+upper_bound, lower_bound = boundary(Trst_corr)
 
-class TrajectoryOptimizer:
-    def __init__(self, max_t=10, dt=0.1, h_ref=10, VT_ref=45):
-        self.max_t = max_t
-        self.dt = dt
-        self.N = int(max_t / dt)
-        self.t = np.linspace(0, max_t, self.N + 1)
+mask = lower_bound > np.min(lower_bound)
+VT_filtered = VT_corr[mask]
+lower_bound_filtered = lower_bound[mask]
 
-        self.h_ref = h_ref
-        self.VT_ref = VT_ref
-
-        self.plant = LC62()
-
-        self.state_init = ca.DM([-self.h_ref, 0, 0, 0])
-        X_trim, U_trim = self.plant.get_trim(fixed={"h": self.h_ref, "VT": self.VT_ref})
-        self.X_target = X_trim[1:]
-        self.U_target = U_trim
-
-        # CasADi optimization variables
-        self.states, self.controls, self.X, self.U, self.P = self.define_variables()
-
-        Xdot = self.plant.deriv(self.states, self.controls)
-        self.f = ca.Function("f", [self.states, self.controls], [Xdot])
-        self.Q = 1000 * ca.diagcat(1, 1, 1, 1, 1, 1, 1)
-        self.R = ca.diagcat(0, 0, 0)
-
-        # Boundary conditions
-        Trst_corr = np.load("ftc/trst_corr/corr_safe.npz")
-        self.min_theta, self.upper, self.lower = self.corridor_boundaries(Trst_corr)
-
-        # Prepare the solver
-        self.solver, self.args = self.setup_solver()
-
-    def define_variables(self):
-        z = ca.MX.sym("z")
-        Vx = ca.MX.sym("Vx")
-        Vz = ca.MX.sym("Vz")
-        theta = ca.MX.sym("theta")
-        states = ca.vertcat(z, Vx, Vz, theta)
-        n_states = states.numel()
-
-        Fr = ca.MX.sym("Fr")
-        Fp = ca.MX.sym("Fp")
-        q = ca.MX.sym("q")
-        controls = ca.vertcat(Fr, Fp, q)
-        n_controls = controls.numel()
-
-        X = ca.MX.sym("X", n_states, self.N + 1)
-        U = ca.MX.sym("U", n_controls, self.N)
-        P = ca.MX.sym("P", n_states + 2)
-
-        return states, controls, X, U, P
-
-    def corridor_boundaries(self, Trst_corr):
-        VT_corr = Trst_corr["VT_corr"]
-        upper_bound, lower_bound = boundary(Trst_corr)
-
-        # Fit the lower boundary
-        mask = lower_bound > np.min(lower_bound)
-        VT_filtered = VT_corr[mask]
-        lower_bound_filtered = lower_bound[mask]
-
-        popt, _ = curve_fit(
-            lambda x, a, b, c: -a * np.exp(-b * x) + c,
-            VT_filtered,
-            lower_bound_filtered,
-        )
-        lower = np.vstack((VT_filtered[0], popt[0], popt[1], popt[2]))
-
-        # Fit the upper boundary
-        deg = 3
-        upper = np.polyfit(VT_corr, upper_bound, deg)
-
-        return np.min(lower_bound), lower, upper
-
-    def lower_func(self, VT):
-        offset, a, b, c = self.lower
-        return ca.if_else(
-            VT <= offset, self.min_theta, -a * ca.exp(-b * (VT - offset)) + c
-        )
-
-    def upper_func(self, VT):
-        value = 0
-        for i in range(len(self.upper)):
-            coeff = self.upper[i]
-            value += coeff * VT ** (len(self.upper) - i - 1)
-        return value
-
-    def setup_solver(self):
-        cost_fn = 0
-        g_rk4 = self.X[:, 0] - self.P[: self.states.numel()]  # equality constraints
-        g_cons = ca.vertcat(0, 0)  # inequality constraints
-
-        # Terminal cost
-        phi = ca.vertcat(
-            self.X[:, self.N] - self.X_target, self.U[:, self.N - 1] - self.U_target
-        )
-        cost_fn = phi.T @ self.Q @ phi
-
-        # Runge-Kutta integration and cost accumulation
-        for k in range(self.N):
-            st = self.X[:, k]
-            con = self.U[:, k]
-            cost_fn = cost_fn + con.T @ self.R @ con
-
-            # dynamic equation constraint
-            st_next = self.X[:, k + 1]
-            k1 = self.f(st, con)
-            k2 = self.f(st + self.dt / 2 * k1, con)
-            k3 = self.f(st + self.dt / 2 * k2, con)
-            k4 = self.f(st + self.dt * k3, con)
-            st_next_RK4 = st + (self.dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-            g_rk4 = ca.vertcat(g_rk4, st_next - st_next_RK4)
-
-            # corridor boundary constraint
-            tht = st[-1]
-            VT = ca.norm_2(st[1:3])
-            g1 = self.lower_func(VT) - tht
-            g2 = tht - self.upper_func(VT)
-            g_cons = ca.vertcat(g_cons, g1, g2)
-
-        opt_cons = ca.vertcat(g_rk4, g_cons)
-        opt_variables = ca.vertcat(self.X.reshape((-1, 1)), self.U.reshape((-1, 1)))
-        opt_params = ca.vertcat(self.P.reshape((-1, 1)))
-        nlp_prob = {"f": cost_fn, "x": opt_variables, "g": opt_cons, "p": opt_params}
-
-        opts = {
-            "ipopt": {
-                "max_iter": 1000,
-                "print_level": 0,
-                "acceptable_tol": 1e-8,
-                "acceptable_obj_change_tol": 1e-6,
-            },
-            "print_time": 0,
-        }
-
-        solver = ca.nlpsol("solver", "ipopt", nlp_prob, opts)
-
-        lbx = ca.DM.zeros(
-            (self.states.numel() * (self.N + 1) + self.controls.numel() * self.N, 1)
-        )
-        ubx = ca.DM.zeros(
-            (self.states.numel() * (self.N + 1) + self.controls.numel() * self.N, 1)
-        )
-        lbg = ca.DM.zeros(((self.states.numel() + 2) * (self.N + 1), 1))
-        ubg = ca.DM.zeros(((self.states.numel() + 2) * (self.N + 1), 1))
-
-        z_eps = 2
-        lbx[0 : self.states.numel() * (self.N + 1) : self.states.numel()] = -ca.inf
-        ubx[0 : self.states.numel() * (self.N + 1) : self.states.numel()] = ca.inf
-        lbx[1 : self.states.numel() * (self.N + 1) : self.states.numel()] = 0
-        ubx[1 : self.states.numel() * (self.N + 1) : self.states.numel()] = ca.inf
-        lbx[2 : self.states.numel() * (self.N + 1) : self.states.numel()] = -ca.inf
-        ubx[2 : self.states.numel() * (self.N + 1) : self.states.numel()] = ca.inf
-        lbx[3 : self.states.numel() * (self.N + 1) : self.states.numel()] = -np.deg2rad(
-            30
-        )
-        ubx[3 : self.states.numel() * (self.N + 1) : self.states.numel()] = np.deg2rad(
-            30
-        )
-
-        Fr_max = 6 * self.plant.th_r_max
-        Fp_max = 2 * self.plant.th_p_max
-        lbx[self.states.numel() * (self.N + 1) :: self.controls.numel()] = -Fr_max
-        ubx[self.states.numel() * (self.N + 1) :: self.controls.numel()] = 0
-        lbx[self.states.numel() * (self.N + 1) + 1 :: self.controls.numel()] = 0
-        ubx[self.states.numel() * (self.N + 1) + 1 :: self.controls.numel()] = Fp_max
-        lbx[self.states.numel() * (self.N + 1) + 2 :: self.controls.numel()] = -ca.inf
-        ubx[self.states.numel() * (self.N + 1) + 2 :: self.controls.numel()] = ca.inf
-
-        lbg[: self.states.numel() * (self.N + 1)] = 0
-        ubg[: self.states.numel() * (self.N + 1)] = 0
-        lbg[self.states.numel() * (self.N + 1) :] = -ca.inf
-        ubg[self.states.numel() * (self.N + 1) :] = 0
-
-        args = {
-            "lbg": lbg,
-            "ubg": ubg,
-            "lbx": lbx,
-            "ubx": ubx,
-        }
-
-        return solver, args
-
-    def run(self):
-        control_init = ca.DM([-self.plant.m * self.plant.g, 0, 0])
-        u0 = ca.repmat(control_init, 1, self.N)
-        X0 = ca.repmat(self.state_init, 1, self.N + 1)
-
-        self.args["p"] = ca.vertcat(self.state_init, ca.DM(0), ca.DM(0))
-        self.args["x0"] = ca.vertcat(
-            ca.reshape(X0, self.states.numel() * (self.N + 1), 1),
-            ca.reshape(u0, self.controls.numel() * self.N, 1),
-        )
-
-        sol = self.solver(
-            x0=self.args["x0"],
-            lbx=self.args["lbx"],
-            ubx=self.args["ubx"],
-            lbg=self.args["lbg"],
-            ubg=self.args["ubg"],
-            p=self.args["p"],
-        )
-
-        self.X_sol = ca.reshape(
-            sol["x"][: self.states.numel() * (self.N + 1)],
-            self.states.numel(),
-            self.N + 1,
-        )
-        self.U_sol = ca.reshape(
-            sol["x"][self.states.numel() * (self.N + 1) :],
-            self.controls.numel(),
-            self.N,
-        )
-
-        self.save_results()
-        plot()
-
-    def save_results(self):
-        with h5py.File("trajectory_data.h5", "w") as hf:
-            hf.create_dataset("cat_states", data=DM2Arr(self.X_sol))
-            hf.create_dataset("cat_controls", data=DM2Arr(self.U_sol))
-            hf.create_dataset("time", data=self.t)
+deg = 3
+upper = np.polyfit(VT_corr, upper_bound, deg)
+lower = np.polyfit(VT_filtered, lower_bound_filtered, deg)
 
 
-def DM2Arr(dm):
-    return np.array(dm.full())
+def casadi_polyval(coeffs, x):
+    value = 0
+    deg = len(coeffs) - 1
+    for i, coeff in enumerate(coeffs):
+        value += coeff * x ** (deg - i)
+    return value
 
 
-def plot():
-    with h5py.File("trajectory_data.h5", "r") as hf:
-        cat_states = hf["cat_states"][:]
-        cat_controls = hf["cat_controls"][:]
-        t = hf["time"][:]
+def upper_func(vel):
+    value = casadi_polyval(upper, vel)
+    return value
 
-    """Fig 1. States"""
-    fig, axes = plt.subplots(2, 2, squeeze=False, sharex=True)
 
-    ax = axes[0, 0]
-    ax.plot(t, cat_states[0, :], "k-")
-    ax.set_ylabel(r"$z$ [m]")
-    ax.set_xlabel("Time [s]")
-    ax.set_ylim([-20, 0])
+def lower_func(vel):
+    value_min = np.min(lower_bound)
+    value_low = casadi_polyval(lower, vel)
+    value = if_else(vel < VT_filtered[0], value_min, value_low)
+    return value
 
-    ax = axes[0, 1]
-    ax.plot(t, cat_states[1, :], "k-")
-    ax.set_ylabel(r"$v_x$ [m/s]")
-    ax.set_xlabel("Time [s]")
 
-    ax = axes[1, 0]
-    ax.plot(t, cat_states[2, :], "k-")
-    ax.set_ylabel(r"$v_z$ [m/s]")
-    ax.set_xlabel("Time [s]")
+upper_data = np.zeros((np.size(VT_corr), 1))
+lower_data = np.zeros((np.size(VT_corr), 1))
+for i in range(np.size(VT_corr)):
+    upper_data[i] = upper_func(VT_corr[i])
+    lower_data[i] = lower_func(VT_corr[i])
 
-    ax = axes[1, 1]
-    ax.plot(t, np.rad2deg(cat_states[3, :]), "k-")
-    ax.set_ylabel(r"$\theta$ [deg]")
-    ax.set_xlabel("Time [s]")
 
-    plt.tight_layout()
-    fig.align_ylabels(axes)
+plant = LC62()
 
-    """ Fig 2. Controls """
-    fig, axes = plt.subplots(3, 1, squeeze=False, sharex=True)
+""" Get trim """
+x_trim, u_trim = plant.get_trim()
 
-    ax = axes[0, 0]
-    ax.plot(t[:-1], -cat_controls[0, :], "k-")
-    ax.set_ylabel(r"$F_r$ [N]")
-    ax.set_xlabel("Time [s]")
+""" Optimization """
+N = 200  # number of control intervals
 
-    ax = axes[1, 0]
-    ax.plot(t[:-1], cat_controls[1, :], "k-")
-    ax.set_ylabel(r"$F_p$ [N]")
-    ax.set_xlabel("Time [s]")
+opti = Opti()  # Optimization problem
 
-    ax = axes[2, 0]
-    ax.plot(t[:-1], np.rad2deg(cat_controls[2, :]), "k-")
-    ax.set_ylabel(r"$q$ [deg/s]")
-    ax.set_xlabel("Time [s]")
+# ---- decision variables ---------
+X = opti.variable(3, N + 1)  # state trajectory
+z = X[0, :]
+vx = X[1, :]
+vz = X[2, :]
+U = opti.variable(3, N)  # control trajectory (throttle)
+Fr = U[0, :]
+Fp = U[1, :]
+theta = U[2, :]
+T = opti.variable()
 
-    plt.tight_layout()
-    fig.align_ylabels(axes)
+# ---- objective          ---------
+W_t = 1000
+W_z = 50000
+W_u = diag([1, 10, 500000])
 
-    """ Fig 3. Transition Corridor """
-    Trst_corr = np.load("ftc/trst_corr/corr_safe.npz")
-    VT_corr = Trst_corr["VT_corr"]
-    acc_corr = Trst_corr["acc"]
-    theta_corr = np.rad2deg(Trst_corr["theta_corr"])
-    cost = Trst_corr["cost"]
-    success = Trst_corr["success"]
-    Fr = Trst_corr["Fr"]
-    Fp = Trst_corr["Fp"]
+cost = W_t * T
 
-    upper_bound, lower_bound = boundary(Trst_corr)
-    VT, theta = np.meshgrid(VT_corr, theta_corr)
+dt = T / N
+for k in range(N):  # loop over control intervals
+    # Runge-Kutta 4 integration
+    # if k > 0.7 * N:
+    #     W_z = 500000
+    #     W_u = diag([10, 10, 500000])
+    cost += U[:, k].T @ W_u @ U[:, k] * dt
+    q = 0.0
+    k1 = plant.derivq(X[:, k], U[:, k], q)
+    k2 = plant.derivq(X[:, k] + dt / 2 * k1, U[:, k], q)
+    k3 = plant.derivq(X[:, k] + dt / 2 * k2, U[:, k], q)
+    k4 = plant.derivq(X[:, k] + dt * k3, U[:, k], q)
 
-    VT_traj = np.zeros((np.size(t), 1))
-    theta_traj = np.zeros((np.size(t), 1))
-    for i in range(np.size(t)):
-        VT_traj[i] = np.linalg.norm(cat_states[1:3, i])
-        theta_traj[i] = np.rad2deg(cat_states[3, i])
+    # k1 = plant.deriv(X[:, k], U[:, k])
+    # k2 = plant.deriv(X[:, k] + dt / 2 * k1, U[:, k])
+    # k3 = plant.deriv(X[:, k] + dt / 2 * k2, U[:, k])
+    # k4 = plant.deriv(X[:, k] + dt * k3, U[:, k])
+    x_next = X[:, k] + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+    opti.subject_to(X[:, k + 1] == x_next)  # close the gaps
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    # contour = ax.contourf(
-    #     VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
-    # )
-    ax.plot(
-        VT_corr,
-        np.rad2deg(upper_bound),
-        "o",
-        label="Upper Bound Data",
-        color="blue",
-        alpha=0.3,
-    )
-    ax.plot(
-        VT_corr,
-        np.rad2deg(lower_bound),
-        "o",
-        label="Lower Bound Data",
-        color="orange",
-        alpha=0.3,
-    )
+    # zdot = x_next[0] - X[0, k]
+    # cost += W_z * zdot ** 2
+    cost += W_z * (X[0, k] - x_trim[1]) ** 2
 
-    ax.plot(VT_traj, theta_traj, "k-")
-    ax.set_xlabel("VT, m/s", fontsize=15)
+    # Transition Corridor
+    theta_k = U[2, k]
+    VT_k = norm_2(X[1:3, k])
+    opti.subject_to(opti.bounded(lower_func(VT_k), theta_k, upper_func(VT_k)))
+
+
+# opti.minimize(T)
+opti.minimize(cost)
+
+Fr_max = 6 * plant.th_r_max
+Fp_max = 2 * plant.th_p_max
+theta_max = np.deg2rad(30)
+# ---- input constraints --------
+opti.subject_to(opti.bounded(0, Fr, Fr_max))
+opti.subject_to(opti.bounded(0, Fp, Fp_max))
+opti.subject_to(opti.bounded(-theta_max, theta, theta_max))
+
+# ---- state constraints --------
+z_eps = 1
+opti.subject_to(opti.bounded(x_trim[1] - z_eps, z, x_trim[1] + z_eps))
+# opti.subject_to(opti.bounded(0, T, 20))
+opti.subject_to(T >= 0)
+
+# ---- boundary conditions --------
+opti.subject_to(z[0] == x_trim[1])
+opti.subject_to(vx[0] == 0)
+opti.subject_to(vz[0] == 0)
+opti.subject_to(Fr[0] == plant.m * plant.g)
+opti.subject_to(Fp[0] == 0)
+opti.subject_to(theta[0] == np.deg2rad(0))
+
+opti.subject_to(z[-1] == x_trim[1])
+opti.subject_to(vx[-1] == x_trim[2])
+opti.subject_to(vz[-1] == x_trim[3])
+
+u_eps = 0.5
+opti.subject_to(opti.bounded(0, Fr[-1], 10))
+opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
+opti.subject_to(
+    opti.bounded(u_trim[2] * (1 - u_eps), theta[-1], u_trim[2] * (1 + u_eps))
+)
+
+# opti.subject_to(Fr[-1] == u_trim[0])
+# opti.subject_to(Fp[-1] == u_trim[1])
+# opti.subject_to(theta[-1] == u_trim[2])
+
+
+with h5py.File("ftc/trst_corr/opt.h5", "r") as f:
+    tf_init = f["tf"][()]
+    X_init = f["X"][:]
+    U_init = f["U"][:]
+# cost = f["cost"]
+
+# ---- initial values for solver ---
+opti.set_initial(T, tf_init)
+opti.set_initial(z, X_init[0, :])
+opti.set_initial(vx, X_init[1, :])
+opti.set_initial(vz, X_init[2, :])
+opti.set_initial(Fr, U_init[0, :])
+opti.set_initial(Fp, U_init[1, :])
+opti.set_initial(theta, U_init[2, :])
+# opti.set_initial(T, 20)
+# opti.set_initial(z, x_trim[1])
+# opti.set_initial(vx, x_trim[2] / 2)
+# opti.set_initial(vz, x_trim[3] / 2)
+# opti.set_initial(Fr, plant.m * plant.g / 2)
+# opti.set_initial(Fp, u_trim[1] / 2)
+# opti.set_initial(theta, u_trim[2] / 2)
+
+
+# ---- solve NLP              ------
+p_opts = {"expand": False}
+s_opts = {
+    "tol": 1e-1,
+    "acceptable_tol": 1e-1,
+    "acceptable_iter": 15,
+    "max_iter": 2000,
+    "max_cpu_time": 1e4,
+    "print_level": 5,
+}
+
+
+opti.solver("ipopt", p_opts, s_opts)  # set numerical backend
+
+results = {}
+
+
+def plot_results(data):
+    tspan = linspace(0, data["tf"], N + 1)
+
+    """ States trajectory """
+    fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
+    ax = axs[0, 0]
+    ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
+    ax.set_ylabel("$h$, m", fontsize=15)
+    ax.set_ylim([9, 11])
+    ax.grid()
+    ax.set_xlim([0, data["tf"]])
+
+    ax = axs[1, 0]
+    ax.plot(tspan, data["X"][1, :], "k", linewidth=3)
+    ax.set_ylabel("$V_x^B$, m/s", fontsize=15)
+    ax.set_xlim([0, data["tf"]])
+    ax.grid()
+
+    ax = axs[2, 0]
+    ax.plot(tspan, data["X"][2, :], "k", linewidth=3)
+    ax.set_ylabel("$V_z^B$, m/s", fontsize=15)
+    ax.set_xlabel("Time, s", fontsize=15)
+    ax.set_ylim([-10, 10])
+    ax.set_xlim([0, data["tf"]])
+    ax.grid()
+
+    fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
+    ax = axs[0, 0]
+    ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
+    ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
+    ax.set_ylabel("$F^{rotor}$, N", fontsize=15)
+    ax.set_xlim([0, data["tf"]])
+    ax.grid()
+
+    ax = axs[1, 0]
+    ax.plot(tspan[:-1], data["U"][1, :], "k", linewidth=3)
+    ax.plot(tspan[:-1], Fp_max * np.ones((N, 1)), "r--")
+    ax.set_ylabel("$F^{pusher}$, N", fontsize=15)
+    ax.set_xlim([0, data["tf"]])
+    ax.grid()
+
+    ax = axs[2, 0]
+    ax.plot(tspan[:-1], np.rad2deg(data["U"][2, :]), "k", linewidth=3)
+    ax.plot(tspan[:-1], -30 * np.ones((N, 1)), "r--")
+    ax.plot(tspan[:-1], 30 * np.ones((N, 1)), "r--")
     ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-    ax.set_title("Forward Acceleration Corridor", fontsize=20)
-    # cbar = fig.colorbar(contour)
-    # cbar.ax.set_xlabel(r"$a_x, m/s^{2}$", fontsize=15)
+    ax.set_xlabel("Time, s", fontsize=15)
+    ax.set_ylim([-35, 35])
+    ax.set_xlim([0, data["tf"]])
+    ax.grid()
+
+    """ VT, theta traj """
+    fig, ax = plt.subplots(1, 1)
+    VT_traj = np.zeros((N, 1))
+    theta_traj = np.zeros((N, 1))
+    for i in range(N):
+        VT_traj[i] = norm_2(data["X"][1:3, i])
+        theta_traj[i] = np.rad2deg(data["U"][2, i])
+
+    ax.plot(VT_traj[1:], theta_traj[1:], "r-", linewidth=5)
+    VT, theta = np.meshgrid(VT_corr, theta_corr)
+    ax.scatter(VT, theta, s=success.T, c="b")
+    ax.set_xlabel("V, m/s", fontsize=15)
+    ax.set_ylabel(r"$\theta$, deg", fontsize=15)
+    ax.set_title("Dynamic Transition Corridor", fontsize=20)
+
+    #     """ Cost plot """
+    #     fig, ax = plt.subplots(1, 1)
+    #     ax.plot(range(len(data["cost"])), data["cost"])
+    #     ax.set_xlabel("Iteration", fontsize=15)
+    #     ax.set_ylabel("Cost", fontsize=15)
+    #     ax.grid()
 
     plt.show()
 
 
-def main(args):
-    if args.only_plot:
-        plot()
-        return
-    else:
-        optimizer = TrajectoryOptimizer()
-        optimizer.run()
-        if args.plot:
-            plot()
+try:
+    sol = opti.solve()  # actual solve
+    results["tf"] = sol.value(T)
+    results["X"] = sol.value(X)
+    results["U"] = sol.value(U)
+    stats = opti.stats()
 
+    iter_costs = stats["iterations"]["obj"]
+    iter_primal_infeas = stats["iterations"]["inf_pr"]
+    iter_dual_infeas = stats["iterations"]["inf_du"]
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--plot", action="store_true")
-    parser.add_argument("-P", "--only-plot", action="store_true")
-    args = parser.parse_args()
-    main(args)
+    cost = []
+    for i in range(len(iter_costs)):
+        if (
+            iter_primal_infeas[i] < s_opts["tol"]
+            and iter_dual_infeas[i] < s_opts["tol"]
+        ):
+            cost.append(iter_costs[i])
+
+    results["cost"] = cost
+
+    with h5py.File("opt.h5", "w") as f:
+        f.create_dataset("tf", data=results["tf"])
+        f.create_dataset("X", data=results["X"])
+        f.create_dataset("U", data=results["U"])
+        f.create_dataset("cost", data=results["cost"])
+        # f.create_dataset("Fr_max", data=)
+        # f.create_dataset("Fp_max", data=Fp_max * np.ones((len(results["tf"], 1)))
+    plot_results(results)
+
+except RuntimeError as e:
+    print("Solver Failed!")
+    results["tf"] = float(opti.debug.value(T))
+    results["X"] = opti.debug.value(X)
+    results["U"] = opti.debug.value(U)
+    stats = opti.stats()
+    results["cost"] = stats["iterations"]["obj"]
+
+    t_final = results["tf"]
+    z_final = results["X"][0, :]
+    vx_final = results["X"][1, :]
+    vz_final = results["X"][2, :]
+    Fr_final = results["U"][0, :]
+    Fp_final = results["U"][1, :]
+    theta_final = results["U"][2, :]
+
+    if np.any(z_final < x_trim[1] - z_eps) or np.any(z_final > x_trim[1] + z_eps):
+        print("Altitude constraint violated")
+
+    if np.any(Fr_final < 0) or np.any(Fr_final > Fr_max):
+        print("Fr constraint violated")
+    if np.any(Fp_final < 0) or np.any(Fp_final > Fp_max):
+        print("Fp constraint violated")
+    if np.any(theta_final < -theta_max) or np.any(theta_final > theta_max):
+        print("theta constraint violated")
+
+    if (Fr_final[-1] < u_trim[0] * (1 - u_eps)) or (
+        Fr_final[-1] > u_trim[0] * (1 + u_eps)
+    ):
+        print("Fr terminal condition violated")
+
+    if (Fp_final[-1] < u_trim[1] * (1 - u_eps)) or (
+        Fp_final[-1] > u_trim[1] * (1 + u_eps)
+    ):
+        print("Fp terminal condition violated")
+
+    if (theta_final[-1] < u_trim[2] * (1 - u_eps)) or (
+        theta_final[-1] > u_trim[2] * (1 + u_eps)
+    ):
+        print("theta terminal condition violated")
+
+    plot_results(results)

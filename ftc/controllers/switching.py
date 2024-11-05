@@ -67,6 +67,9 @@ class NDIController(fym.BaseEnv):
         # control input
         th_r = np.linalg.pinv(self.B_r2f) @ np.vstack((-Frd, Mrd))
         rcmds = th_r / self.cr_th
+        if not np.isclose(np.linalg.norm(self.B_r2f@ th_r- np.vstack((-Frd, Mrd))), 0):
+            print(np.linalg.norm(self.B_r2f@ th_r- np.vstack((-Frd, Mrd))))
+            breakpoint()
 
         th_p = Fpd / 2
         pcmds = th_p / self.cp_th * np.ones((2, 1))
@@ -79,6 +82,8 @@ class NDIController(fym.BaseEnv):
             "veld": veld,
             "Frd": Frd,
             "Fpd": Fpd,
+            "th_r": th_r,
+            "th_p": th_p,
             "angd": angd,
             "omegad": omegad,
             "ang": ang,
