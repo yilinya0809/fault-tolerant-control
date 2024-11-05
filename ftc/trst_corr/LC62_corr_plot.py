@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+import matplotlib.colors as mcolors
 import numpy as np
 
 from ftc.models.LC62_opt import LC62
@@ -26,7 +28,8 @@ cost = Trst_corr["cost"]
 success = Trst_corr["success"]
 Fr = Trst_corr["Fr"]
 Fp = Trst_corr["Fp"]
-cause = Trst_corr["cause"]
+Fx = Trst_corr["Fx"]
+Fz = Trst_corr["Fz"]
 
 # Check safety
 eta = 0.8
@@ -50,93 +53,110 @@ for i in range(np.size(VT_corr)):
         Fp_margin[i, 0] = np.NaN
 
 
-""" Figure 1 """
-fig, axs = plt.subplots(1, 2)
-ax = axs[0]
+# """ Figure 1 """
+# fig, axs = plt.subplots(1, 2)
+# ax = axs[0]
 VT, theta = np.meshgrid(VT_corr, theta_corr)
-ax.scatter(VT, theta, s=success.T, c="b")
-ax.set_xlabel("VT, m/s", fontsize=15)
-ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-ax.set_title("Dynamic Transition Corridor", fontsize=20)
+# ax.scatter(VT, theta, s=success.T, c="b")
+# ax.set_xlabel("VT, m/s", fontsize=15)
+# ax.set_ylabel(r"$\theta$, deg", fontsize=15)
+# ax.set_title("Dynamic Transition Corridor", fontsize=20)
 
-ax = axs[1]
-degree = 3
-upper_bound, lower_bound = boundary(Trst_corr)
-upper, lower, central = poly(degree, Trst_corr, upper_bound, lower_bound)
+# ax = axs[2]
+# degree = 3
+# upper_bound, lower_bound = boundary(Trst_corr)
+# upper, lower, central = poly(degree, Trst_corr, upper_bound, lower_bound)
 
-VT_target = VT_corr[-1]
-weighted = weighted_poly(degree, Trst_corr, VT_target, upper, lower)
+# VT_target = VT_corr[-1]
+# weighted = weighted_poly(degree, Trst_corr, VT_target, upper, lower)
 
-ax.plot(VT_corr, upper_bound, "o", label="Upper Bound Data", color="blue", alpha=0.3)
-ax.plot(VT_corr, lower_bound, "o", label="Lower Bound Data", color="orange", alpha=0.3)
-ax.plot(VT_corr, upper(VT_corr), "b--", label="Upper Bound Polynomial")
-ax.plot(VT_corr, lower(VT_corr), "y--", label="Lower Bound Polynomial")
-ax.plot(VT_corr, weighted(VT_corr), "k-", label="Weighted Line")
-ax.set_xlabel("VT, m/s", fontsize=15)
-ax.set_ylabel("θ, deg", fontsize=15)
-ax.legend()
-ax.grid()
+# ax.plot(VT_corr, upper_bound, "o", label="Upper Bound Data", color="blue", alpha=0.3)
+# ax.plot(VT_corr, lower_bound, "o", label="Lower Bound Data", color="orange", alpha=0.3)
+# ax.plot(VT_corr, upper(VT_corr), "b--", label="Upper Bound Polynomial")
+# ax.plot(VT_corr, lower(VT_corr), "y--", label="Lower Bound Polynomial")
+# ax.plot(VT_corr, weighted(VT_corr), "k-", label="Weighted Line")
+# ax.set_xlabel("VT, m/s", fontsize=15)
+# ax.set_ylabel("θ, deg", fontsize=15)
+# ax.legend()
+# ax.grid()
 
-""" Figure 2 """
-fig, ax = plt.subplots(1, 1)
-VT, theta = np.meshgrid(VT_corr, theta_corr)
-ax.scatter(VT.T, acc_corr, s=3)
-ax.set_xlabel("VT, m/s", fontsize=15)
-ax.set_ylabel(r"$a_x, m/s^{2}$", fontsize=15)
+# """ Figure 2 """
+# fig, ax = plt.subplots(1, 1)
+# VT, theta = np.meshgrid(VT_corr, theta_corr)
+# ax.scatter(VT.T, acc_corr, s=3)
+# ax.set_xlabel("VT, m/s", fontsize=15)
+# ax.set_ylabel(r"$a_x, m/s^{2}$", fontsize=15)
 
 
-""" Figure 3 """
-fig = plt.figure()
-ax = fig.add_subplot(projection="3d")
-ax.scatter(VT, theta, acc_corr.T, cmap="plasma", edgecolor="none")
-ax.contourf(VT, theta, acc_corr.T, zdir="z", offset=7, cmap="plasma")
+# """ Figure 3 """
+# fig = plt.figure()
+# ax = fig.add_subplot(projection="3d")
+# ax.scatter(VT, theta, acc_corr.T, cmap="plasma", edgecolor="none")
+# ax.contourf(VT, theta, acc_corr.T, zdir="z", offset=7, cmap="plasma")
 
-""" Figure 4 - Trst 2D """
-fig = plt.figure(figsize=(12, 8))
-ax = fig.add_subplot(111)
-contour = ax.contourf(
-    VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
-)
-ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
-ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
-# ax.set_title("Forward Acceleration Corridor", fontsize=20)
-cbar = fig.colorbar(contour)
-cbar.ax.set_xlabel(r"$a_x^I,\, m/s^{2}$", fontsize=20, labelpad=15)
-fig.tight_layout()
+# """ Figure 4 - Trst 2D """
+# fig = plt.figure(figsize=(12, 8))
+# ax = fig.add_subplot(111)
+# contour = ax.contourf(
+#     VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
+# )
+# ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+# ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# # ax.set_title("Forward Acceleration Corridor", fontsize=20)
+# cbar = fig.colorbar(contour)
+# cbar.ax.set_xlabel(r"$a_x^I,\, m/s^{2}$", fontsize=20, labelpad=15)
+# fig.tight_layout()
 
-""" Figure 5 - Fr, Fp """
-# fig, axs = plt.subplots(1, 2, figsize=(18, 5), squeeze=False, sharex=True)
-# ax = axs[0, 0]
-fig = plt.figure(figsize=(12, 8))
-ax = fig.add_subplot(111)
-contour = ax.contourf(
-    VT, theta, Fr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
-)
-# ax.plot(VT_corr, Fr_margin, "r--")
-ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
-ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
-cbar = fig.colorbar(contour)
-cbar.ax.set_xlabel(r"$F_{rotors},\, N$", fontsize=20, labelpad=15)
-# cbar.ax.xaxis.set_label_position('bottom')
-# cbar.ax.xaxis.tick_top()
-fig.tight_layout()
+# """ Figure 5 - Fr, Fp """
+# # fig, axs = plt.subplots(1, 2, figsize=(18, 5), squeeze=False, sharex=True)
+# # ax = axs[0, 0]
+# fig = plt.figure(figsize=(12, 8))
+# ax = fig.add_subplot(111)
+# contour = ax.contourf(
+#     VT, theta, Fr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
+# )
+# # ax.plot(VT_corr, Fr_margin, "r--")
+# ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+# ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# cbar = fig.colorbar(contour)
+# cbar.ax.set_xlabel(r"$F_{rotors},\, N$", fontsize=20, labelpad=15)
+# # cbar.ax.xaxis.set_label_position('bottom')
+# # cbar.ax.xaxis.tick_top()
+# fig.tight_layout()
 
-""" Figure 6 - Fp """
-# ax = axs[0, 1]
+# """ Figure 6 - Fp """
+# # ax = axs[0, 1]
 
-fig = plt.figure(figsize=(12, 8))
-ax = fig.add_subplot(111)
-contour = ax.contourf(
-    VT, theta, Fp.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
-)
-ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
-ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
-cbar = fig.colorbar(contour)
-cbar.ax.set_xlabel(r"$F_{pushers},\, N$", fontsize=20, labelpad=15)
-fig.tight_layout()
+# fig = plt.figure(figsize=(12, 8))
+# ax = fig.add_subplot(111)
+# contour = ax.contourf(
+#     VT, theta, Fp.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
+# )
+# ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+# ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# cbar = fig.colorbar(contour)
+# cbar.ax.set_xlabel(r"$F_{pushers},\, N$", fontsize=20, labelpad=15)
+# fig.tight_layout()
 
 """ Figure 7 - non-corridor """
-fig, ax = plt.subplots(1, 1)
-ax.scatter(VT, theta, c=cause.T)
+fig, ax = plt.subplots(1, 1, figsize=(12,8))
+cmap = mcolors.ListedColormap(['lightblue','lightcoral'])
+sc1 = ax.scatter(VT, theta, s=50, c=Fz.T, cmap=cmap, alpha=0.2, label='Fz')
+
+cmap = mcolors.ListedColormap(['k'])
+sc2 = ax.scatter(VT, theta, s=5, c=Fx.T, cmap=cmap, label='Fx')
+
+legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label=r'$F_x^I < 0$',
+                          markerfacecolor='black', markersize=10, alpha=0.8),
+        Line2D([0], [0], marker='o', color='w', label=r'$F_z^I > 0$',
+                          markerfacecolor='lightblue', markersize=10, alpha=0.6),
+        Line2D([0], [0], marker='o', color='w', label=r'$F_z^I < 0$',
+                          markerfacecolor='lightcoral', markersize=10, alpha=0.6),
+]
+
+ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, fontsize=20)
+ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
 
 plt.show()
