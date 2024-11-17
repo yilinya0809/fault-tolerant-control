@@ -15,7 +15,7 @@ np.seterr(all="raise")
 
 """ Optimal transition trajectory """
 opt_traj = {}
-f = h5py.File("ftc/trst_corr/opt.h5", "r")
+f = h5py.File("data/opt_corr.h5", "r")
 opt_traj["tf"] = f.get("tf")[()]
 opt_traj["X"] = f.get("X")[:]
 opt_traj["U"] = f.get("U")[:]
@@ -30,7 +30,7 @@ class MyEnv(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 30,
+            "max_t": 20,
         },
         "plant": {
             "init": {
@@ -52,15 +52,13 @@ class MyEnv(fym.BaseEnv):
         self.x_trims_FW, self.u_trims_fixed_FW = self.plant.get_trim_fixed(
             fixed={"h": self.h, "VT": self.VT_cruise}
         )
-        self.u_trims_vtol_FW = np.zeros((6, 1)) 
+        self.u_trims_vtol_FW = np.zeros((6, 1))
         self.Q = np.diag([0, 0, 100, 10, 10, 10, 100, 100, 100, 0, 0, 0])
         # self.R = np.diag([1, 1, 100, 100, 100])
         self.R = np.diag([400, 400, 1, 1, 1])
 
-
         self.controller_trst = ftc.make("Trst", self)
         self.controller_fw = ftc.make("FW", self)
-        
 
     def step(self):
         env_info, done = self.update()
@@ -82,7 +80,7 @@ class MyEnv(fym.BaseEnv):
         pos, vel, quat, omega = self.plant.observe_list()
         VT = np.linalg.norm(vel)
         if VT < self.VT_cruise - 2:
-        # if t < opt_traj["tf"]:
+            # if t < opt_traj["tf"]:
             ctrls0, controller_info = self.controller_trst.get_control(t, self)
         else:
             ctrls0, controller_info = self.controller_fw.get_control(t, self)
@@ -138,14 +136,14 @@ def plot():
     ax.set_xlim(data["t"][0], data["t"][-1])
 
     ax = axes[1, 0]
-    ax.plot(data["t"], data["posd"][:, 1], 'r--')
+    ax.plot(data["t"], data["posd"][:, 1], "r--")
     ax.plot(data["t"], data["plant"]["pos"][:, 1].squeeze(-1), "b-")
     ax.set_ylabel(r"$y$, m")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 0]
     # ax.plot(tspan, opt_traj["X"][0, :], "r--")
-    ax.plot(data["t"], data["posd"][:, 2], 'r--')
+    ax.plot(data["t"], data["posd"][:, 2], "r--")
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
     ax.set_ylabel(r"$z$, m")
     ax.set_ylim([-15, -5])
@@ -155,18 +153,18 @@ def plot():
     """ Column 2 - States: Velocity """
     ax = axes[0, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "b-")
-    ax.plot(data["t"], data["veld"][:, 0], 'r--')
+    ax.plot(data["t"], data["veld"][:, 0], "r--")
     ax.set_ylabel(r"$v_x$, m/s")
 
     ax = axes[1, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 1].squeeze(-1), "b-")
-    ax.plot(data["t"], data["veld"][:, 1], 'r--')
+    ax.plot(data["t"], data["veld"][:, 1], "r--")
     ax.set_ylabel(r"$v_y$, m/s")
     ax.set_ylim([-1, 1])
 
     ax = axes[2, 1]
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "b-")
-    ax.plot(data["t"], data["veld"][:, 2], 'r--')
+    ax.plot(data["t"], data["veld"][:, 2], "r--")
     ax.set_ylabel(r"$v_z$, m/s")
     ax.set_ylim([-10, 10])
 
