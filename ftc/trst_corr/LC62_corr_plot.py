@@ -1,16 +1,22 @@
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
+import h5py
 import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
+from casadi import *
+from fym.utils.rot import angle2dcm
+from matplotlib.lines import Line2D
 
 from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary, poly, weighted_poly
-plt.rcParams.update({
-    # "text.usetex": True,
-    "font.family": "serif",
-    "mathtext.fontset": "stix",
-    # "font.serif": "Times New Roman",
-})
+
+plt.rcParams.update(
+    {
+        # "text.usetex": True,
+        "font.family": "serif",
+        "mathtext.fontset": "stix",
+        # "font.serif": "Times New Roman",
+    }
+)
 
 plant = LC62()
 Fr_max = 6 * plant.th_r_max
@@ -53,32 +59,71 @@ for i in range(np.size(VT_corr)):
         Fp_margin[i, 0] = np.NaN
 
 
-# """ Figure 1 """
-# fig, axs = plt.subplots(1, 2)
-# ax = axs[0]
-VT, theta = np.meshgrid(VT_corr, theta_corr)
-# ax.scatter(VT, theta, s=success.T, c="b")
-# ax.set_xlabel("VT, m/s", fontsize=15)
-# ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-# ax.set_title("Dynamic Transition Corridor", fontsize=20)
+# Optimal Trajectory
+data = {}
+with h5py.File("opt_corr.h5", "r") as f:
+    data["tf"] = f["tf"][()]
+    data["X"] = f["X"][:]
+    data["U"] = f["U"][:]
 
-# ax = axs[2]
+
+def casadi_polyval(coeffs, x):
+    value = 0
+    deg = len(coeffs) - 1
+    for i, coeff in enumerate(coeffs):
+        value += coeff * x ** (deg - i)
+    return value
+
+
+def upper_func(vel):
+    value = casadi_polyval(upper, vel)
+    return value
+
+
+def lower_func(vel):
+    value_min = np.min(lower_bound)
+    value_low = casadi_polyval(lower, vel)
+    value = if_else(vel < VT_filtered[0], value_min, value_low)
+    return value
+
+
+# """ Figure 1 """
+# fig = plt.figure(figsize=(12, 8))
+# ax = fig.add_subplot(111)
+
 # degree = 3
 # upper_bound, lower_bound = boundary(Trst_corr)
-# upper, lower, central = poly(degree, Trst_corr, upper_bound, lower_bound)
 
-# VT_target = VT_corr[-1]
-# weighted = weighted_poly(degree, Trst_corr, VT_target, upper, lower)
+# mask = lower_bound > np.min(lower_bound)
+# VT_filtered = VT_corr[mask]
+# lower_bound_filtered = lower_bound[mask]
 
-# ax.plot(VT_corr, upper_bound, "o", label="Upper Bound Data", color="blue", alpha=0.3)
-# ax.plot(VT_corr, lower_bound, "o", label="Lower Bound Data", color="orange", alpha=0.3)
-# ax.plot(VT_corr, upper(VT_corr), "b--", label="Upper Bound Polynomial")
-# ax.plot(VT_corr, lower(VT_corr), "y--", label="Lower Bound Polynomial")
-# ax.plot(VT_corr, weighted(VT_corr), "k-", label="Weighted Line")
-# ax.set_xlabel("VT, m/s", fontsize=15)
-# ax.set_ylabel("θ, deg", fontsize=15)
-# ax.legend()
-# ax.grid()
+# deg = 3
+# upper = np.polyfit(VT_corr, upper_bound, deg)
+# lower = np.polyfit(VT_filtered, lower_bound_filtered, deg)
+
+# VT, theta = np.meshgrid(VT_corr, theta_corr)
+# ax.scatter(VT, theta, s=success.T, c="k")
+# ax.plot(
+#     VT_corr,
+#     np.rad2deg(upper_func(VT_corr)),
+#     "r-",
+#     label=r"$\mathrm{upper}(V)$",
+#     linewidth=5,
+# )
+# ax.plot(
+#     VT_corr,
+#     np.rad2deg(lower_func(VT_corr)),
+#     "b-",
+#     label=r"$\mathrm{lower}(V)$",
+#     linewidth=5,
+# )
+# ax.set_xlabel(r"$V, \mathrm{m/s}$", fontsize=20)
+# ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# ax.set_xlim([0, 45])
+# ax.set_ylim([-30, 30])
+# ax.legend(fontsize=20)
+# fig.tight_layout()
 
 # """ Figure 2 """
 # fig, ax = plt.subplots(1, 1)
@@ -100,11 +145,12 @@ VT, theta = np.meshgrid(VT_corr, theta_corr)
 # contour = ax.contourf(
 #     VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 # )
-# ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+# ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 # ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# ax.set_aspect(0.62)
 # # ax.set_title("Forward Acceleration Corridor", fontsize=20)
 # cbar = fig.colorbar(contour)
-# cbar.ax.set_xlabel(r"$a_x^I,\, m/s^{2}$", fontsize=20, labelpad=15)
+# cbar.ax.set_xlabel(r"$a_x^I,\, \mathrm{m/s^{2}}$", fontsize=20, labelpad=15)
 # fig.tight_layout()
 
 # """ Figure 5 - Fr, Fp """
@@ -116,10 +162,11 @@ VT, theta = np.meshgrid(VT_corr, theta_corr)
 #     VT, theta, Fr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 # )
 # # ax.plot(VT_corr, Fr_margin, "r--")
-# ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+# ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 # ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# ax.set_aspect(0.62)
 # cbar = fig.colorbar(contour)
-# cbar.ax.set_xlabel(r"$F_{rotors},\, N$", fontsize=20, labelpad=15)
+# cbar.ax.set_xlabel(r"$F_{rotors},\, \mathrm{N}$", fontsize=20, labelpad=15)
 # # cbar.ax.xaxis.set_label_position('bottom')
 # # cbar.ax.xaxis.tick_top()
 # fig.tight_layout()
@@ -132,31 +179,167 @@ VT, theta = np.meshgrid(VT_corr, theta_corr)
 # contour = ax.contourf(
 #     VT, theta, Fp.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 # )
-# ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
+# ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 # ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# ax.set_aspect(0.62)
 # cbar = fig.colorbar(contour)
-# cbar.ax.set_xlabel(r"$F_{pushers},\, N$", fontsize=20, labelpad=15)
+# cbar.ax.set_xlabel(r"$F_{pushers},\, \mathrm{N}$", fontsize=20, labelpad=15)
 # fig.tight_layout()
 
-""" Figure 7 - non-corridor """
-fig, ax = plt.subplots(1, 1, figsize=(12,8))
-cmap = mcolors.ListedColormap(['lightblue','lightcoral'])
-sc1 = ax.scatter(VT, theta, s=50, c=Fz.T, cmap=cmap, alpha=0.2, label='Fz')
+# """ Figure 7 - non-corridor """
+# fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+# cmap = mcolors.ListedColormap(["lightblue", "lightcoral"])
+# sc1 = ax.scatter(VT, theta, s=50, c=Fz.T, cmap=cmap, alpha=0.2, label="Fz")
 
-cmap = mcolors.ListedColormap(['k'])
-sc2 = ax.scatter(VT, theta, s=5, c=Fx.T, cmap=cmap, label='Fx')
+# cmap = mcolors.ListedColormap(["k"])
+# sc2 = ax.scatter(VT, theta, s=5, c=Fx.T, cmap=cmap, label="Fx")
 
-legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label=r'$F_x^I < 0$',
-                          markerfacecolor='black', markersize=10, alpha=0.8),
-        Line2D([0], [0], marker='o', color='w', label=r'$F_z^I > 0$',
-                          markerfacecolor='lightblue', markersize=10, alpha=0.6),
-        Line2D([0], [0], marker='o', color='w', label=r'$F_z^I < 0$',
-                          markerfacecolor='lightcoral', markersize=10, alpha=0.6),
-]
+# legend_elements = [
+#     Line2D(
+#         [0],
+#         [0],
+#         marker="o",
+#         color="w",
+#         label=r"$F_x^I < 0$",
+#         markerfacecolor="black",
+#         markersize=10,
+#         alpha=0.8,
+#     ),
+#     Line2D(
+#         [0],
+#         [0],
+#         marker="o",
+#         color="w",
+#         label=r"$F_z^I > 0$",
+#         markerfacecolor="lightblue",
+#         markersize=10,
+#         alpha=0.6,
+#     ),
+#     Line2D(
+#         [0],
+#         [0],
+#         marker="o",
+#         color="w",
+#         label=r"$F_z^I < 0$",
+#         markerfacecolor="lightcoral",
+#         markersize=10,
+#         alpha=0.6,
+#     ),
+# ]
 
-ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, fontsize=20)
-ax.set_xlabel(r"$V,\, m/s$", fontsize=20)
-ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# ax.legend(
+#     handles=legend_elements,
+#     loc="upper center",
+#     bbox_to_anchor=(0.5, 1.15),
+#     ncol=3,
+#     fontsize=20,
+# )
+# ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
+# ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
+# ax.set_xlim([0, 45])
+# ax.set_ylim([-30, 30])
+# ax.set_aspect(0.55)
+# fig.tight_layout()
+
+
+""" Figure 8 - Optimal Trajectory """
+N = 200
+tspan = linspace(0, data["tf"], N + 1)
+z = data["X"][0, :]
+vel = data["X"][1:, :]
+Fr = data["U"][0, :]
+Fp = data["U"][1, :]
+theta = data["U"][2, :]
+
+Fx_I = np.zeros((N, 1))
+Fz_I = np.zeros((N, 1))
+for i in range(N):
+    R = angle2dcm(0, theta[i], 0)
+    Fx, Fz = plant.B_Fuselage(vel[:, i])
+
+    FB = np.vstack((Fp[i] + Fx, 0, -Fr[i] + Fz))
+    F = R.T @ FB + np.vstack((0, 0, plant.m * plant.g))
+    Fx_I[i] = F[0]
+    Fz_I[i] = F[2]
+
+
+""" States trajectory """
+fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
+ax = axs[0, 0]
+ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
+ax.set_ylabel("$h$, m", fontsize=15)
+ax.set_ylim([9, 11])
+ax.grid()
+ax.set_xlim([0, data["tf"]])
+
+ax = axs[1, 0]
+ax.plot(tspan, data["X"][1, :], "k", linewidth=3)
+ax.set_ylabel("$V_x^B$, m/s", fontsize=15)
+ax.set_xlim([0, data["tf"]])
+ax.grid()
+
+ax = axs[2, 0]
+ax.plot(tspan, data["X"][2, :], "k", linewidth=3)
+ax.set_ylabel("$V_z^B$, m/s", fontsize=15)
+ax.set_xlabel("Time, s", fontsize=15)
+ax.set_ylim([-10, 10])
+ax.set_xlim([0, data["tf"]])
+ax.grid()
+
+fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
+ax = axs[0, 0]
+ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
+ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
+ax.set_ylabel("$F^{rotor}$, N", fontsize=15)
+ax.set_xlim([0, data["tf"]])
+ax.grid()
+
+ax = axs[1, 0]
+ax.plot(tspan[:-1], data["U"][1, :], "k", linewidth=3)
+ax.plot(tspan[:-1], Fp_max * np.ones((N, 1)), "r--")
+ax.set_ylabel("$F^{pusher}$, N", fontsize=15)
+ax.set_xlim([0, data["tf"]])
+ax.grid()
+
+ax = axs[2, 0]
+ax.plot(tspan[:-1], np.rad2deg(data["U"][2, :]), "k", linewidth=3)
+ax.plot(tspan[:-1], -30 * np.ones((N, 1)), "r--")
+ax.plot(tspan[:-1], 30 * np.ones((N, 1)), "r--")
+ax.set_ylabel(r"$\theta$, deg", fontsize=15)
+ax.set_xlabel("Time, s", fontsize=15)
+ax.set_ylim([-35, 35])
+ax.set_xlim([0, data["tf"]])
+ax.grid()
+
+""" Figure 9 - VT, theta traj """
+fig, ax = plt.subplots(1, 1)
+VT_traj = np.zeros((N, 1))
+theta_traj = np.zeros((N, 1))
+for i in range(N):
+    VT_traj[i] = norm_2(data["X"][1:3, i])
+    theta_traj[i] = np.rad2deg(data["U"][2, i])
+
+ax.plot(VT_traj[1:], theta_traj[1:], "r-", linewidth=5)
+VT, theta = np.meshgrid(VT_corr, theta_corr)
+ax.scatter(VT, theta, s=success.T, c="b")
+ax.set_xlabel("V, m/s", fontsize=15)
+ax.set_ylabel(r"$\theta$, deg", fontsize=15)
+ax.set_title("Dynamic Transition Corridor", fontsize=20)
+
+""" Fx, Fz traj """
+fig, axs = plt.subplots(1, 2)
+ax = axs[0]
+ax.plot(tspan[:-1], Fx_I[:], "k", linewidth=3)
+ax.set_ylabel(r"$F_x^I,\, \mathrm{N}$", fontsize=15)
+ax.set_xlim([0, data["tf"]])
+ax.grid()
+
+ax = axs[1]
+ax.plot(tspan[:-1], Fz_I[:], "k", linewidth=3)
+ax.set_ylabel(r"$F_z^I,\, \mathrm{N}$", fontsize=15)
+ax.set_xlim([0, data["tf"]])
+ax.grid()
+fig.tight_layout()
+
 
 plt.show()

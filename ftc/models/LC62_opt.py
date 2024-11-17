@@ -79,11 +79,23 @@ class LC62:
         alp = arctan2(w, u)
         qbar = 0.5 * rho * VT**2
         CL, CD = self.aero_coeff(alp)
-        Fx = qbar * S * (CL * sin(alp) - CD * cos(alp))
-        Fz = -qbar * S * (CL * cos(alp) + CD * sin(alp))
+        Fx = -qbar * S * CD
+        Fz = -qbar * S * CL
+        # Fx = qbar * S * (CL * sin(alp) - CD * cos(alp))
+        # Fz = -qbar * S * (CL * cos(alp) + CD * sin(alp))
         return Fx, Fz
 
     def aero_coeff(self, alp):
+        # alp0 = self.tables["alp"][0]
+        # cl0 = self.tables["CL"][0]
+        # cd0 = self.tables["CD"][0]
+        # alpf = self.tables["alp"][-1]
+        # clf = self.tables["CL"][-1]
+        # cdf = self.tables["CD"][-1]
+
+        # CL = cl0 + (clf - cl0) / (alpf - alp0) * alp
+        # CD = cd0 + (cdf - cd0) / (alpf - alp0) * alp
+
         clgrid = interpolant(
             "CLGRID", "bspline", [self.tables["alp"]], self.tables["CL"]
         )
