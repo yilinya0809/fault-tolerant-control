@@ -3,7 +3,7 @@ import fym
 import numpy as np
 from fym.utils.rot import quat2angle
 
-from ftc.models.LC62_mpc import LC62
+from ftc.models.LC62_opt import LC62
 
 class MPC:
     def __init__(self, env):
@@ -19,7 +19,7 @@ class MPC:
 
         z_init, vx_init, vz_init, theta_init, _ = env.observation()
 
-        X_trim, U_trim = self.plant.get_trim(fixed={"h": 50, "VT": 45})
+        X_trim, U_trim = self.plant.get_trim(fixed={"h": 10, "VT": 45})
         _, self.z_target, vx_target, vz_target = X_trim.ravel()
         Fr_target, Fp_target, theta_target = U_trim.ravel()
 
@@ -96,7 +96,7 @@ class MPC:
         Q = ca.diagcat(300, 300, 300)
         R = ca.diagcat(0.01, 0.1, 200000)
 
-        Xdot = self.plant.deriv_lin(states, controls, q)
+        Xdot = self.plant.derivq(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
 
         cost_fn = 0  # cost function

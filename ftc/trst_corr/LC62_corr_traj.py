@@ -217,7 +217,7 @@ def plot_results(data):
     ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    fig.tight_layout()
+    # fig.tight_layout()
 
     """ Control input trajectory """
     fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
@@ -245,7 +245,7 @@ def plot_results(data):
     ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    fig.tight_layout()
+    # fig.tight_layout()
 
     """ VT, theta traj """
     fig, ax = plt.subplots(1, 1)
@@ -261,7 +261,7 @@ def plot_results(data):
     ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
     ax.set_ylabel(r"$\theta,\, \mathrm{deg}$", fontsize=20)
     # ax.set_title("Dynamic Transition Corridor", fontsize=20)
-    fig.tight_layout()
+    # fig.tight_layout()
 
     plt.show()
 

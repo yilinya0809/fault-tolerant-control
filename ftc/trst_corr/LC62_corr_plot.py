@@ -254,44 +254,46 @@ for i in range(N):
 
 
 """ States trajectory """
-fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
-ax = axs[0, 0]
+fig, axs = plt.subplots(3, 1, figsize=(12, 8))
+ax = axs[0]
 ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
 ax.set_ylabel("$h$, m", fontsize=15)
 ax.set_ylim([9, 11])
 ax.grid()
 ax.set_xlim([0, data["tf"]])
 
-ax = axs[1, 0]
+ax = axs[1]
 ax.plot(tspan, data["X"][1, :], "k", linewidth=3)
 ax.set_ylabel("$V_x^B$, m/s", fontsize=15)
 ax.set_xlim([0, data["tf"]])
 ax.grid()
 
-ax = axs[2, 0]
+ax = axs[2]
 ax.plot(tspan, data["X"][2, :], "k", linewidth=3)
 ax.set_ylabel("$V_z^B$, m/s", fontsize=15)
 ax.set_xlabel("Time, s", fontsize=15)
 ax.set_ylim([-10, 10])
 ax.set_xlim([0, data["tf"]])
 ax.grid()
+fig.tight_layout()
 
-fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
-ax = axs[0, 0]
+""" Input trajectories """
+fig, axs = plt.subplots(3, 1, figsize=(12, 8))
+ax = axs[0]
 ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
 ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
 ax.set_ylabel("$F^{rotor}$, N", fontsize=15)
 ax.set_xlim([0, data["tf"]])
 ax.grid()
 
-ax = axs[1, 0]
+ax = axs[1]
 ax.plot(tspan[:-1], data["U"][1, :], "k", linewidth=3)
 ax.plot(tspan[:-1], Fp_max * np.ones((N, 1)), "r--")
 ax.set_ylabel("$F^{pusher}$, N", fontsize=15)
 ax.set_xlim([0, data["tf"]])
 ax.grid()
 
-ax = axs[2, 0]
+ax = axs[2]
 ax.plot(tspan[:-1], np.rad2deg(data["U"][2, :]), "k", linewidth=3)
 ax.plot(tspan[:-1], -30 * np.ones((N, 1)), "r--")
 ax.plot(tspan[:-1], 30 * np.ones((N, 1)), "r--")
@@ -300,9 +302,10 @@ ax.set_xlabel("Time, s", fontsize=15)
 ax.set_ylim([-35, 35])
 ax.set_xlim([0, data["tf"]])
 ax.grid()
+fig.tight_layout()
 
 """ Figure 9 - VT, theta traj """
-fig, ax = plt.subplots(1, 1)
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
 VT_traj = np.zeros((N, 1))
 theta_traj = np.zeros((N, 1))
 for i in range(N):
@@ -314,22 +317,23 @@ VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, s=success.T, c="b")
 ax.set_xlabel("V, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-ax.set_title("Dynamic Transition Corridor", fontsize=20)
-
-""" Fx, Fz traj """
-fig, axs = plt.subplots(1, 2)
-ax = axs[0]
-ax.plot(tspan[:-1], Fx_I[:], "k", linewidth=3)
-ax.set_ylabel(r"$F_x^I,\, \mathrm{N}$", fontsize=15)
-ax.set_xlim([0, data["tf"]])
-ax.grid()
-
-ax = axs[1]
-ax.plot(tspan[:-1], Fz_I[:], "k", linewidth=3)
-ax.set_ylabel(r"$F_z^I,\, \mathrm{N}$", fontsize=15)
-ax.set_xlim([0, data["tf"]])
-ax.grid()
+# ax.set_title("Dynamic Transition Corridor", fontsize=20)
 fig.tight_layout()
+
+# """ Fx, Fz traj """
+# fig, axs = plt.subplots(1, 2)
+# ax = axs[0]
+# ax.plot(tspan[:-1], Fx_I[:], "k", linewidth=3)
+# ax.set_ylabel(r"$F_x^I,\, \mathrm{N}$", fontsize=15)
+# ax.set_xlim([0, data["tf"]])
+# ax.grid()
+
+# ax = axs[1]
+# ax.plot(tspan[:-1], Fz_I[:], "k", linewidth=3)
+# ax.set_ylabel(r"$F_z^I,\, \mathrm{N}$", fontsize=15)
+# ax.set_xlim([0, data["tf"]])
+# ax.grid()
+# fig.tight_layout()
 
 
 plt.show()
