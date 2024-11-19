@@ -84,7 +84,7 @@ T = opti.variable()
 # W_z = 5000
 # W_u = diag([1, 10, 5000])
 
-W_t = 1000
+W_t = 100000
 W_z = 50000
 W_u = diag([1, 10, 500000])
 
@@ -139,7 +139,7 @@ opti.subject_to(z[-1] == x_trim[1])
 opti.subject_to(vx[-1] == x_trim[2])
 opti.subject_to(vz[-1] == x_trim[3])
 
-u_eps = 0.9
+u_eps = 0.8
 opti.subject_to(opti.bounded(0, Fr[-1], 10))
 opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
 opti.subject_to(

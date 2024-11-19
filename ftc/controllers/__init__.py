@@ -38,7 +38,7 @@ register(
 )
 register(
     id="NMPC",
-    entry_point="ftc.controllers.MPC.nmpc_di:MPC",
+    entry_point="ftc.controllers.MPC.mpc_LC62:MPC",
 )
 register(
     id="NMPC-Corr",
@@ -46,7 +46,7 @@ register(
 )
 register(
     id="NMPC-DI",
-    entry_point="ftc.controllers.MPC.mpc_geso:NDIController",
+    entry_point="ftc.controllers.MPC.mpc_LC62:NDIController",
 )
 register(
     id="NMPC-GESO",
