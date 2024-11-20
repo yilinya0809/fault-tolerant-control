@@ -115,10 +115,11 @@ opti.minimize(cost)
 
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
+eta = 0.8
 theta_max = np.deg2rad(30)
 # ---- input constraints --------
-opti.subject_to(opti.bounded(0, Fr, Fr_max))
-opti.subject_to(opti.bounded(0, Fp, Fp_max))
+opti.subject_to(opti.bounded(0, Fr, eta * Fr_max))
+opti.subject_to(opti.bounded(0, Fp, eta * Fp_max))
 opti.subject_to(opti.bounded(-theta_max, theta, theta_max))
 
 # ---- state constraints --------

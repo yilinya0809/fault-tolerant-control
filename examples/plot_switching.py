@@ -2,6 +2,18 @@ import fym
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+from casadi import *
+
+""" Transition Corridor """
+# Trst_corr = np.load("data/corr.npz")
+Trst_corr = np.load("data/corr_safe.npz")
+VT_corr = Trst_corr["VT_corr"]
+acc_corr = Trst_corr["acc"]
+theta_corr = np.rad2deg(Trst_corr["theta_corr"])
+Fr = Trst_corr["Fr"]
+Fp = Trst_corr["Fp"]
+success = Trst_corr["success"]
+
 
 """ Optimal transition trajectory """
 opt_traj = {}
@@ -275,29 +287,12 @@ def plot():
     ax.set_xlabel("Time, sec")
     ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 
-    #     ax = axes[1, 1]
-    #     l1 = ax.plot(time, np.rad2deg(q_ndi), "k--",linewidth=3)
-    #     l2 = ax.plot(time, np.rad2deg(q_mpc), "b-",linewidth=3)
-    #     l3 = ax.plot(time, np.rad2deg(qd), "r:",linewidth=3)
-    #     ax.set_xlim(time[0], time[-1])
-    #     ax.set_xlabel("Time, sec",linewidth=3)
-    #     ax.set_ylabel(r"$q$, deg/s", fontsize=13)
-
     ax.legend()
-    # fig.legend(
-    #     [l3, l1, l2, l4],
-    #     labels=["Opt-NDI", "MPC-NDI", "NDI", "Trim"],
-    #     loc="lower center",
-    #     bbox_to_anchor=(0.55, 0),
-    #     fontsize=15,
-    #     ncol=4,
-    # )
     fig.tight_layout()
     # fig.subplot_adjust(right=0.85)
 
     """ Figure 2 - Control Inputs """
     fig, axes = plt.subplots(2, 4, figsize=(12, 8))
-    # fig.suptitle("Control input trajectories",linewidth=3)
 
     ax = axes[0, 0]
     ax.plot(time, rotors_ndi[:, 0], "g-.", linewidth=3)
@@ -436,23 +431,43 @@ def plot():
 
     # fig.tight_layout()
 
+    """ Figure 3 - Transition Corridor """
+    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    VT, theta = np.meshgrid(VT_corr, theta_corr)
+    ax.scatter(VT, theta, s=success.T, c="b")
+
+    ax.plot(VT_ndi, np.rad2deg(theta_ndi), "g-.", linewidth=5, label="NDI")
+    ax.plot(VT_mpc, np.rad2deg(theta_mpc), "b--", linewidth=5, label="MPC-NDI")
+    ax.plot(VT_opt, np.rad2deg(theta_opt), "k-", linewidth=5, label="Opt-NDI")
+    ax.set_xlabel("V, m/s", fontsize=15)
+    ax.set_ylabel(r"$\theta$, deg", fontsize=15)
+    ax.legend()
+    fig.tight_layout()
+
+
+
     plt.show()
 
 
 def total_cost():
     Vxd = Vd[:, 0]
     Vzd = Vd[:, 1]
-
+    
+    Vx_opt = V_opt[:, 0]
+    Vz_opt = V_opt[:, 2]
     Vx_ndi = V_ndi[:, 0]
     Vz_ndi = V_ndi[:, 2]
     Vx_mpc = V_mpc[:, 0]
     Vz_mpc = V_mpc[:, 2]
 
+    cost_opt = 0
     cost_ndi = 0
     cost_mpc = 0
     Q = 10 * np.diag((1, 1, 1))
 
     for k in range(np.size(time)):
+        Vx_opt = V_opt[k, 0]
+        Vz_opt = V_opt[k, 2]
         Vx_ndi = V_ndi[k, 0]
         Vz_ndi = V_ndi[k, 2]
         Vx_mpc = V_mpc[k, 0]
@@ -481,8 +496,10 @@ def total_cost():
 
 
 def rotor_cost():
+    cost_opt = 0
     cost_ndi = 0
     cost_mpc = 0
+    rcost_opt = 0
     rcost_ndi = 0
     rcost_mpc = 0
 
@@ -491,26 +508,29 @@ def rotor_cost():
     # A = np.diag((1,1,1,1,1,1,1,1))
 
     for k in range(np.size(time)):
-        r_ndi = rotors_ndi[k]
-        r_mpc = rotors_mpc[k]
-        rcost_ndi = rcost_ndi + r_ndi.T @ B @ r_ndi
-        rcost_mpc = rcost_mpc + r_mpc.T @ B @ r_mpc
+        # r_opt = rotors_opt[k]
+        # r_ndi = rotors_ndi[k]
+        # r_mpc = rotors_mpc[k]
+        # rcost_opt = rcost_opt + r_opt.T @ B @ r_opt
+        # rcost_ndi = rcost_ndi + r_ndi.T @ B @ r_ndi
+        # rcost_mpc = rcost_mpc + r_mpc.T @ B @ r_mpc
 
-    #     for k in range(np.size(time)):
-    #         ctrls_ndi = np.vstack((rotors_ndi[k], pushers_ndi[k]))
-    #         ctrls_mpc = np.vstack((rotors_mpc[k], pushers_mpc[k]))
-    #         cost_ndi = cost_ndi + ctrls_ndi.T @ A @ ctrls_ndi
-    #         cost_mpc = cost_mpc + ctrls_mpc.T @ A @ ctrls_mpc
+        ctrls_opt = np.vstack((rotors_opt[k], pushers_opt[k]))
+        ctrls_ndi = np.vstack((rotors_ndi[k], pushers_ndi[k]))
+        ctrls_mpc = np.vstack((rotors_mpc[k], pushers_mpc[k]))
+        cost_opt = cost_opt + ctrls_opt.T @ A @ ctrls_opt
+        cost_ndi = cost_ndi + ctrls_ndi.T @ A @ ctrls_ndi
+        cost_mpc = cost_mpc + ctrls_mpc.T @ A @ ctrls_mpc
 
-    # return cost_ndi, cost_mpc
-    return rcost_ndi, rcost_mpc
+    return cost_opt, cost_ndi, cost_mpc
 
 
 if __name__ == "__main__":
     # cost_ndi, cost_mpc = total_cost()
-    # ctrlcost_ndi, ctrlcost_mpc = rotor_cost()
+    ctrlcost_opt, ctrlcost_ndi, ctrlcost_mpc = rotor_cost()
     # print(cost_ndi)
     # print(cost_mpc)
-    # print(ctrlcost_ndi)
-    # print(ctrlcost_mpc)
+    print(ctrlcost_opt)
+    print(ctrlcost_ndi)
+    print(ctrlcost_mpc)
     plot()

@@ -15,7 +15,7 @@ np.seterr(all="raise")
 
 """ Optimal transition trajectory """
 opt_traj = {}
-f = h5py.File("data/opt_corr.h5", "r")
+f = h5py.File("data/opt_corr_test.h5", "r")
 opt_traj["tf"] = f.get("tf")[()]
 opt_traj["X"] = f.get("X")[:]
 opt_traj["U"] = f.get("U")[:]
@@ -124,7 +124,7 @@ def run():
 
 
 def plot():
-    data = fym.load("data/data_switch.h5")["env"]
+    data = fym.load("data_opt_ndi.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)

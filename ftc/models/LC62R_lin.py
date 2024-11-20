@@ -166,7 +166,7 @@ class LC62R(fym.BaseEnv):
         self.vel = fym.BaseSystem(env_config["init"]["vel"])
         self.quat = fym.BaseSystem(env_config["init"]["quat"])
         self.omega = fym.BaseSystem(env_config["init"]["omega"])
-
+        
         self.e3 = np.vstack((0, 0, 1))
         self.x_trims, self.u_trims_fixed = self.get_trim_fixed(
             fixed={"h": 10, "VT": 45}

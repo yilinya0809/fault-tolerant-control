@@ -22,8 +22,8 @@ class NDIController(fym.BaseEnv):
             )
         )
         self.K1 = np.diag((0, 100))
-        self.K2 = np.diag((10, 10))
-        self.K3 = np.diag((10, 50, 10))
+        self.K2 = np.diag((10, 20))
+        self.K3 = np.diag((10, 100, 10))
         self.K4 = np.diag((10, 10, 10))
 
     def get_control(self, t, env):
