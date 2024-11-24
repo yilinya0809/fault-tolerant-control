@@ -6,7 +6,14 @@ from numpy import cos, sin, tan
 from scipy.interpolate import interp1d
 
 from ftc.utils import linearization, safeupdate
+import matplotlib.pyplot as plt
 
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "mathtext.fontset": "stix",
+    }
+)
 
 class LC62R(fym.BaseEnv):
     """LC62 Model
@@ -530,6 +537,66 @@ class LC62R(fym.BaseEnv):
         A, B = linearization(self.statefunc, x, u, ptrb)
         return A, B
 
+    def plot_coeff(self):
+        alp = np.deg2rad(np.arange(0, 20, 2))
+        coeff = np.zeros((3, len(alp)))
+        for i in range(len(alp)):
+            cl, cd, cm = self.aero_coeff(alp[i])
+            coeff[0, i] = cl[0]
+            coeff[1, i] = cd[0]
+            coeff[2, i] = cm[0]
+
+        cmd = np.arange(0, 1, 0.05)
+        th_p = interp1d(self.tables["cmd"], self.tables["th_p"], fill_value="extrapolate")
+        tq_p = interp1d(self.tables["cmd"], self.tables["tq_p"], fill_value="extrapolate")
+        th = np.zeros((2, len(cmd)))
+        tq = np.zeros((2, len(cmd)))
+
+        cr = 0.0338 # tq_r / th_p
+        cr_th = 128 # th_r / rcmds
+        cp_th = 70 # th_p / pcmds
+        for i in range(len(cmd)):
+            th[0, i] = np.polyval(self.tables["th_r"], cmd[i]) * self.g / 1000
+            tq[0, i] = np.polyval(self.tables["tq_r"], cmd[i])
+            th[1, i] = th_p(cmd[i])
+            tq[1, i] = tq_p(cmd[i])
+        
+        """ Fig 1 - aero coeff """
+        fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+        ax.plot(np.rad2deg(alp), coeff[0, :], "k.-", markersize=20, linewidth=3, label=r"$C_L$")
+        ax.plot(np.rad2deg(alp), coeff[1, :], "b.-", markersize=20,  linewidth=3, label=r"$C_D$")
+        ax.plot(np.rad2deg(alp), coeff[2, :], "m.-", markersize=20, linewidth=3, label=r"$C_M$")
+        ax.set_xlabel(r"$\alpha$, deg", fontsize=20)
+        ax.set_ylabel("Aerodynamic coefficients", fontsize=20)
+        ax.set_xlim([np.rad2deg(alp)[0], np.rad2deg(alp)[-1]])
+        ax.legend(fontsize=20)
+        ax.grid()
+        fig.tight_layout()
+       
+        """ Fig 2 - Thrust """
+        fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+        ax.plot(1000 * cmd + 1000, th[0, :], "k.-", linewidth = 3, label=r"rotors, $r_i$")
+        ax.plot(1000 * cmd + 1000, cmd * cr_th, "k:", linewidth = 3)
+        ax.plot(1000 * cmd + 1000, th[1, :], "b.-", linewidth = 3, label=r"pushers, $p_i$")
+        ax.plot(1000 * cmd + 1000, cmd * cp_th, "b:", linewidth = 3)
+        ax.set_ylabel("Thrusts, N", fontsize=20)
+        ax.set_xlabel("Pulse Width Modulation (PWM)", fontsize=20)
+        ax.set_xlim(1000 * cmd[0] + 1000, 1000 * cmd[-1] + 1000)
+        ax.legend(fontsize=20)
+  
+  #       """ Fig 3 - Moment """
+  #       fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+  #       ax.plot(th[0, :], tq[0, :], "k.-", linewidth = 3, label=r"rotors, $\tau_r$")
+  #       ax.plot(th[0, :], cr * th[0, :], "r:", linewidth = 3, label=r"rotors, $\tau_r$")
+  #       ax.plot(th[1, :], tq[1, :], "b.-", linewidth = 3, label=r"pushers, $\tau_p$")
+  #       ax.set_ylabel(r"Rotor torque $\tau_r$, Nm", fontsize=20)
+  #       ax.set_xlabel(r"Rotor thrust $r_i$, N", fontsize=20)
+  #       ax.set_xlim(th[0, 0], th[0, -1])
+  #       # ax.legend(fontsize=20)
+
+
+        plt.show()
+
 
 if __name__ == "__main__":
     system = LC62R()
@@ -542,5 +609,7 @@ if __name__ == "__main__":
     ctrls = np.vstack((rcmds, pcmds, dels))
     FM = system.get_FM(pos, vel, quat, omega, ctrls)
     system.set_dot(t=0, FM=FM)
-    breakpoint()
-    print(repr(system))
+    # print(repr(system))
+    system.plot_coeff()
+
+    

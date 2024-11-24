@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from casadi import *
 
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "mathtext.fontset": "stix",
+    }
+)
 """ Transition Corridor """
 # Trst_corr = np.load("data/corr.npz")
 Trst_corr = np.load("data/corr_safe.npz")
@@ -90,96 +96,96 @@ thetad_mpc = data_mpc["angd"][:, 1]
 
 # """ Column 1 - States: Position """
 # ax = axes[0, 0]
-# ax.plot(data_opt["t"], data_opt["plant"]["pos"][:, 0].squeeze(-1), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], data_mpc["plant"]["pos"][:, 0].squeeze(-1), "k-",linewidth=3)
-# ax.set_ylabel(r"$x$, m",linewidth=3)
-# ax.set_xlim(data_opt["t"][0], data_opt["t"][-1])
+# # ax.plot(data_opt["t"], data_opt["plant"]["pos"][:, 0].squeeze(-1), "b-",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["plant"]["pos"][:, 0].squeeze(-1), "b-",linewidth=3)
+# ax.set_ylabel(r"$x$, m", fontsize=20)
+# ax.set_xlim(data_ndi["t"][0], data_ndi["t"][-1])
 
 # ax = axes[1, 0]
-# ax.plot(data_opt["t"], data_opt["posd"][:, 1], "r--",linewidth=3)
-# ax.plot(data_opt["t"], data_opt["plant"]["pos"][:, 1].squeeze(-1), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], data_mpc["plant"]["pos"][:, 1].squeeze(-1), "k-",linewidth=3)
-# ax.set_ylabel(r"$y$, m",linewidth=3)
+# # ax.plot(data_opt["t"], data_opt["posd"][:, 1], "r--",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["plant"]["pos"][:, 1].squeeze(-1), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], data_mpc["plant"]["pos"][:, 1].squeeze(-1), "r-",linewidth=3)
+# ax.set_ylabel(r"$y$, m", fontsize=20)
 # ax.set_ylim([-1, 1])
 
 # ax = axes[2, 0]
 # # ax.plot(tspan, opt_traj["X"][0, :], "r--",linewidth=3)
 # ax.plot(data_opt["t"], data_opt["posd"][:, 2], "r--",linewidth=3)
-# ax.plot(data_opt["t"], data_opt["plant"]["pos"][:, 2].squeeze(-1), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], data_mpc["plant"]["pos"][:, 2].squeeze(-1), "k-",linewidth=3)
-# ax.set_ylabel(r"$z$, m",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["plant"]["pos"][:, 2].squeeze(-1), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], data_mpc["plant"]["pos"][:, 2].squeeze(-1), "r-",linewidth=3)
+# ax.set_ylabel(r"$z$, m", fontsize=20)
 # ax.set_ylim([-15, -5])
 
-# ax.set_xlabel("Time, sec",linewidth=3)
+# ax.set_xlabel("Time, sec", fontsize=20)
 
 # """ Column 2 - States: Velocity """
 # ax = axes[0, 1]
-# ax.plot(data_opt["t"], data_opt["plant"]["vel"][:, 0].squeeze(-1), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], data_mpc["plant"]["vel"][:, 0].squeeze(-1), "k-",linewidth=3)
-# ax.plot(data_opt["t"], data_opt["veld"][:, 0], "r--",linewidth=3)
-# ax.set_ylabel(r"$v_x$, m/s",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["plant"]["vel"][:, 0].squeeze(-1), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], data_mpc["plant"]["vel"][:, 0].squeeze(-1), "r-",linewidth=3)
+# # ax.plot(data_opt["t"], data_opt["veld"][:, 0], "r--",linewidth=3)
+# ax.set_ylabel(r"$v_x$, m/s", fontsize=20)
 
 # ax = axes[1, 1]
-# ax.plot(data_opt["t"], data_opt["plant"]["vel"][:, 1].squeeze(-1), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], data_mpc["plant"]["vel"][:, 1].squeeze(-1), "k-",linewidth=3)
-# ax.plot(data_opt["t"], data_opt["veld"][:, 1], "r--",linewidth=3)
-# ax.set_ylabel(r"$v_y$, m/s",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["plant"]["vel"][:, 1].squeeze(-1), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], data_mpc["plant"]["vel"][:, 1].squeeze(-1), "r-",linewidth=3)
+# # ax.plot(data_opt["t"], data_opt["veld"][:, 1], "r--",linewidth=3)
+# ax.set_ylabel(r"$v_y$, m/s", fontsize=20)
 # ax.set_ylim([-1, 1])
 
 # ax = axes[2, 1]
-# ax.plot(data_opt["t"], data_opt["plant"]["vel"][:, 2].squeeze(-1), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], data_mpc["plant"]["vel"][:, 2].squeeze(-1), "k-",linewidth=3)
-# ax.plot(data_opt["t"], data_opt["veld"][:, 2], "r--",linewidth=3)
-# ax.set_ylabel(r"$v_z$, m/s",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["plant"]["vel"][:, 2].squeeze(-1), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], data_mpc["plant"]["vel"][:, 2].squeeze(-1), "r-",linewidth=3)
+# # ax.plot(data_opt["t"], data_opt["veld"][:, 2], "r--",linewidth=3)
+# ax.set_ylabel(r"$v_z$, m/s", fontsize=20)
 # ax.set_ylim([-10, 10])
 
-# ax.set_xlabel("Time, sec",linewidth=3)
+# ax.set_xlabel("Time, sec", fontsize=20)
 
 # """ Column 3 - States: Euler angles """
 # ax = axes[0, 2]
-# ax.plot(data_opt["t"], np.rad2deg(data_opt["ang"][:, 0].squeeze(-1)), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], np.rad2deg(data_mpc["ang"][:, 0].squeeze(-1)), "k-",linewidth=3)
+# ax.plot(data_ndi["t"], np.rad2deg(data_ndi["ang"][:, 0].squeeze(-1)), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], np.rad2deg(data_mpc["ang"][:, 0].squeeze(-1)), "r-",linewidth=3)
 # # ax.plot(data_opt["t"], np.rad2deg(data_opt["angd"][:, 0].squeeze(-1)), "r--",linewidth=3)
-# ax.set_ylabel(r"$\phi$, deg",linewidth=3)
+# ax.set_ylabel(r"$\phi$, deg", fontsize=20)
 # ax.set_ylim([-1, 1])
 
 # ax = axes[1, 2]
-# ax.plot(data_opt["t"], np.rad2deg(data_opt["ang"][:, 1].squeeze(-1)), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], np.rad2deg(data_mpc["ang"][:, 1].squeeze(-1)), "k-",linewidth=3)
+# ax.plot(data_ndi["t"], np.rad2deg(data_ndi["ang"][:, 1].squeeze(-1)), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], np.rad2deg(data_mpc["ang"][:, 1].squeeze(-1)), "r-",linewidth=3)
 # # ax.plot(data_opt["t"], np.rad2deg(data_opt["angd"][:, 1].squeeze(-1)), "r--",linewidth=3)
-# ax.set_ylabel(r"$\theta$, deg",linewidth=3)
+# ax.set_ylabel(r"$\theta$, deg", fontsize=20)
 
 # ax = axes[2, 2]
-# ax.plot(data_opt["t"], np.rad2deg(data_opt["ang"][:, 2].squeeze(-1)), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], np.rad2deg(data_mpc["ang"][:, 2].squeeze(-1)), "k-",linewidth=3)
+# ax.plot(data_ndi["t"], np.rad2deg(data_ndi["ang"][:, 2].squeeze(-1)), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], np.rad2deg(data_mpc["ang"][:, 2].squeeze(-1)), "r-",linewidth=3)
 # # ax.plot(data_opt["t"], np.rad2deg(data_opt["angd"][:, 2].squeeze(-1)), "r--",linewidth=3)
-# ax.set_ylabel(r"$\psi$, deg",linewidth=3)
+# ax.set_ylabel(r"$\psi$, deg", fontsize=20)
 # ax.set_ylim([-1, 1])
 
-# ax.set_xlabel("Time, sec",linewidth=3)
+# ax.set_xlabel("Time, sec", fontsize=20)
 
 # """ Column 4 - States: Angular rates """
 # ax = axes[0, 3]
-# ax.plot(data_opt["t"], np.rad2deg(data_opt["plant"]["omega"][:, 0].squeeze(-1)), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], np.rad2deg(data_mpc["plant"]["omega"][:, 0].squeeze(-1)), "k-",linewidth=3)
+# ax.plot(data_ndi["t"], np.rad2deg(data_ndi["plant"]["omega"][:, 0].squeeze(-1)), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], np.rad2deg(data_mpc["plant"]["omega"][:, 0].squeeze(-1)), "r-",linewidth=3)
 # # ax.plot(data_opt["t"], np.rad2deg(data_opt["omegad"][:, 0].squeeze(-1)), "r--",linewidth=3)
-# ax.set_ylabel(r"$p$, deg/s",linewidth=3)
+# ax.set_ylabel(r"$p$, deg/s", fontsize=20)
 # ax.set_ylim([-1, 1])
 
 # ax = axes[1, 3]
-# ax.plot(data_opt["t"], np.rad2deg(data_opt["plant"]["omega"][:, 1].squeeze(-1)), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], np.rad2deg(data_mpc["plant"]["omega"][:, 1].squeeze(-1)), "k-",linewidth=3)
+# ax.plot(data_ndi["t"], np.rad2deg(data_ndi["plant"]["omega"][:, 1].squeeze(-1)), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], np.rad2deg(data_mpc["plant"]["omega"][:, 1].squeeze(-1)), "r-",linewidth=3)
 # # ax.plot(data_opt["t"], np.rad2deg(data_opt["omegad"][:, 1].squeeze(-1)), "r--",linewidth=3)
-# ax.set_ylabel(r"$q$, deg/s",linewidth=3)
+# ax.set_ylabel(r"$q$, deg/s", fontsize=20)
 
 # ax = axes[2, 3]
-# ax.plot(data_opt["t"], np.rad2deg(data_opt["plant"]["omega"][:, 2].squeeze(-1)), "b-",linewidth=3)
-# ax.plot(data_mpc["t"], np.rad2deg(data_mpc["plant"]["omega"][:, 2].squeeze(-1)), "k-",linewidth=3)
+# ax.plot(data_ndi["t"], np.rad2deg(data_ndi["plant"]["omega"][:, 2].squeeze(-1)), "b-",linewidth=3)
+# # ax.plot(data_mpc["t"], np.rad2deg(data_mpc["plant"]["omega"][:, 2].squeeze(-1)), "r-",linewidth=3)
 # # ax.plot(data_opt["t"], np.rad2deg(data_opt["omegad"][:, 2].squeeze(-1)), "r--",linewidth=3)
-# ax.set_ylabel(r"$r$, deg/s",linewidth=3)
+# ax.set_ylabel(r"$r$, deg/s", fontsize=20)
 # ax.set_ylim([-1, 1])
 
-# ax.set_xlabel("Time, sec",linewidth=3)
+# ax.set_xlabel("Time, sec", fontsize=20)
 
 # fig.tight_layout()
 
@@ -187,31 +193,31 @@ thetad_mpc = data_mpc["angd"][:, 1]
 # fig, axes = plt.subplots(3, 2, sharex=True)
 
 # ax = axes[0, 0]
-# ax.plot(data_opt["t"], data_opt["ctrls"].squeeze(-1)[:, 0], "b-",linewidth=3)
-# ax.set_ylabel("Rotor 1",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 0], "b-",linewidth=3)
+# ax.set_ylabel("Rotor 1", fontsize=20)
 # ax.set_xlim(data_opt["t"][0], data_opt["t"][-1])
 
 # ax = axes[1, 0]
-# ax.plot(data_opt["t"], data_opt["ctrls"].squeeze(-1)[:, 1], "b-",linewidth=3)
-# ax.set_ylabel("Rotor 2",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 1], "b-",linewidth=3)
+# ax.set_ylabel("Rotor 2", fontsize=20)
 
 # ax = axes[2, 0]
-# ax.plot(data_opt["t"], data_opt["ctrls"].squeeze(-1)[:, 2], "b-",linewidth=3)
-# ax.set_ylabel("Rotor 3",linewidth=3)
-# ax.set_xlabel("Time, sec",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 2], "b-",linewidth=3)
+# ax.set_ylabel("Rotor 3", fontsize=20)
+# ax.set_xlabel("Time, sec", fontsize=20)
 
 # ax = axes[0, 1]
-# ax.plot(data_opt["t"], data_opt["ctrls"].squeeze(-1)[:, 3], "b-",linewidth=3)
-# ax.set_ylabel("Rotor 4",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 3], "b-",linewidth=3)
+# ax.set_ylabel("Rotor 4", fontsize=20)
 
 # ax = axes[1, 1]
-# ax.plot(data_opt["t"], data_opt["ctrls"].squeeze(-1)[:, 4], "b-",linewidth=3)
-# ax.set_ylabel("Rotor 5",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 4], "b-",linewidth=3)
+# ax.set_ylabel("Rotor 5", fontsize=20)
 
 # ax = axes[2, 1]
-# ax.plot(data_opt["t"], data_opt["ctrls"].squeeze(-1)[:, 5], "b-",linewidth=3)
-# ax.set_ylabel("Rotor 6",linewidth=3)
-# ax.set_xlabel("Time, sec",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 5], "b-",linewidth=3)
+# ax.set_ylabel("Rotor 6", fontsize=20)
+# ax.set_xlabel("Time, sec", fontsize=20)
 
 # plt.tight_layout()
 # fig.subplots_adjust(wspace=0.3)
@@ -221,19 +227,19 @@ thetad_mpc = data_mpc["angd"][:, 1]
 # fig, axes = plt.subplots(2, 1, sharex=True)
 
 # ax = axes[0]
-# ax.plot(data_opt["t"], data_opt["ctrls"].squeeze(-1)[:, 6], "b-",linewidth=3)
-# ax.set_ylabel("Pusher 1",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 6], "b-",linewidth=3)
+# ax.set_ylabel("Pusher 1", fontsize=20)
 # ax.set_xlim(data_opt["t"][0], data_opt["t"][-1])
 
 # ax = axes[1]
-# ax.plot(data_opt["t"], data_opt["ctrls"].squeeze(-1)[:, 7], "b-",linewidth=3)
-# ax.set_ylabel("Pusher 2",linewidth=3)
-# ax.set_xlabel("Time, sec",linewidth=3)
+# ax.plot(data_ndi["t"], data_ndi["ctrls"].squeeze(-1)[:, 7], "b-",linewidth=3)
+# ax.set_ylabel("Pusher 2", fontsize=20)
+# ax.set_xlabel("Time, sec", fontsize=20)
 
 # plt.tight_layout()
 # fig.align_ylabels(axes)
 
-# """ Figure 5 - Thrust """
+# # """ Figure 5 - Thrust """
 # fig, axes = plt.subplots(2, 1, sharex=True)
 
 # ax = axes[0]
@@ -256,38 +262,35 @@ thetad_mpc = data_mpc["angd"][:, 1]
 
 def plot():
     """Figure 1 - States"""
-    # fig, axes = plt.subplots(2, 2)
-    fig, axes = plt.subplots(3, 1)
-    # fig.suptitle("State trajectories",linewidth=3)
+    fig, axes = plt.subplots(3, 1, figsize=(12,8))
 
-    """ Row 1 - z, VT """
     ax = axes[0]
     ax.plot(time, z_ndi, "g-.", linewidth=3)
     ax.plot(time, z_mpc, "b--", linewidth=3)
-    ax.plot(time, z_opt, "k-", linewidth=3)
-    ax.plot(time, zd, "r:", linewidth=2)
+    ax.plot(time, z_opt, "r-", linewidth=3)
+    ax.plot(time, zd, "k:", linewidth=3)
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$z$, m", fontsize=15)
+    ax.set_ylabel(r"$z$, m", fontsize=20)
     ax.set_ylim([-12, -8])
 
     ax = axes[1]
     ax.plot(time, VT_ndi, "g-.", linewidth=3)
     ax.plot(time, VT_mpc, "b--", linewidth=3)
-    ax.plot(time, VT_opt, "k-", linewidth=3)
-    ax.plot(time, VTd, "r:", linewidth=2)
+    ax.plot(time, VT_opt, "r-", linewidth=3)
+    ax.plot(time, VTd, "k:", linewidth=3)
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel(r"$V$, m/s", fontsize=15)
+    ax.set_ylabel(r"$V$, m/s", fontsize=20)
 
     ax = axes[2]
     ax.plot(time, np.rad2deg(theta_ndi), "g-.", linewidth=3, label="NDI")
     ax.plot(time, np.rad2deg(theta_mpc), "b--", linewidth=3, label="MPC-NDI")
-    ax.plot(time, np.rad2deg(theta_opt), "k-", linewidth=3, label="Opt-NDI")
-    ax.plot(time, np.rad2deg(theta_trim), "r:", linewidth=2, label="Trim")
+    ax.plot(time, np.rad2deg(theta_opt), "r-", linewidth=3, label="Opt-NDI")
+    ax.plot(time, np.rad2deg(theta_trim), "k:", linewidth=3, label="Trim")
     ax.set_xlim(time[0], time[-1])
-    ax.set_xlabel("Time, sec")
-    ax.set_ylabel(r"$\theta$, deg", fontsize=15)
+    ax.set_xlabel("Time, sec", fontsize=20)
+    ax.set_ylabel(r"$\theta$, deg", fontsize=20)
 
-    ax.legend()
+    ax.legend(fontsize=15)
     fig.tight_layout()
     # fig.subplot_adjust(right=0.85)
 
@@ -295,75 +298,89 @@ def plot():
     fig, axes = plt.subplots(2, 4, figsize=(12, 8))
 
     ax = axes[0, 0]
-    ax.plot(time, rotors_ndi[:, 0], "g-.", linewidth=3)
-    ax.plot(time, rotors_mpc[:, 0], "b--", linewidth=2)
-    ax.plot(time, rotors_opt[:, 0], "k-", linewidth=3)
+    ax.plot(time, np.ones((len(time), 1)), "k:")
+    ax.plot(time, np.zeros((len(time), 1)), "k:")
+    ax.plot(time, rotors_ndi[:, 0], "g-.", linewidth=3, label="NDI")
+    ax.plot(time, rotors_mpc[:, 0], "b:", linewidth=2, label="MPC-NDI")
+    ax.plot(time, rotors_opt[:, 0], "r-", linewidth=3, label="Opt-NDI")
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel("Rotor 1", fontsize=13)
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Rotor 1", fontsize=14)
+    ax.legend(loc='upper right', bbox_to_anchor = (1.0, 0.9), fontsize=12)
 
     ax = axes[1, 0]
+    ax.plot(time, np.ones((len(time), 1)), "k:")
+    ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 1], "g-.", linewidth=3)
-    ax.plot(time, rotors_mpc[:, 1], "b--", linewidth=2)
-    ax.plot(time, rotors_opt[:, 1], "k-", linewidth=3)
+    ax.plot(time, rotors_mpc[:, 1], "b:", linewidth=2)
+    ax.plot(time, rotors_opt[:, 1], "r-", linewidth=3)
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel("Rotor 2", fontsize=13)
-    ax.set_xlabel("Time, sec")
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Rotor 2", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
 
     ax = axes[0, 1]
+    ax.plot(time, np.ones((len(time), 1)), "k:")
+    ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 2], "g-.", linewidth=3)
-    ax.plot(time, rotors_mpc[:, 2], "b--", linewidth=2)
-    ax.plot(time, rotors_opt[:, 2], "k-", linewidth=3)
+    ax.plot(time, rotors_mpc[:, 2], "b:", linewidth=2)
+    ax.plot(time, rotors_opt[:, 2], "r-", linewidth=3)
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel("Rotor 3", fontsize=13)
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Rotor 3", fontsize=14)
 
     ax = axes[1, 1]
+    ax.plot(time, np.ones((len(time), 1)), "k:")
+    ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 3], "g-.", linewidth=3)
-    ax.plot(time, rotors_mpc[:, 3], "b--", linewidth=2)
-    ax.plot(time, rotors_opt[:, 3], "k-", linewidth=3)
+    ax.plot(time, rotors_mpc[:, 3], "b:", linewidth=2)
+    ax.plot(time, rotors_opt[:, 3], "r-", linewidth=3)
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel("Rotor 4", fontsize=13)
-    ax.set_xlabel("Time, sec")
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Rotor 4", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
 
     ax = axes[0, 2]
+    ax.plot(time, np.ones((len(time), 1)), "k:")
+    ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 4], "g-.", linewidth=3)
-    ax.plot(time, rotors_mpc[:, 4], "b--", linewidth=2)
-    ax.plot(time, rotors_opt[:, 4], "k-", linewidth=3)
+    ax.plot(time, rotors_mpc[:, 4], "b:", linewidth=2)
+    ax.plot(time, rotors_opt[:, 4], "r-", linewidth=3)
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel("Rotor 5", fontsize=13)
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Rotor 5", fontsize=14)
 
     ax = axes[1, 2]
+    ax.plot(time, np.ones((len(time), 1)), "k:")
+    ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 5], "g-.", linewidth=3)
-    ax.plot(time, rotors_mpc[:, 5], "b--", linewidth=2)
-    ax.plot(time, rotors_opt[:, 5], "k-", linewidth=3)
+    ax.plot(time, rotors_mpc[:, 5], "b:", linewidth=2)
+    ax.plot(time, rotors_opt[:, 5], "r-", linewidth=3)
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel("Rotor 6", fontsize=13)
-    ax.set_xlabel("Time, sec")
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Rotor 6", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
 
     ax = axes[0, 3]
+    ax.plot(time, np.ones((len(time), 1)), "k:")
+    ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, pushers_ndi[:, 0], "g-.", linewidth=3)
     ax.plot(time, pushers_mpc[:, 0], "b--", linewidth=2)
-    ax.plot(time, pushers_opt[:, 0], "k-", linewidth=3)
+    ax.plot(time, pushers_opt[:, 0], "r-", linewidth=3)
     ax.set_xlim(time[0], time[-1])
-    ax.set_ylabel("Pusher 1", fontsize=13)
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Pusher 1", fontsize=14)
 
     ax = axes[1, 3]
-    g2 = ax.plot(time, pushers_ndi[:, 1], "g-.", linewidth=3)
-    g3 = ax.plot(time, pushers_mpc[:, 1], "b--", linewidth=2)
-    g1 = ax.plot(time, pushers_opt[:, 1], "k-", linewidth=3)
+    ax.plot(time, np.ones((len(time), 1)), "k:")
+    ax.plot(time, np.zeros((len(time), 1)), "k:")
+    ax.plot(time, pushers_ndi[:, 1], "g-.", linewidth=3)
+    ax.plot(time, pushers_mpc[:, 1], "b--", linewidth=2)
+    ax.plot(time, pushers_opt[:, 1], "r-", linewidth=3)
     ax.set_xlim(time[0], time[-1])
-    ax.set_xlabel("Time, sec")
-    ax.set_ylabel("Pusher 2", fontsize=13)
-
-    fig.subplots_adjust(left=0.05, right=0.99, wspace=0.3)
-
-    fig.legend(
-        [g1, g3, g2],
-        labels=["Opt-NDI", "MPC-NDI", "NDI"],
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0),
-        fontsize=13,
-        ncol=3,
-    )
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_xlabel("Time, sec", fontsize=14)
+    ax.set_ylabel("Pusher 2", fontsize=14)
 
     fig.tight_layout()
 
@@ -408,7 +425,7 @@ def plot():
 
     # """ Row 1 - Pusher forces """
     # ax = axes[0]
-    # ax.plot(time, Fp_ndi, "k-",linewidth=3)
+    # ax.plot(time, Fp_ndi, "r-",linewidth=3)
     # ax.plot(time, Fpd_ndi, "--r",linewidth=3)
     # ax.set_xlim(time[0], time[-1])
     # ax.set_xlabel("Time, sec",linewidth=3)
@@ -416,7 +433,7 @@ def plot():
 
     # """ Row 2 - Pitch angle """
     # ax = axes[1]
-    # l1 = ax.plot(time, theta_ndi, "k-",linewidth=3)
+    # l1 = ax.plot(time, theta_ndi, "r-",linewidth=3)
     # l2 = ax.plot(time, thetad_ndi, "--r",linewidth=3)
     # ax.set_xlim(time[0], time[-1])
     # ax.set_xlabel("Time, sec",linewidth=3)
@@ -438,13 +455,11 @@ def plot():
 
     ax.plot(VT_ndi, np.rad2deg(theta_ndi), "g-.", linewidth=5, label="NDI")
     ax.plot(VT_mpc, np.rad2deg(theta_mpc), "b--", linewidth=5, label="MPC-NDI")
-    ax.plot(VT_opt, np.rad2deg(theta_opt), "k-", linewidth=5, label="Opt-NDI")
-    ax.set_xlabel("V, m/s", fontsize=15)
-    ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-    ax.legend()
+    ax.plot(VT_opt, np.rad2deg(theta_opt), "r-", linewidth=5, label="Opt-NDI")
+    ax.set_xlabel("V, m/s", fontsize=20)
+    ax.set_ylabel(r"$\theta$, deg", fontsize=20)
+    ax.legend(fontsize=20)
     fig.tight_layout()
-
-
 
     plt.show()
 
@@ -505,15 +520,15 @@ def rotor_cost():
 
     A = np.diag((1, 1, 1, 1, 1, 1, 1, 1))
     B = np.diag((1, 1, 1, 1, 1, 1))
-    # A = np.diag((1,1,1,1,1,1,1,1))
 
     for k in range(np.size(time)):
-        # r_opt = rotors_opt[k]
-        # r_ndi = rotors_ndi[k]
-        # r_mpc = rotors_mpc[k]
-        # rcost_opt = rcost_opt + r_opt.T @ B @ r_opt
-        # rcost_ndi = rcost_ndi + r_ndi.T @ B @ r_ndi
-        # rcost_mpc = rcost_mpc + r_mpc.T @ B @ r_mpc
+        r_opt = rotors_opt[k]
+        r_ndi = rotors_ndi[k]
+        r_mpc = rotors_mpc[k]
+        rcost_opt = rcost_opt + r_opt.T @ B @ r_opt
+        rcost_ndi = rcost_ndi + r_ndi.T @ B @ r_ndi
+        rcost_mpc = rcost_mpc + r_mpc.T @ B @ r_mpc
+        rcost = np.vstack((rcost_ndi, rcost_mpc, rcost_opt))
 
         ctrls_opt = np.vstack((rotors_opt[k], pushers_opt[k]))
         ctrls_ndi = np.vstack((rotors_ndi[k], pushers_ndi[k]))
@@ -521,16 +536,13 @@ def rotor_cost():
         cost_opt = cost_opt + ctrls_opt.T @ A @ ctrls_opt
         cost_ndi = cost_ndi + ctrls_ndi.T @ A @ ctrls_ndi
         cost_mpc = cost_mpc + ctrls_mpc.T @ A @ ctrls_mpc
+        cost = np.vstack((cost_ndi, cost_mpc, cost_opt))
 
-    return cost_opt, cost_ndi, cost_mpc
+    return rcost, cost
 
 
 if __name__ == "__main__":
-    # cost_ndi, cost_mpc = total_cost()
-    ctrlcost_opt, ctrlcost_ndi, ctrlcost_mpc = rotor_cost()
-    # print(cost_ndi)
-    # print(cost_mpc)
-    print(ctrlcost_opt)
-    print(ctrlcost_ndi)
-    print(ctrlcost_mpc)
+    rcost, cost = rotor_cost()
+    print(rcost)
+    print(cost)
     plot()

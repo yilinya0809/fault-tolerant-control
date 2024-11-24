@@ -4,7 +4,7 @@ import fym
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from fym.utils.rot import quat2angle
+from fym.utils.rot import quat2angle, angle2quat
 
 import ftc
 from ftc.models.LC62R import LC62R
@@ -15,7 +15,7 @@ np.seterr(all="raise")
 
 """ Results of Outer-loop optimal trajectory """
 opt_traj = {}
-f = h5py.File("ftc/trst_corr/opt.h5", "r")
+f = h5py.File("data/back_traj.h5", "r")
 opt_traj["tf"] = f.get("tf")[()]
 opt_traj["X"] = f.get("X")[:]
 opt_traj["U"] = f.get("U")[:]
@@ -25,6 +25,7 @@ tspan = np.linspace(0, opt_traj["tf"], N + 1)
 
 
 class MyEnv(fym.BaseEnv):
+    theta0 = opt_traj["U"][2, 0]
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
@@ -33,8 +34,8 @@ class MyEnv(fym.BaseEnv):
         "plant": {
             "init": {
                 "pos": np.vstack((0.0, 0.0, opt_traj["X"][0, 0])),
-                "vel": np.zeros((3, 1)),
-                "quat": np.vstack((1, 0, 0, 0)),
+                "vel": np.vstack((opt_traj["X"][1, 0], 0, opt_traj["X"][2, 0])),
+                "quat": np.vstack(angle2quat(0, theta0, 0)),
                 "omega": np.zeros((3, 1)),
             },
         },

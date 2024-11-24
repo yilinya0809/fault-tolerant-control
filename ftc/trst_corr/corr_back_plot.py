@@ -3,11 +3,11 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 from casadi import *
-from fym.utils.rot import angle2dcm
 from matplotlib.lines import Line2D
+from fym.utils.rot import angle2dcm
 
 from ftc.models.LC62_opt import LC62
-from ftc.trst_corr.poly_corr import boundary, poly, weighted_poly
+from ftc.trst_corr.poly_corr import boundary2
 
 plt.rcParams.update(
     {
@@ -37,29 +37,6 @@ Fr_margin = np.zeros((np.size(VT_corr), 1))
 Fp_margin = np.zeros((np.size(VT_corr), 1))
 
 
-for i in range(np.size(VT_corr)):
-    for j in range(np.size(theta_corr)):
-        if Fr[i, j] >= eta * Fr_max:
-            Fr_margin[i] = theta_corr[j]
-
-    for j in reversed(range(np.size(theta_corr))):
-        if Fp[i, j] >= eta * Fp_max:
-            Fp_margin[i] = theta_corr[j]
-
-for i in range(np.size(VT_corr)):
-    if Fr_margin[i, 0] == 0:
-        Fr_margin[i, 0] = np.NaN
-    if Fp_margin[i, 0] == 0:
-        Fp_margin[i, 0] = np.NaN
-
-
-# Optimal Trajectory
-data = {}
-with h5py.File("data/opt_corr.h5", "r") as f:
-    data["tf"] = f["tf"][()]
-    data["X"] = f["X"][:]
-    data["U"] = f["U"][:]
-
 
 def casadi_polyval(coeffs, x):
     value = 0
@@ -68,17 +45,24 @@ def casadi_polyval(coeffs, x):
         value += coeff * x ** (deg - i)
     return value
 
+def lower_func(vel):
+    value = casadi_polyval(lower, vel)
+    return value
+
 
 def upper_func(vel):
-    value = casadi_polyval(upper, vel)
-    return value
+    # value_max = np.max(upper_bound)
+    value_upp = casadi_polyval(upper, vel)
+    # value = if_else(vel < VT_filtered[0], value_max, value_upp)
+    return value_upp
 
 
-def lower_func(vel):
-    value_min = np.min(lower_bound)
-    value_low = casadi_polyval(lower, vel)
-    value = if_else(vel < VT_filtered[0], value_min, value_low)
-    return value
+# Optimal Trajectory
+data = {}
+with h5py.File("back_traj.h5", "r") as f:
+    data["tf"] = f["tf"][()]
+    data["X"] = f["X"][:]
+    data["U"] = f["U"][:]
 
 
 """ Figure 1 """
@@ -86,15 +70,15 @@ fig = plt.figure(figsize=(12, 8))
 ax = fig.add_subplot(111)
 
 degree = 3
-upper_bound, lower_bound = boundary(Trst_corr)
+upper_bound, lower_bound = boundary2(Trst_corr)
 
-mask = lower_bound > np.min(lower_bound)
+mask = upper_bound < np.max(upper_bound)
 VT_filtered = VT_corr[mask]
-lower_bound_filtered = lower_bound[mask]
+upper_bound_filtered = upper_bound[mask]
 
 deg = 3
-upper = np.polyfit(VT_corr, upper_bound, deg)
-lower = np.polyfit(VT_filtered, lower_bound_filtered, deg)
+lower = np.polyfit(VT_corr, lower_bound, deg)
+upper = np.polyfit(VT_filtered, upper_bound_filtered, deg)
 
 VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, s=success.T, c="k")
@@ -317,23 +301,8 @@ VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, s=success.T, c="b")
 ax.set_xlabel("V, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-# ax.set_title("Dynamic Transition Corridor", fontsize=20)
 fig.tight_layout()
 
-# """ Fx, Fz traj """
-# fig, axs = plt.subplots(1, 2)
-# ax = axs[0]
-# ax.plot(tspan[:-1], Fx_I[:], "k", linewidth=3)
-# ax.set_ylabel(r"$F_x^I,\, \mathrm{N}$", fontsize=15)
-# ax.set_xlim([0, data["tf"]])
-# ax.grid()
-
-# ax = axs[1]
-# ax.plot(tspan[:-1], Fz_I[:], "k", linewidth=3)
-# ax.set_ylabel(r"$F_z^I,\, \mathrm{N}$", fontsize=15)
-# ax.set_xlim([0, data["tf"]])
-# ax.grid()
-# fig.tight_layout()
 
 
 plt.show()
