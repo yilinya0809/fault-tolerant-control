@@ -7,7 +7,7 @@ from fym.utils.rot import angle2dcm
 from matplotlib.lines import Line2D
 
 from ftc.models.LC62_opt import LC62
-from ftc.trst_corr.poly_corr import boundary, poly, weighted_poly
+from ftc.trst_corr.poly_corr import boundary
 
 plt.rcParams.update(
     {
@@ -20,7 +20,7 @@ plant = LC62()
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 
-Trst_corr = np.load("ftc/trst_corr/corr_back.npz")
+Trst_corr = np.load("ftc/trst_corr/corr_safe_cause.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -123,8 +123,8 @@ fig.tight_layout()
 fig, ax = plt.subplots(1, 1)
 VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT.T, acc_corr, s=3)
-ax.set_xlabel("VT, m/s", fontsize=15)
-ax.set_ylabel(r"$a_x, m/s^{2}$", fontsize=15)
+ax.set_xlabel("VT, m/s", fontsize=20)
+ax.set_ylabel(r"$a_x, m/s^{2}$", fontsize=20)
 
 
 """ Figure 3 """
@@ -254,51 +254,63 @@ for i in range(N):
 
 
 """ States trajectory """
-fig, axs = plt.subplots(3, 1, figsize=(12, 8))
-ax = axs[0]
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+# ax = axs[0]
 ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
-ax.set_ylabel("$h$, m", fontsize=15)
-ax.set_ylim([9, 11])
+ax.set_ylabel("$h$, m", fontsize=20)
+ax.set_ylim([5, 15])
+ax.set_xlabel("Time, s", fontsize=20)
 ax.grid()
 ax.set_xlim([0, data["tf"]])
+fig.tight_layout()
 
-ax = axs[1]
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+# ax = axs[1]
 ax.plot(tspan, data["X"][1, :], "k", linewidth=3)
-ax.set_ylabel("$V_x^B$, m/s", fontsize=15)
+ax.set_ylabel("$V_x^B$, m/s", fontsize=20)
 ax.set_xlim([0, data["tf"]])
+ax.set_xlabel("Time, s", fontsize=20)
 ax.grid()
+fig.tight_layout()
 
-ax = axs[2]
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+# ax = axs[2]
 ax.plot(tspan, data["X"][2, :], "k", linewidth=3)
-ax.set_ylabel("$V_z^B$, m/s", fontsize=15)
-ax.set_xlabel("Time, s", fontsize=15)
+ax.set_ylabel("$V_z^B$, m/s", fontsize=20)
+ax.set_xlabel("Time, s", fontsize=20)
 ax.set_ylim([-10, 10])
 ax.set_xlim([0, data["tf"]])
 ax.grid()
 fig.tight_layout()
 
 """ Input trajectories """
-fig, axs = plt.subplots(3, 1, figsize=(12, 8))
-ax = axs[0]
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+# ax = axs[0]
 ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
 ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
-ax.set_ylabel("$F^{rotor}$, N", fontsize=15)
+ax.set_ylabel("$F^{rotor}$, N", fontsize=20)
+ax.set_xlabel("Time, s", fontsize=20)
 ax.set_xlim([0, data["tf"]])
 ax.grid()
+fig.tight_layout()
 
-ax = axs[1]
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+# ax = axs[1]
 ax.plot(tspan[:-1], data["U"][1, :], "k", linewidth=3)
 ax.plot(tspan[:-1], Fp_max * np.ones((N, 1)), "r--")
-ax.set_ylabel("$F^{pusher}$, N", fontsize=15)
+ax.set_ylabel("$F^{pusher}$, N", fontsize=20)
 ax.set_xlim([0, data["tf"]])
+ax.set_xlabel("Time, s", fontsize=20)
 ax.grid()
+fig.tight_layout()
 
-ax = axs[2]
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+# ax = axs[2]
 ax.plot(tspan[:-1], np.rad2deg(data["U"][2, :]), "k", linewidth=3)
 ax.plot(tspan[:-1], -30 * np.ones((N, 1)), "r--")
 ax.plot(tspan[:-1], 30 * np.ones((N, 1)), "r--")
-ax.set_ylabel(r"$\theta$, deg", fontsize=15)
-ax.set_xlabel("Time, s", fontsize=15)
+ax.set_ylabel(r"$\theta$, deg", fontsize=20)
+ax.set_xlabel("Time, s", fontsize=20)
 ax.set_ylim([-35, 35])
 ax.set_xlim([0, data["tf"]])
 ax.grid()
@@ -315,8 +327,8 @@ for i in range(N):
 ax.plot(VT_traj[1:], theta_traj[1:], "r-", linewidth=5)
 VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, s=success.T, c="b")
-ax.set_xlabel("V, m/s", fontsize=15)
-ax.set_ylabel(r"$\theta$, deg", fontsize=15)
+ax.set_xlabel("V, m/s", fontsize=20)
+ax.set_ylabel(r"$\theta$, deg", fontsize=20)
 # ax.set_title("Dynamic Transition Corridor", fontsize=20)
 fig.tight_layout()
 
@@ -324,13 +336,13 @@ fig.tight_layout()
 # fig, axs = plt.subplots(1, 2)
 # ax = axs[0]
 # ax.plot(tspan[:-1], Fx_I[:], "k", linewidth=3)
-# ax.set_ylabel(r"$F_x^I,\, \mathrm{N}$", fontsize=15)
+# ax.set_ylabel(r"$F_x^I,\, \mathrm{N}$", fontsize=20)
 # ax.set_xlim([0, data["tf"]])
 # ax.grid()
 
 # ax = axs[1]
 # ax.plot(tspan[:-1], Fz_I[:], "k", linewidth=3)
-# ax.set_ylabel(r"$F_z^I,\, \mathrm{N}$", fontsize=15)
+# ax.set_ylabel(r"$F_z^I,\, \mathrm{N}$", fontsize=20)
 # ax.set_xlim([0, data["tf"]])
 # ax.grid()
 # fig.tight_layout()

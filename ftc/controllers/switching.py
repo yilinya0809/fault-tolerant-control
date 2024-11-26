@@ -23,9 +23,9 @@ class NDIController(fym.BaseEnv):
         )
         # self.K1 = np.diag((0, 100))
         # self.K2 = np.diag((10, 20))
-        self.K1 = np.diag((0, 100))
+        self.K1 = np.diag((10, 100))
         self.K2 = np.diag((10, 100))
-        self.K3 = np.diag((10, 1000, 10))
+        self.K3 = np.diag((10, 100, 10))
         self.K4 = np.diag((10, 10, 10))
 
     def get_control(self, t, env):
@@ -37,7 +37,7 @@ class NDIController(fym.BaseEnv):
         theta = ang[1, 0]
 
         # desired state
-        zd, veld, thetad = env.get_ref(t)
+        xd, zd, veld, thetad = env.get_ref(t)
         angd = np.vstack((0, thetad, 0))
         omegad = np.zeros((3, 1))
         Rd = angle2dcm(0, thetad, 0)
@@ -45,7 +45,7 @@ class NDIController(fym.BaseEnv):
 
         # eliminate y-axis
         pos = np.vstack((pos[0], pos[2]))
-        posd = np.vstack((0, zd))
+        posd = np.vstack((xd, zd))
         dpos = np.vstack((dpos[0], dpos[2]))
         dpos_d = np.vstack((dpos_d[0], dpos_d[2]))
 
@@ -80,7 +80,7 @@ class NDIController(fym.BaseEnv):
         ctrls = np.vstack((rcmds, pcmds, dels))
 
         controller_info = {
-            "posd": np.vstack((0, 0, zd)),
+            "posd": np.vstack((xd, 0, zd)),
             "veld": veld,
             "Frd": Frd,
             "Fpd": Fpd,
@@ -120,8 +120,10 @@ class LQRController(fym.BaseEnv):
         K = np.vstack((np.zeros((6, 12)), self.K_FW))
         ctrls = -K @ (x - self.x_trims_FW) + self.u_trims_FW
 
+        xd, zd, _, _ = env.get_ref(t)
         controller_info = {
-            "posd": self.x_trims_FW[0:3],
+            # "posd": self.x_trims_FW[0:3],
+            "posd": np.vstack((xd, 0, zd)),
             "veld": self.x_trims_FW[3:6],
             "Frd": np.array([0.0]),
             "Fpd": env.plant.B_Pusher(ctrls[6:8])[0],

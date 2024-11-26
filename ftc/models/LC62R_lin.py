@@ -563,9 +563,9 @@ class LC62R(fym.BaseEnv):
         
         """ Fig 1 - aero coeff """
         fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-        ax.plot(np.rad2deg(alp), coeff[0, :], "k.-", markersize=20, linewidth=3, label=r"$C_L$")
-        ax.plot(np.rad2deg(alp), coeff[1, :], "b.-", markersize=20,  linewidth=3, label=r"$C_D$")
-        ax.plot(np.rad2deg(alp), coeff[2, :], "m.-", markersize=20, linewidth=3, label=r"$C_M$")
+        ax.plot(np.rad2deg(alp), coeff[1, :], "b.-", markersize=20,  linewidth=3, label=r"$C_x$")
+        ax.plot(np.rad2deg(alp), coeff[0, :], "k.-", markersize=20, linewidth=3, label=r"$C_z$")
+        ax.plot(np.rad2deg(alp), coeff[2, :], "m.-", markersize=20, linewidth=3, label=r"$C_m$")
         ax.set_xlabel(r"$\alpha$, deg", fontsize=20)
         ax.set_ylabel("Aerodynamic coefficients", fontsize=20)
         ax.set_xlim([np.rad2deg(alp)[0], np.rad2deg(alp)[-1]])
@@ -609,7 +609,7 @@ if __name__ == "__main__":
     ctrls = np.vstack((rcmds, pcmds, dels))
     FM = system.get_FM(pos, vel, quat, omega, ctrls)
     system.set_dot(t=0, FM=FM)
-    # print(repr(system))
+    print(repr(system))
     system.plot_coeff()
 
     

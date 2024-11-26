@@ -9,6 +9,7 @@ from fym.utils.rot import quat2angle
 import ftc
 from ftc.models.LC62R_lin import LC62R
 from ftc.utils import safeupdate
+from scipy.integrate import cumtrapz
 
 np.seterr(all="raise")
 
@@ -28,8 +29,14 @@ opt_traj["U"] = f.get("U")[:]
 
 N = np.shape(opt_traj["U"])[1]
 tspan = np.linspace(0, opt_traj["tf"], N + 1)
-
-
+Vxd = opt_traj["X"][1, :]
+Vzd = opt_traj["X"][2, :]
+thetad = opt_traj["U"][2, :]
+xdot = []
+for i in range(N):
+    xdot.append(Vxd[i+1] * np.cos(thetad[i]) + Vzd[i+1] * np.sin(thetad[i]))
+Xd = cumtrapz(xdot, tspan[1:], initial=0)
+    
 class MyEnv(fym.BaseEnv):
     VT_cruise = 45
     h = 10
@@ -59,7 +66,7 @@ class MyEnv(fym.BaseEnv):
             fixed={"h": self.h, "VT": self.VT_cruise}
         )
         self.u_trims_vtol_FW = np.zeros((6, 1))
-        self.Q = np.diag([0, 0, 100, 10, 10, 10, 100, 100, 100, 0, 0, 0])
+        self.Q = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
         # self.R = np.diag([1, 1, 100, 100, 100])
         self.R = np.diag([400, 400, 1, 1, 1])
 
@@ -75,21 +82,24 @@ class MyEnv(fym.BaseEnv):
 
     # Optimal Transition Trajectory Reference
     def get_ref(self, t):
-        zd = np.interp(t, tspan, opt_traj["X"][0, :])
+        xd = np.interp(t, tspan[1:], Xd[:])
+        # zd = np.interp(t, tspan, opt_traj["X"][0, :])
+        zd = -self.h
         Vxd = np.interp(t, tspan, opt_traj["X"][1, :])
         Vzd = np.interp(t, tspan, opt_traj["X"][2, :])
         veld = np.vstack((Vxd, 0, Vzd))
         thetad = np.interp(t, tspan[1:], opt_traj["U"][2, :])
-        return zd, veld, thetad
+        if t > tspan[-1]:
+            xd = Xd[-1] + self.VT_cruise * (t - tspan[-1])
+        return xd, zd, veld, thetad
 
     def set_dot(self, t):
         pos, vel, quat, omega = self.plant.observe_list()
         VT = np.linalg.norm(vel)
-        if VT < self.VT_cruise - 2:
-            # if t < opt_traj["tf"]:
-            ctrls0, controller_info = self.controller_trst.get_control(t, self)
-        else:
+        if np.isclose(self.VT_cruise, VT, atol=1.5):
             ctrls0, controller_info = self.controller_fw.get_control(t, self)
+        else:
+            ctrls0, controller_info = self.controller_trst.get_control(t, self)
 
         ctrls = self.plant.saturate(ctrls0)
         FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
@@ -130,7 +140,7 @@ def run():
 
 
 def plot():
-    data = fym.load("data_opt_ndi.h5")["env"]
+    data = fym.load("data_opt_switch.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
@@ -138,6 +148,7 @@ def plot():
     """ Column 1 - States: Position """
     ax = axes[0, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "b-", linewidth=2)
+    ax.plot(data["t"], data["posd"][:, 0], "r--")
     ax.set_ylabel(r"$x$, m", fontsize=13)
     ax.set_xlim(data["t"][0], data["t"][-1])
 
