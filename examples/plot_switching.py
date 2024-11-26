@@ -262,26 +262,34 @@ thetad_mpc = data_mpc["angd"][:, 1]
 
 def plot():
     """Figure 1 - States"""
-    fig, axes = plt.subplots(3, 1, figsize=(12,8))
+    fig, ax = plt.subplots(1, 1, figsize=(12,8))
 
-    ax = axes[0]
-    ax.plot(time, z_ndi, "g-.", linewidth=3)
-    ax.plot(time, z_mpc, "b--", linewidth=3)
-    ax.plot(time, z_opt, "r-", linewidth=3)
-    ax.plot(time, zd, "k:", linewidth=3)
+    # ax = axes[0]
+    ax.plot(time, z_ndi, "g-.", linewidth=3, label='NDI')
+    ax.plot(time, z_mpc, "b--", linewidth=3, label='MPC-NDI')
+    ax.plot(time, z_opt, "r-", linewidth=3, label='Opt-NDI')
+    ax.plot(time, zd, "k:", linewidth=3, label='Trim')
     ax.set_xlim(time[0], time[-1])
+    ax.set_xlabel("Time, sec", fontsize=20)
     ax.set_ylabel(r"$z$, m", fontsize=20)
     ax.set_ylim([-12, -8])
+    ax.legend(fontsize=20)
+    fig.tight_layout()
 
-    ax = axes[1]
-    ax.plot(time, VT_ndi, "g-.", linewidth=3)
-    ax.plot(time, VT_mpc, "b--", linewidth=3)
-    ax.plot(time, VT_opt, "r-", linewidth=3)
-    ax.plot(time, VTd, "k:", linewidth=3)
+    fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    # ax = axes[1]
+    ax.plot(time, VT_ndi, "g-.", linewidth=3, label='NDI')
+    ax.plot(time, VT_mpc, "b--", linewidth=3, label='MPC-NDI')
+    ax.plot(time, VT_opt, "r-", linewidth=3, label='Opt-NDI')
+    ax.plot(time, VTd, "k:", linewidth=3, label='Trim')
     ax.set_xlim(time[0], time[-1])
+    ax.set_xlabel("Time, sec", fontsize=20)
     ax.set_ylabel(r"$V$, m/s", fontsize=20)
+    ax.legend(fontsize=20)
+    fig.tight_layout()
 
-    ax = axes[2]
+    fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    # ax = axes[2]
     ax.plot(time, np.rad2deg(theta_ndi), "g-.", linewidth=3, label="NDI")
     ax.plot(time, np.rad2deg(theta_mpc), "b--", linewidth=3, label="MPC-NDI")
     ax.plot(time, np.rad2deg(theta_opt), "r-", linewidth=3, label="Opt-NDI")
@@ -290,7 +298,7 @@ def plot():
     ax.set_xlabel("Time, sec", fontsize=20)
     ax.set_ylabel(r"$\theta$, deg", fontsize=20)
 
-    ax.legend(fontsize=15)
+    ax.legend(fontsize=20)
     fig.tight_layout()
     # fig.subplot_adjust(right=0.85)
 
@@ -415,7 +423,7 @@ def plot():
     #         loc="lower center",
     #         bbox_to_anchor=(0.55, 0),
     #         ncol=2,
-    #         fontsize=15,
+    #         fontsize=20,
     #     )
 
     #     fig.tight_layout(h_pad=0.2)
