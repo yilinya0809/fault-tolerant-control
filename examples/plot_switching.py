@@ -303,7 +303,7 @@ def plot():
     # fig.subplot_adjust(right=0.85)
 
     """ Figure 2 - Control Inputs """
-    fig, axes = plt.subplots(2, 4, figsize=(12, 8))
+    fig, axes = plt.subplots(4, 2, figsize=(8, 10))
 
     ax = axes[0, 0]
     ax.plot(time, np.ones((len(time), 1)), "k:")
@@ -314,9 +314,9 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 1", fontsize=14)
-    ax.legend(loc='upper right', bbox_to_anchor = (1.0, 0.9), fontsize=12)
+    ax.legend(loc='upper right', bbox_to_anchor = (1.0, 0.9), fontsize=11)
 
-    ax = axes[1, 0]
+    ax = axes[0, 1]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 1], "g-.", linewidth=3)
@@ -325,9 +325,8 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 2", fontsize=14)
-    ax.set_xlabel("Time, sec", fontsize=14)
 
-    ax = axes[0, 1]
+    ax = axes[1, 0]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 2], "g-.", linewidth=3)
@@ -346,9 +345,8 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 4", fontsize=14)
-    ax.set_xlabel("Time, sec", fontsize=14)
 
-    ax = axes[0, 2]
+    ax = axes[2, 0]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 4], "g-.", linewidth=3)
@@ -358,7 +356,7 @@ def plot():
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 5", fontsize=14)
 
-    ax = axes[1, 2]
+    ax = axes[2, 1]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 5], "g-.", linewidth=3)
@@ -367,9 +365,8 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 6", fontsize=14)
-    ax.set_xlabel("Time, sec", fontsize=14)
 
-    ax = axes[0, 3]
+    ax = axes[3, 0]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, pushers_ndi[:, 0], "g-.", linewidth=3)
@@ -378,8 +375,9 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Pusher 1", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
 
-    ax = axes[1, 3]
+    ax = axes[3, 1]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, pushers_ndi[:, 1], "g-.", linewidth=3)
