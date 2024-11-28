@@ -2,7 +2,6 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from casadi import *
-from fym.utils.rot import angle2dcm
 
 from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary
@@ -116,15 +115,14 @@ opti.minimize(cost)
 
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
-eta = 0.8
 theta_max = np.deg2rad(30)
 # ---- input constraints --------
-opti.subject_to(opti.bounded(0, Fr, eta * Fr_max))
-opti.subject_to(opti.bounded(0, Fp, eta * Fp_max))
+opti.subject_to(opti.bounded(0, Fr, Fr_max))
+opti.subject_to(opti.bounded(0, Fp, Fp_max))
 opti.subject_to(opti.bounded(-theta_max, theta, theta_max))
 
 # ---- state constraints --------
-z_eps = 1
+z_eps = 0.01
 opti.subject_to(opti.bounded(x_trim[1] - z_eps, z, x_trim[1] + z_eps))
 # opti.subject_to(opti.bounded(0, T, 20))
 opti.subject_to(T >= 0)
@@ -138,10 +136,10 @@ opti.subject_to(Fp[0] == 0)
 opti.subject_to(theta[0] == np.deg2rad(0))
 
 opti.subject_to(z[-1] == x_trim[1])
-opti.subject_to(vx[-1] == x_trim[2])
-opti.subject_to(vz[-1] == x_trim[3])
+# opti.subject_to(vx[-1] == x_trim[2])
+# opti.subject_to(vz[-1] == x_trim[3])
+opti.subject_to(vx[-1] ** 2 + vz[-1] ** 2 == x_trim[2] ** 2 + x_trim[3] ** 2)
 
-# u_eps = 0.8
 u_eps = 0.9
 opti.subject_to(opti.bounded(0, Fr[-1], 10))
 opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
@@ -220,13 +218,14 @@ def plot_results(data):
     ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    # fig.tight_layout()
+    fig.tight_layout()
 
     """ Control input trajectory """
     fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
     ax = axs[0, 0]
     ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
     ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
+    ax.plot(tspan[:-1], np.zeros((N, 1)), "r--")
     ax.set_ylabel(r"$F_{rotor},\, \mathrm{N}$", fontsize=15)
     ax.set_xlim([0, data["tf"]])
     ax.grid()
@@ -248,7 +247,7 @@ def plot_results(data):
     ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    # fig.tight_layout()
+    fig.tight_layout()
 
     """ VT, theta traj """
     fig, ax = plt.subplots(1, 1)
@@ -264,7 +263,7 @@ def plot_results(data):
     ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
     ax.set_ylabel(r"$\theta,\, \mathrm{deg}$", fontsize=20)
     # ax.set_title("Dynamic Transition Corridor", fontsize=20)
-    # fig.tight_layout()
+    fig.tight_layout()
 
     plt.show()
 
@@ -290,7 +289,7 @@ try:
 
     results["cost"] = cost
 
-    with h5py.File("opt_test.h5", "w") as f:
+    with h5py.File("opt_corr.h5", "w") as f:
         f.create_dataset("tf", data=results["tf"])
         f.create_dataset("X", data=results["X"])
         f.create_dataset("U", data=results["U"])

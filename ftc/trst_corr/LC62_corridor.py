@@ -339,14 +339,14 @@ class LC62_corridor(fym.BaseEnv):
                     Fr[i][j] = np.NaN
                     Fp[i][j] = np.NaN
                     acc[i][j] = np.NaN
-                    if F[0] < -0.1:
+                    if F[0] < -0.01:
                         Fx[i][j] = 1
                     else:
                         Fx[i][j] = np.NaN
 
-                    if F[2] > 0.1:
+                    if F[2] > 0.01:
                         Fz[i][j] = 1
-                    elif F[2] < -0.1:
+                    elif F[2] < -0.01:
                         Fz[i][j] = 2
                     else:
                         Fz[i][j] = np.NaN
@@ -381,7 +381,8 @@ class LC62_corridor(fym.BaseEnv):
         # x3 = (np.sign(F[2]) + 1) * F[2]
         x3 = F[2]
         dxs = np.vstack((x1, x2, x3))
-        weight = np.diag([10000, 1, 1])
+        # weight = np.diag([1000, 1, 1])
+        weight = np.diag([1000, 1, 1000])
         cost = dxs.T @ weight @ dxs
         return cost
 
@@ -413,7 +414,8 @@ if __name__ == "__main__":
     VT_corr, theta_corr, cost, success, acc, Fr, Fp, Fx, Fz = Trst_corr
     np.savez(
         os.path.join(
-            "ftc/trst_corr/corr_safe_cause.npz",
+            # "ftc/trst_corr/corr_safe_cause.npz",
+            "corr_test.npz"
         ),
         VT_corr=VT_corr,
         theta_corr=theta_corr,

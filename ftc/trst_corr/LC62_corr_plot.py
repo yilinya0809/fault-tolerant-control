@@ -20,7 +20,8 @@ plant = LC62()
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 
-Trst_corr = np.load("data/corr_safe_cause.npz")
+# Trst_corr = np.load("data/corr_safe_cause.npz")
+Trst_corr = np.load("corr_test.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -55,7 +56,8 @@ for i in range(np.size(VT_corr)):
 
 # Optimal Trajectory
 data = {}
-with h5py.File("data/opt_corr.h5", "r") as f:
+# with h5py.File("data/opt_corr.h5", "r") as f:
+with h5py.File("opt_test.h5", "r") as f:
     data["tf"] = f["tf"][()]
     data["X"] = f["X"][:]
     data["U"] = f["U"][:]
@@ -332,20 +334,20 @@ ax.set_ylabel(r"$\theta$, deg", fontsize=20)
 # ax.set_title("Dynamic Transition Corridor", fontsize=20)
 fig.tight_layout()
 
-# """ Fx, Fz traj """
-# fig, axs = plt.subplots(1, 2)
-# ax = axs[0]
-# ax.plot(tspan[:-1], Fx_I[:], "k", linewidth=3)
-# ax.set_ylabel(r"$F_x^I,\, \mathrm{N}$", fontsize=20)
-# ax.set_xlim([0, data["tf"]])
-# ax.grid()
+""" Fx, Fz traj """
+fig, axs = plt.subplots(1, 2)
+ax = axs[0]
+ax.plot(tspan[:-1], Fx_I[:], "k", linewidth=3)
+ax.set_ylabel(r"$F_x^I,\, \mathrm{N}$", fontsize=20)
+ax.set_xlim([0, data["tf"]])
+ax.grid()
 
-# ax = axs[1]
-# ax.plot(tspan[:-1], Fz_I[:], "k", linewidth=3)
-# ax.set_ylabel(r"$F_z^I,\, \mathrm{N}$", fontsize=20)
-# ax.set_xlim([0, data["tf"]])
-# ax.grid()
-# fig.tight_layout()
+ax = axs[1]
+ax.plot(tspan[:-1], Fz_I[:], "k", linewidth=3)
+ax.set_ylabel(r"$F_z^I,\, \mathrm{N}$", fontsize=20)
+ax.set_xlim([0, data["tf"]])
+ax.grid()
+fig.tight_layout()
 
 
 plt.show()
