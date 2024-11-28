@@ -55,7 +55,8 @@ for i in range(np.size(VT_corr)):
 
 # Optimal Trajectory
 data = {}
-with h5py.File("data/opt_corr.h5", "r") as f:
+# with h5py.File("data/opt_corr.h5", "r") as f:
+with h5py.File("opt_test.h5", "r") as f:
     data["tf"] = f["tf"][()]
     data["X"] = f["X"][:]
     data["U"] = f["U"][:]

@@ -2,6 +2,7 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from casadi import *
+from fym.utils.rot import angle2dcm
 
 from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary
@@ -116,7 +117,6 @@ opti.minimize(cost)
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 eta = 0.8
-breakpoint()
 theta_max = np.deg2rad(30)
 # ---- input constraints --------
 opti.subject_to(opti.bounded(0, Fr, eta * Fr_max))
@@ -141,7 +141,8 @@ opti.subject_to(z[-1] == x_trim[1])
 opti.subject_to(vx[-1] == x_trim[2])
 opti.subject_to(vz[-1] == x_trim[3])
 
-u_eps = 0.8
+# u_eps = 0.8
+u_eps = 0.9
 opti.subject_to(opti.bounded(0, Fr[-1], 10))
 opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
 opti.subject_to(
@@ -289,7 +290,7 @@ try:
 
     results["cost"] = cost
 
-    with h5py.File("opt_corr.h5", "w") as f:
+    with h5py.File("opt_test.h5", "w") as f:
         f.create_dataset("tf", data=results["tf"])
         f.create_dataset("X", data=results["X"])
         f.create_dataset("U", data=results["U"])
