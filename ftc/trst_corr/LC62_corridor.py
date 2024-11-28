@@ -381,8 +381,7 @@ class LC62_corridor(fym.BaseEnv):
         # x3 = (np.sign(F[2]) + 1) * F[2]
         x3 = F[2]
         dxs = np.vstack((x1, x2, x3))
-        # weight = np.diag([1000, 1, 1])
-        weight = np.diag([1000, 1, 1000])
+        weight = np.diag([1000, 1, 1])
         cost = dxs.T @ weight @ dxs
         return cost
 

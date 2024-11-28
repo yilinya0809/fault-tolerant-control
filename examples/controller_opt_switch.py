@@ -96,7 +96,8 @@ class MyEnv(fym.BaseEnv):
     def set_dot(self, t):
         pos, vel, quat, omega = self.plant.observe_list()
         VT = np.linalg.norm(vel)
-        if np.isclose(self.VT_cruise, VT, atol=1.5):
+        # if np.isclose(self.VT_cruise, VT, atol=0.01):
+        if VT >= self.VT_cruise:
             ctrls0, controller_info = self.controller_fw.get_control(t, self)
         else:
             ctrls0, controller_info = self.controller_trst.get_control(t, self)
