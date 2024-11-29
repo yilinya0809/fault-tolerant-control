@@ -80,13 +80,13 @@ theta = U[2, :]
 T = opti.variable()
 
 # ---- objective          ---------
-# W_t = 100
-# W_z = 5000
-# W_u = diag([1, 10, 5000])
+W_t = 200000
+W_z = 1000
+W_u = diag([1, 20, 50000])
 
-W_t = 100000
-W_z = 50000
-W_u = diag([1, 10, 500000])
+# W_t = 2000000
+# W_z = 10000
+# W_u = diag([1, 90, 500000])
 
 cost = W_t * T
 
@@ -117,12 +117,14 @@ Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 theta_max = np.deg2rad(30)
 # ---- input constraints --------
-opti.subject_to(opti.bounded(0, Fr, Fr_max))
-opti.subject_to(opti.bounded(0, Fp, Fp_max))
+eta = 0.8
+opti.subject_to(opti.bounded(0, Fr, eta * Fr_max))
+opti.subject_to(opti.bounded(0, Fp, eta * Fp_max))
 opti.subject_to(opti.bounded(-theta_max, theta, theta_max))
 
 # ---- state constraints --------
 z_eps = 0.01
+# z_eps = 0.1
 opti.subject_to(opti.bounded(x_trim[1] - z_eps, z, x_trim[1] + z_eps))
 # opti.subject_to(opti.bounded(0, T, 20))
 opti.subject_to(T >= 0)
@@ -140,11 +142,13 @@ opti.subject_to(z[-1] == x_trim[1])
 # opti.subject_to(vz[-1] == x_trim[3])
 opti.subject_to(vx[-1] ** 2 + vz[-1] ** 2 == x_trim[2] ** 2 + x_trim[3] ** 2)
 
-u_eps = 0.9
-opti.subject_to(opti.bounded(0, Fr[-1], 10))
-opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
+# u_eps = 0.25
+opti.subject_to(opti.bounded(0, Fr[-1], 5))
+# opti.subject_to(opti.bounded(u_trim[1] * (1 - 0.1), Fp[-1], u_trim[1] * (1 + 0.1)))
+opti.subject_to(opti.bounded(80, Fp[-1], 85))
 opti.subject_to(
-    opti.bounded(u_trim[2] * (1 - u_eps), theta[-1], u_trim[2] * (1 + u_eps))
+    # opti.bounded(u_trim[2] * (1 - 0.1), theta[-1], u_trim[2] * (1 + 0.1))
+    opti.bounded(np.deg2rad(1), theta[-1], np.deg2rad(2.5))
 )
 
 # opti.subject_to(Fr[-1] == u_trim[0])
@@ -181,7 +185,7 @@ s_opts = {
     "tol": 1e-6,
     "acceptable_tol": 1e-6,
     "acceptable_iter": 15,
-    "max_iter": 2000,
+    "max_iter": 1000,
     "max_cpu_time": 1e4,
     "print_level": 5,
 }
