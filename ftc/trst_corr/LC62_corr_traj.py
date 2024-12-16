@@ -80,13 +80,13 @@ theta = U[2, :]
 T = opti.variable()
 
 # ---- objective          ---------
-W_t = 200000
-W_z = 1000
-W_u = diag([1, 20, 50000])
+# W_t = 100
+# W_z = 5000
+# W_u = diag([1, 10, 5000])
 
-# W_t = 2000000
-# W_z = 10000
-# W_u = diag([1, 90, 500000])
+W_t = 100000
+W_z = 10000
+W_u = diag([1, 10, 500000])
 
 cost = W_t * T
 
@@ -124,7 +124,6 @@ opti.subject_to(opti.bounded(-theta_max, theta, theta_max))
 
 # ---- state constraints --------
 z_eps = 0.01
-# z_eps = 0.1
 opti.subject_to(opti.bounded(x_trim[1] - z_eps, z, x_trim[1] + z_eps))
 # opti.subject_to(opti.bounded(0, T, 20))
 opti.subject_to(T >= 0)
@@ -142,12 +141,10 @@ opti.subject_to(z[-1] == x_trim[1])
 # opti.subject_to(vz[-1] == x_trim[3])
 opti.subject_to(vx[-1] ** 2 + vz[-1] ** 2 == x_trim[2] ** 2 + x_trim[3] ** 2)
 
-# u_eps = 0.25
+u_eps = 0.2
 opti.subject_to(opti.bounded(0, Fr[-1], 5))
-# opti.subject_to(opti.bounded(u_trim[1] * (1 - 0.1), Fp[-1], u_trim[1] * (1 + 0.1)))
-opti.subject_to(opti.bounded(80, Fp[-1], 85))
+opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
 opti.subject_to(
-    # opti.bounded(u_trim[2] * (1 - 0.1), theta[-1], u_trim[2] * (1 + 0.1))
     opti.bounded(np.deg2rad(1), theta[-1], np.deg2rad(2.5))
 )
 
@@ -185,7 +182,7 @@ s_opts = {
     "tol": 1e-6,
     "acceptable_tol": 1e-6,
     "acceptable_iter": 15,
-    "max_iter": 1000,
+    "max_iter": 2000,
     "max_cpu_time": 1e4,
     "print_level": 5,
 }
@@ -200,24 +197,24 @@ def plot_results(data):
     tspan = linspace(0, data["tf"], N + 1)
 
     """ States trajectory """
-    fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
-    ax = axs[0, 0]
+    fig, axs = plt.subplots(3, 1, figsize=(8, 8))
+    ax = axs[0]
     ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
-    ax.set_ylabel(r"$h,\, \mathrm{m}$", fontsize=15)
+    ax.set_ylabel(r"$h,\, \mathrm{m}$", fontsize=20)
     ax.set_ylim([9, 11])
     ax.grid()
     ax.set_xlim([0, data["tf"]])
 
-    ax = axs[1, 0]
+    ax = axs[1]
     ax.plot(tspan, data["X"][1, :], "k", linewidth=3)
-    ax.set_ylabel(r"$V_x^B,\, \mathrm{m/s}$", fontsize=15)
+    ax.set_ylabel(r"$V_x^B,\, \mathrm{m/s}$", fontsize=20)
     ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    ax = axs[2, 0]
+    ax = axs[2]
     ax.plot(tspan, data["X"][2, :], "k", linewidth=3)
-    ax.set_ylabel(r"$V_z^B,\, \mathrm{m/s}$", fontsize=15)
-    ax.set_xlabel("Time, s", fontsize=15)
+    ax.set_ylabel(r"$V_z^B,\, \mathrm{m/s}$", fontsize=20)
+    ax.set_xlabel("Time, s", fontsize=20)
     ax.set_ylim([-10, 10])
     ax.set_xlim([0, data["tf"]])
     ax.grid()
@@ -225,28 +222,29 @@ def plot_results(data):
     fig.tight_layout()
 
     """ Control input trajectory """
-    fig, axs = plt.subplots(3, 1, squeeze=False, sharex=True)
-    ax = axs[0, 0]
+    fig, axs = plt.subplots(3, 1, figsize=(8, 8))
+    ax = axs[0]
     ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
     ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
     ax.plot(tspan[:-1], np.zeros((N, 1)), "r--")
-    ax.set_ylabel(r"$F_{rotor},\, \mathrm{N}$", fontsize=15)
+    ax.set_ylabel(r"$F_{rotor},\, \mathrm{N}$", fontsize=20)
     ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    ax = axs[1, 0]
+    ax = axs[1]
     ax.plot(tspan[:-1], data["U"][1, :], "k", linewidth=3)
     ax.plot(tspan[:-1], Fp_max * np.ones((N, 1)), "r--")
-    ax.set_ylabel(r"$F_{pusher},\, \mathrm{N}$", fontsize=15)
+    ax.plot(tspan[:-1], np.zeros((N, 1)), "r--")
+    ax.set_ylabel(r"$F_{pusher},\, \mathrm{N}$", fontsize=20)
     ax.set_xlim([0, data["tf"]])
     ax.grid()
 
-    ax = axs[2, 0]
+    ax = axs[2]
     ax.plot(tspan[:-1], np.rad2deg(data["U"][2, :]), "k", linewidth=3)
     ax.plot(tspan[:-1], -30 * np.ones((N, 1)), "r--")
     ax.plot(tspan[:-1], 30 * np.ones((N, 1)), "r--")
-    ax.set_ylabel(r"$\theta,\, \mathrm{deg}$", fontsize=15)
-    ax.set_xlabel("Time, s", fontsize=15)
+    ax.set_ylabel(r"$\theta,\, \mathrm{deg}$", fontsize=20)
+    ax.set_xlabel("Time, s", fontsize=20)
     ax.set_ylim([-35, 35])
     ax.set_xlim([0, data["tf"]])
     ax.grid()
@@ -264,8 +262,8 @@ def plot_results(data):
     ax.plot(VT_traj[1:], theta_traj[1:], "r-", linewidth=5)
     VT, theta = np.meshgrid(VT_corr, theta_corr)
     ax.scatter(VT, theta, s=success.T, c="b")
-    ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
-    ax.set_ylabel(r"$\theta,\, \mathrm{deg}$", fontsize=20)
+    ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=30)
+    ax.set_ylabel(r"$\theta,\, \mathrm{deg}$", fontsize=30)
     # ax.set_title("Dynamic Transition Corridor", fontsize=20)
     fig.tight_layout()
 

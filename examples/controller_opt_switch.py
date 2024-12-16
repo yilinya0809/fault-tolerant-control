@@ -19,6 +19,16 @@ plt.rcParams.update(
         "mathtext.fontset": "stix",
     }
 )
+""" Transition Corridor """
+Trst_corr = np.load("data/corr_safe.npz")
+VT_corr = Trst_corr["VT_corr"]
+acc_corr = Trst_corr["acc"]
+theta_corr = np.rad2deg(Trst_corr["theta_corr"])
+Fr = Trst_corr["Fr"]
+Fp = Trst_corr["Fp"]
+success = Trst_corr["success"]
+
+
 
 """ Optimal transition trajectory """
 opt_traj = {}
@@ -144,53 +154,61 @@ def plot():
     data = fym.load("data_opt_switch.h5")["env"]
 
     """ Figure 1 - States """
-    fig, axes = plt.subplots(3, 2, figsize=(8, 10), squeeze=False, sharex=True)
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8), squeeze=False, sharex=True)
 
     ax = axes[0, 0]
-    ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "b-", linewidth=2)
+    ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "b-", linewidth=3)
     ax.plot(data["t"], data["posd"][:, 0], "r--")
     ax.set_ylabel(r"$x$, m", fontsize=20)
     ax.set_xlim(data["t"][0], data["t"][-1])
     ax.grid()
 
-    ax = axes[1, 0]
+    ax = axes[0, 1]
     # ax.plot(tspan, opt_traj["X"][0, :], "r--")
-    ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-", linewidth=2)
+    ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-", linewidth=3)
     ax.plot(data["t"], data["posd"][:, 2], "r--")
     ax.set_ylabel(r"$z$, m", fontsize=20)
-    ax.set_ylim([-15, -5])
+    ax.set_ylim([-12, -8])
     ax.grid()
 
-    ax = axes[0, 1]
-    ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "b-", linewidth=2)
+    ax = axes[1, 0]
+    ax.plot(data["t"], data["plant"]["vel"][:, 0].squeeze(-1), "b-", linewidth=3)
     ax.plot(data["t"], data["veld"][:, 0], "r--")
     ax.set_ylabel(r"$V_x^B$, m/s", fontsize=20)
-    ax.grid()
-
-    ax = axes[1, 1]
-    ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "b-", linewidth=2)
-    ax.plot(data["t"], data["veld"][:, 2], "r--")
-    ax.set_ylabel(r"$V_z^B$, m/s", fontsize=20, labelpad=-2)
-    ax.set_ylim([-10, 5])
-    ax.grid()
-
-
-    ax = axes[2, 0]
-    ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-", linewidth=2)
-    ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
-    ax.set_ylabel(r"$\theta$, deg", fontsize=20, labelpad=-1)
     ax.set_xlabel("Time, sec", fontsize=20)
     ax.grid()
 
-    ax = axes[2, 1]
-    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-", linewidth=2)
+    ax = axes[1, 1]
+    ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "b-", linewidth=3)
+    ax.plot(data["t"], data["veld"][:, 2], "r--")
+    ax.set_ylabel(r"$V_z^B$, m/s", fontsize=20, labelpad=-2)
+    ax.set_ylim([-10, 5])
+    ax.set_xlabel("Time, sec", fontsize=20)
+    ax.grid()
+
+
+    ax = axes[0, 2]
+    ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-", linewidth=3)
+    ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
+    ax.grid()
+    ax.set_ylabel(r"$\theta$, deg", fontsize=20, labelpad=-5)
+
+    ax = axes[1, 2]
+    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-", linewidth=3)
     ax.plot(data["t"], np.rad2deg(data["omegad"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$q$, deg/s", fontsize=20, labelpad=-5)
     ax.set_xlabel("Time, sec", fontsize=20)
     ax.grid()
 
-    fig.tight_layout()
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
 
+    fig.legend(
+    labels=["Responses", "Optimal commands"],
+    loc="upper center",  # Position the legend above the figure
+    bbox_to_anchor=(0.5, 1.005),  # Center the legend horizontally
+    ncol=2,  # Number of columns
+    fontsize=14,  # Font size for legend
+    )
     """ Figure 2 - Rotor inputs """
     fig, axes = plt.subplots(4, 2, figsize=(8, 10), sharex=True)
 
@@ -208,7 +226,6 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "b-", linewidth=2)
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 2", fontsize=20)
-    ax.set_xlabel("Time, sec", fontsize=20)
 
     ax = axes[1, 0]
     ax.plot(data["t"], np.ones((len(data["t"]), 1)), "r--")
@@ -223,7 +240,6 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "b-", linewidth=2)
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 4", fontsize=20)
-    ax.set_xlabel("Time, sec", fontsize=20)
 
     ax = axes[2, 0]
     ax.plot(data["t"], np.ones((len(data["t"]), 1)), "r--")
@@ -238,7 +254,6 @@ def plot():
     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "b-", linewidth=2)
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 6", fontsize=20)
-    ax.set_xlabel("Time, sec", fontsize=20)
 
     ax = axes[3, 0]
     ax.plot(data["t"], np.ones((len(data["t"]), 1)), "r--")
@@ -276,8 +291,16 @@ def plot():
     ax.set_ylabel(r"$F_{pushers}$, N")
     ax.set_xlabel("Time, sec")
 
-    plt.tight_layout()
-    fig.align_ylabels(axes)
+    """ Figure 4 - Transition Corridor """
+    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    VT, theta = np.meshgrid(VT_corr, theta_corr)
+    ax.scatter(VT, theta, s=success.T, c="b")
+
+    ax.plot(np.linalg.norm(data["plant"]["vel"].squeeze(-1), axis=1), np.rad2deg(data["ang"][:, 1]), "r-", linewidth=5)
+    ax.set_xlabel("V, m/s", fontsize=20)
+    ax.set_ylabel(r"$\theta$, deg", fontsize=20)
+    ax.legend(fontsize=20)
+    fig.tight_layout()
 
     plt.show()
 

@@ -12,7 +12,7 @@ plt.rcParams.update(
 )
 """ Transition Corridor """
 # Trst_corr = np.load("data/corr.npz")
-Trst_corr = np.load("data/corr_safe.npz")
+Trst_corr = np.load("corr_test.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -31,7 +31,7 @@ opt_traj["U"] = f.get("U")[:]
 N = np.shape(opt_traj["U"])[1]
 tspan = np.linspace(0, opt_traj["tf"], N + 1)
 
-data_opt = fym.load("data/data_opt_switch.h5")["env"]
+data_opt = fym.load("data_opt_switch.h5")["env"]
 data_mpc = fym.load("data/data_mpc_switch.h5")["env"]
 agent = fym.load("data/data_mpc_switch.h5")["agent"]
 data_ndi = fym.load("data/data_ndi_switch.h5")["env"]
@@ -262,34 +262,34 @@ thetad_mpc = data_mpc["angd"][:, 1]
 
 def plot():
     """Figure 1 - States"""
-    fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    fig, axes = plt.subplots(3, 1, figsize=(10,8))
 
-    # ax = axes[0]
+    ax = axes[0]
     ax.plot(time, z_ndi, "g-.", linewidth=3, label='NDI')
     ax.plot(time, z_mpc, "b--", linewidth=3, label='MPC-NDI')
     ax.plot(time, z_opt, "r-", linewidth=3, label='Opt-NDI')
     ax.plot(time, zd, "k:", linewidth=3, label='Trim')
     ax.set_xlim(time[0], time[-1])
-    ax.set_xlabel("Time, sec", fontsize=20)
+    # ax.set_xlabel("Time, sec", fontsize=20)
     ax.set_ylabel(r"$z$, m", fontsize=20)
     ax.set_ylim([-12, -8])
-    ax.legend(fontsize=20)
+    # ax.legend(fontsize=15)
     fig.tight_layout()
 
-    fig, ax = plt.subplots(1, 1, figsize=(12,8))
-    # ax = axes[1]
+    # fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    ax = axes[1]
     ax.plot(time, VT_ndi, "g-.", linewidth=3, label='NDI')
     ax.plot(time, VT_mpc, "b--", linewidth=3, label='MPC-NDI')
     ax.plot(time, VT_opt, "r-", linewidth=3, label='Opt-NDI')
     ax.plot(time, VTd, "k:", linewidth=3, label='Trim')
     ax.set_xlim(time[0], time[-1])
-    ax.set_xlabel("Time, sec", fontsize=20)
+    # ax.set_xlabel("Time, sec", fontsize=20)
     ax.set_ylabel(r"$V$, m/s", fontsize=20)
-    ax.legend(fontsize=20)
+    # ax.legend(fontsize=20)
     fig.tight_layout()
 
-    fig, ax = plt.subplots(1, 1, figsize=(12,8))
-    # ax = axes[2]
+    # fig, ax = plt.subplots(1, 1, figsize=(12,8))
+    ax = axes[2]
     ax.plot(time, np.rad2deg(theta_ndi), "g-.", linewidth=3, label="NDI")
     ax.plot(time, np.rad2deg(theta_mpc), "b--", linewidth=3, label="MPC-NDI")
     ax.plot(time, np.rad2deg(theta_opt), "r-", linewidth=3, label="Opt-NDI")
@@ -298,12 +298,12 @@ def plot():
     ax.set_xlabel("Time, sec", fontsize=20)
     ax.set_ylabel(r"$\theta$, deg", fontsize=20)
 
-    ax.legend(fontsize=20)
+    ax.legend(loc='lower right', fontsize=15)
     fig.tight_layout()
     # fig.subplot_adjust(right=0.85)
 
     """ Figure 2 - Control Inputs """
-    fig, axes = plt.subplots(4, 2, figsize=(8, 10))
+    fig, axes = plt.subplots(2, 4, figsize=(12, 8))
 
     ax = axes[0, 0]
     ax.plot(time, np.ones((len(time), 1)), "k:")
@@ -314,9 +314,9 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 1", fontsize=14)
-    ax.legend(loc='upper right', bbox_to_anchor = (1.0, 0.9), fontsize=11)
+    # ax.legend(loc='upper right', bbox_to_anchor = (1.0, 1.0), fontsize=12)
 
-    ax = axes[0, 1]
+    ax = axes[1, 0]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 1], "g-.", linewidth=3)
@@ -325,8 +325,9 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 2", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
 
-    ax = axes[1, 0]
+    ax = axes[0, 1]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 2], "g-.", linewidth=3)
@@ -345,8 +346,9 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 4", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
 
-    ax = axes[2, 0]
+    ax = axes[0, 2]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 4], "g-.", linewidth=3)
@@ -356,7 +358,7 @@ def plot():
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 5", fontsize=14)
 
-    ax = axes[2, 1]
+    ax = axes[1, 2]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, rotors_ndi[:, 5], "g-.", linewidth=3)
@@ -365,8 +367,9 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Rotor 6", fontsize=14)
+    ax.set_xlabel("Time, sec", fontsize=14)
 
-    ax = axes[3, 0]
+    ax = axes[0, 3]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, pushers_ndi[:, 0], "g-.", linewidth=3)
@@ -375,9 +378,8 @@ def plot():
     ax.set_xlim(time[0], time[-1])
     ax.set_ylim([-0.1, 1.1])
     ax.set_ylabel("Pusher 1", fontsize=14)
-    ax.set_xlabel("Time, sec", fontsize=14)
 
-    ax = axes[3, 1]
+    ax = axes[1, 3]
     ax.plot(time, np.ones((len(time), 1)), "k:")
     ax.plot(time, np.zeros((len(time), 1)), "k:")
     ax.plot(time, pushers_ndi[:, 1], "g-.", linewidth=3)
@@ -388,7 +390,23 @@ def plot():
     ax.set_xlabel("Time, sec", fontsize=14)
     ax.set_ylabel("Pusher 2", fontsize=14)
 
-    fig.tight_layout()
+    handles, labels = [], []
+    for ax_row in axes:
+        for ax in ax_row:
+            h, l = ax.get_legend_handles_labels()
+            handles.extend(h)
+            labels.extend(l)
+
+    fig.legend(
+        handles=handles,
+    labels=["NDI", "MPC-NDI", "Opt-NDI"],
+    loc="upper center",  # Position the legend above the figure
+    bbox_to_anchor=(0.5, 1.005),  # Center the legend horizontally
+    ncol=3,  # Number of columns
+    fontsize=14,  # Font size for legend
+    )
+
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
 
     #     """ Figure 3 - Forces of NMPC """
     #     fig, axes = plt.subplots(3, 1)
@@ -455,7 +473,7 @@ def plot():
     # fig.tight_layout()
 
     """ Figure 3 - Transition Corridor """
-    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     VT, theta = np.meshgrid(VT_corr, theta_corr)
     ax.scatter(VT, theta, s=success.T, c="b")
 

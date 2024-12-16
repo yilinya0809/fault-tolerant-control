@@ -23,10 +23,10 @@ class NDIController(fym.BaseEnv):
         )
         # self.K1 = np.diag((0, 100))
         # self.K2 = np.diag((10, 20))
-        self.K1 = np.diag((10, 100))
-        self.K2 = np.diag((10, 100))
-        self.K3 = np.diag((10, 100, 10))
-        self.K4 = np.diag((10, 10, 10))
+        self.K1 = np.diag((10, 100)) # K4
+        self.K2 = np.diag((10, 50)) # K3
+        self.K3 = np.diag((10, 200, 10)) # K2
+        self.K4 = np.diag((10, 20, 10)) # K1
 
     def get_control(self, t, env):
         # current state
@@ -71,7 +71,6 @@ class NDIController(fym.BaseEnv):
         rcmds = th_r / self.cr_th
         if not np.isclose(np.linalg.norm(self.B_r2f@ th_r- np.vstack((-Frd, Mrd))), 0):
             print(np.linalg.norm(self.B_r2f@ th_r- np.vstack((-Frd, Mrd))))
-            breakpoint()
 
         th_p = Fpd / 2
         pcmds = th_p / self.cp_th * np.ones((2, 1))

@@ -166,7 +166,8 @@ class LC62_corridor(fym.BaseEnv):
         self.Fr_max = 6 * self.plant.th_r_max
         self.Fp_max = 2 * self.plant.th_p_max
         # self.eta = 1.0
-        self.eta = 0.8
+        # self.eta = 0.8
+        self.eta = 0.9
 
     def B_Pusher(self, Fp):
         Fx = Fp
