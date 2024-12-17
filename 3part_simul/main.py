@@ -12,7 +12,7 @@ np.seterr(all="raise")
 
 class MyEnv(fym.BaseEnv):
     def __init__(self):
-        super().__init__(dt=0.01, max_t=20)
+        super().__init__(dt=0.01, max_t=30)
         pos0 = np.vstack((0, 0, -1))
         # vel0 = np.zeros((3, 1))
         vel0 = np.vstack((0, 0, -1))
@@ -30,16 +30,13 @@ class MyEnv(fym.BaseEnv):
         return self.observe_flat()
 
     def get_ref(self, t):
-        posd = np.vstack((0, 0, -10))
+        posd = np.vstack((0, 0, 0))
         return posd
 
     def set_dot(self, t):
         ctrls0, controller_info = self.controller.get_control(t, self)
         # ctrls = ctrls0
         ctrls = self.plant.saturate(ctrls0)
-        # print(ctrls0, ctrls)
-        # breakpoint()
-
         FM = self.plant.get_FM(*self.plant.observe_list(), ctrls)
         self.plant.set_dot(t, FM)
 
@@ -53,7 +50,6 @@ class MyEnv(fym.BaseEnv):
         }
 
         return env_info
-
 
 def run():
     env = MyEnv()
