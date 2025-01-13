@@ -3,8 +3,8 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 from casadi import *
-from matplotlib.lines import Line2D
 from fym.utils.rot import angle2dcm
+from matplotlib.lines import Line2D
 
 from ftc.models.LC62_opt import LC62
 from ftc.trst_corr.poly_corr import boundary2
@@ -37,7 +37,6 @@ Fr_margin = np.zeros((np.size(VT_corr), 1))
 Fp_margin = np.zeros((np.size(VT_corr), 1))
 
 
-
 def casadi_polyval(coeffs, x):
     value = 0
     deg = len(coeffs) - 1
@@ -45,15 +44,14 @@ def casadi_polyval(coeffs, x):
         value += coeff * x ** (deg - i)
     return value
 
+
 def lower_func(vel):
     value = casadi_polyval(lower, vel)
     return value
 
 
 def upper_func(vel):
-    # value_max = np.max(upper_bound)
     value_upp = casadi_polyval(upper, vel)
-    # value = if_else(vel < VT_filtered[0], value_max, value_upp)
     return value_upp
 
 
@@ -72,7 +70,7 @@ ax = fig.add_subplot(111)
 degree = 3
 upper_bound, lower_bound = boundary2(Trst_corr)
 
-mask = upper_bound < np.max(upper_bound)
+mask = upper_bound < np.deg2rad(10)
 VT_filtered = VT_corr[mask]
 upper_bound_filtered = upper_bound[mask]
 
@@ -99,7 +97,7 @@ ax.plot(
 ax.set_xlabel(r"$V, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
 ax.set_xlim([0, 45])
-ax.set_ylim([-30, 30])
+ax.set_ylim([-10, 30])
 ax.legend(fontsize=20)
 fig.tight_layout()
 
@@ -302,7 +300,6 @@ ax.scatter(VT, theta, s=success.T, c="b")
 ax.set_xlabel("V, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 fig.tight_layout()
-
 
 
 plt.show()

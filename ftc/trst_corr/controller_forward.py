@@ -4,7 +4,8 @@ import fym
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from fym.utils.rot import quat2angle, angle2quat
+from fym.utils.rot import angle2quat, quat2angle
+from scipy.integrate import cumtrapz
 
 import ftc
 from ftc.models.LC62R import LC62R
@@ -15,7 +16,7 @@ np.seterr(all="raise")
 
 """ Results of Outer-loop optimal trajectory """
 opt_traj = {}
-f = h5py.File("data/back_traj.h5", "r")
+f = h5py.File("data/opt_corr.h5", "r")
 opt_traj["tf"] = f.get("tf")[()]
 opt_traj["X"] = f.get("X")[:]
 opt_traj["U"] = f.get("U")[:]
@@ -23,9 +24,18 @@ opt_traj["U"] = f.get("U")[:]
 N = np.shape(opt_traj["U"])[1]
 tspan = np.linspace(0, opt_traj["tf"], N + 1)
 
+Vxd = opt_traj["X"][1, :]
+Vzd = opt_traj["X"][2, :]
+thetad = opt_traj["U"][2, :]
+xdot = []
+for i in range(N):
+    xdot.append(Vxd[i + 1] * np.cos(thetad[i]) + Vzd[i + 1] * np.sin(thetad[i]))
+Xd = cumtrapz(xdot, tspan[1:], initial=0)
+
 
 class MyEnv(fym.BaseEnv):
-    theta0 = opt_traj["U"][2, 0]
+    VT_cruise = 45
+    h = 10
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
@@ -33,9 +43,9 @@ class MyEnv(fym.BaseEnv):
         },
         "plant": {
             "init": {
-                "pos": np.vstack((0.0, 0.0, opt_traj["X"][0, 0])),
-                "vel": np.vstack((opt_traj["X"][1, 0], 0, opt_traj["X"][2, 0])),
-                "quat": np.vstack(angle2quat(0, theta0, 0)),
+                "pos": np.vstack((0.0, 0.0, -h)),
+                "vel": np.zeros((3, 1)),
+                "quat": np.vstack((1, 0, 0, 0)),
                 "omega": np.zeros((3, 1)),
             },
         },
@@ -56,12 +66,13 @@ class MyEnv(fym.BaseEnv):
         return self.observe_flat()
 
     def get_ref(self, t):
-        zd = np.interp(t, tspan, opt_traj["X"][0, :])
+        xd = np.interp(t, tspan[1:], Xd[:])
+        zd = -self.h
         Vxd = np.interp(t, tspan, opt_traj["X"][1, :])
         Vzd = np.interp(t, tspan, opt_traj["X"][2, :])
         veld = np.vstack((Vxd, 0, Vzd))
         thetad = np.interp(t, tspan[1:], opt_traj["U"][2, :])
-        return zd, veld, thetad
+        return xd, zd, veld, thetad
 
     def set_dot(self, t):
         pos, vel, quat, omega = self.plant.observe_list()

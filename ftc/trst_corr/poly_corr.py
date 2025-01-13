@@ -8,6 +8,7 @@ theta_corr = Trst_corr["theta_corr"]
 cost = Trst_corr["cost"]
 success = Trst_corr["success"]
 
+
 def boundary(Trst_corr):
     VT_corr = Trst_corr["VT_corr"]
     theta_corr = Trst_corr["theta_corr"]
@@ -43,7 +44,7 @@ def boundary2(Trst_corr):
         theta_candidate = []
         for j in range(len(theta_corr)):
             if success[i][j] == 1:
-                if (acc_corr[i][j] > -3):
+                if acc_corr[i][j] > -3.3:
                     theta_candidate.append(theta_corr[j])
 
         upper_bound.append(np.max(theta_candidate))
@@ -78,7 +79,8 @@ if __name__ == "__main__":
     ax = fig.add_subplot(111)
     VT, theta = np.meshgrid(VT_corr, np.rad2deg(theta_corr))
     contour = ax.contourf(
-    VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0)
+        VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
+    )
     cbar = fig.colorbar(contour)
     cbar.ax.set_xlabel(r"$a_x^I,\, \mathrm{m/s^{2}}$", fontsize=20, labelpad=15)
     # fig, ax = plt.subplots(1, 1)
