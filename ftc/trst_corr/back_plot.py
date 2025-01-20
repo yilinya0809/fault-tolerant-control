@@ -82,29 +82,26 @@ deg = 3
 lower = np.polyfit(VT_corr, lower_bound, 3)
 upper = np.polyfit(VT_filtered, upper_bound_filtered, 3)
 
-# upper_ref = [np.deg2rad(10)]
-# VT_ref = [0]
-# for i in range(len(upper_bound)):
-#     if upper_bound[i] < np.max(upper_bound):
-#         upper_ref.append(upper_bound[i])
-#         VT_ref.append(VT_corr[i])
-
-# deg = 3
-# lower = np.polyfit(VT_corr, lower_bound, deg)
-# upper = np.polyfit(VT_ref, upper_ref, deg)
+theta_ref = [np.deg2rad(5)]
+VT_ref = [0]
+for i in range(len(upper_bound)):
+    if upper_bound[i] < np.max(upper_bound):
+        theta_ref.append(upper_bound[i])
+        VT_ref.append(VT_corr[i])
+ref = np.polyfit(VT_ref, theta_ref, deg)
 
 VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, s=success.T, c="k")
 ax.plot(
     VT_corr,
-    np.rad2deg(upper_func(VT_corr)),
+    np.rad2deg(casadi_polyval(ref, VT_corr)),
     "r-",
     label=r"$\mathrm{upper}_{BT}(V)$",
     linewidth=5,
 )
 ax.plot(
     VT_corr,
-    np.rad2deg(lower_func(VT_corr)),
+    np.rad2deg(casadi_polyval(lower, VT_corr)),
     "b-",
     label=r"$\mathrm{lower}_{BT}(V)$",
     linewidth=5,
@@ -248,7 +245,7 @@ for i in range(N):
 
 
 """ States trajectory """
-fig, axs = plt.subplots(3, 1, figsize=(12, 8))
+fig, axs = plt.subplots(3, 1, figsize=(8, 10))
 ax = axs[0]
 ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
 ax.set_ylabel("$h$, m", fontsize=15)
@@ -272,7 +269,7 @@ ax.grid()
 fig.tight_layout()
 
 """ Input trajectories """
-fig, axs = plt.subplots(3, 1, figsize=(12, 8))
+fig, axs = plt.subplots(3, 1, figsize=(8, 10))
 ax = axs[0]
 ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
 ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")

@@ -53,6 +53,6 @@ register(
     entry_point="ftc.controllers.switching:NDIController",
 )
 register(
-    id="FW",
+    id="FWHV",
     entry_point="ftc.controllers.switching:LQRController",
 )

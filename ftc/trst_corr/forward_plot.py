@@ -259,7 +259,6 @@ ax = axs[0]
 ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
 ax.set_ylabel("$h$, m", fontsize=20)
 ax.set_ylim([5, 15])
-ax.set_xlabel("Time, s", fontsize=20)
 ax.grid()
 ax.set_xlim([0, data["tf"]])
 # fig.tight_layout()
