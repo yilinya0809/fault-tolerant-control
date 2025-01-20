@@ -102,14 +102,14 @@ ax.plot(
     VT_corr,
     np.rad2deg(upper_func(VT_corr)),
     "r-",
-    label=r"$\mathrm{upper}(V)$",
+    label=r"$\mathrm{upper}_{FT}(V)$",
     linewidth=5,
 )
 ax.plot(
     VT_corr,
     np.rad2deg(lower_func(VT_corr)),
     "b-",
-    label=r"$\mathrm{lower}(V)$",
+    label=r"$\mathrm{lower}_{FT}(V)$",
     linewidth=5,
 )
 ax.set_xlabel(r"$V, \mathrm{m/s}$", fontsize=20)

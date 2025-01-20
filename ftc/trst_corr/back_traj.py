@@ -23,7 +23,7 @@ acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
 cost = Trst_corr["cost"]
 success = Trst_corr["success"]
-
+upper_bound, lower_bound = boundary2(Trst_corr)
 
 def casadi_polyval(coeffs, x):
     value = 0
@@ -32,27 +32,27 @@ def casadi_polyval(coeffs, x):
         value += coeff * x ** (deg - i)
     return value
 
-
-def lower_func(vel):
-    value = casadi_polyval(lower, vel)
+def upper_func(vel):
+    value_max = np.deg2rad(30)
+    value_upp = casadi_polyval(upper, vel)
+    value = if_else(vel < VT_filtered[0], value_max, value_upp)
     return value
 
-
-def upper_func(vel):
-    value_upp = casadi_polyval(upper, vel)
-    return value_upp
-
-
-degree = 3
-upper_bound, lower_bound = boundary2(Trst_corr)
-
-mask = upper_bound < np.deg2rad(10)
+mask = upper_bound < np.deg2rad(9.9)
 VT_filtered = VT_corr[mask]
 upper_bound_filtered = upper_bound[mask]
 
 deg = 3
 lower = np.polyfit(VT_corr, lower_bound, deg)
 upper = np.polyfit(VT_filtered, upper_bound_filtered, deg)
+
+theta_ref = [np.deg2rad(5)]
+VT_ref = [0]
+for i in range(len(upper_bound)):
+    if upper_bound[i] < np.max(upper_bound):
+        theta_ref.append(upper_bound[i])
+        VT_ref.append(VT_corr[i])
+ref = np.polyfit(VT_ref, theta_ref, deg)
 
 
 plant = LC62()
@@ -80,10 +80,16 @@ T = opti.variable()
 
 # ---- objective          ---------
 W_t = 100000
-W_z = 50000
-W_u = diag([1, 10, 500000])
+W_z = 10000
+W_u = diag([1, 10, 100000])
+# W_tht = 1000
+
+# W_t = 100000
+# W_z = 50000
+# W_u = diag([1, 10, 500000])
 
 cost = W_t * T
+# cost = W_t * T + W_tht * (U[2, -1]**2)
 dt = T / N
 for k in range(N):  # loop over control intervals
     # Runge-Kutta 4 integration
@@ -102,7 +108,11 @@ for k in range(N):  # loop over control intervals
     # Transition Corridor
     theta_k = U[2, k]
     VT_k = norm_2(X[1:3, k])
-    opti.subject_to(opti.bounded(lower_func(VT_k), theta_k, upper_func(VT_k)))
+    # opti.subject_to(opti.bounded(casadi_polyval(lower, VT_k), theta_k, upper_func(VT_k)))
+    opti.subject_to(opti.bounded(casadi_polyval(lower, VT_k), theta_k, casadi_polyval(ref, VT_k)))
+
+    # dist to ref
+    # cost += W_tht * (theta_k - casadi_polyval(ref, VT_k)) ** 2
 
 
 opti.minimize(cost)
@@ -110,14 +120,14 @@ opti.minimize(cost)
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 eta = 1.0
-theta_max = np.deg2rad(15)
+theta_max = np.deg2rad(30)
 # ---- input constraints --------
 opti.subject_to(opti.bounded(0, Fr, eta * Fr_max))
 opti.subject_to(opti.bounded(0, Fp, eta * Fp_max))
 # opti.subject_to(opti.bounded(-theta_max, theta, theta_max))
 
 # ---- state constraints --------
-z_eps = 0.1
+z_eps = 0.01
 opti.subject_to(opti.bounded(-h - z_eps, z, -h + z_eps))
 # opti.subject_to(opti.bounded(0, T, 20))
 opti.subject_to(T >= 0)
@@ -131,19 +141,20 @@ opti.subject_to(Fp[0] == u_fw[1])
 opti.subject_to(theta[0] == u_fw[2])
 
 opti.subject_to(z[-1] == x_hv[1])
+# opti.subject_to(opti.bounded(0, vx[-1]**2 + vz[-1]**2, 1))
 opti.subject_to(vx[-1] == x_hv[2])
 opti.subject_to(vz[-1] == x_hv[3])
 
 u_eps = 0.2
 opti.subject_to(opti.bounded(u_hv[0] * (1 - u_eps), Fr[-1], u_hv[0] * (1 + u_eps)))
-opti.subject_to(opti.bounded(0, Fp[-1], 10))
-# opti.subject_to(
-#     opti.bounded(-np.deg2rad(5), theta[-1], np.deg2rad(5))
-# )
+opti.subject_to(opti.bounded(0, Fp[-1], 5))
+opti.subject_to(
+    opti.bounded(-np.deg2rad(5), theta[-1], np.deg2rad(5))
+)
 
-# opti.subject_to(Fr[-1] == u_trim[0])
+# opti.subject_to(Fr[-1] == u_hv[0])
 # opti.subject_to(Fp[-1] == u_hv[1])
-opti.subject_to(theta[-1] == u_hv[2])
+# opti.subject_to(theta[-1] == u_hv[2])
 
 
 # with h5py.File("ftc/trst_corr/back_traj.h5", "r") as f:
@@ -254,14 +265,14 @@ def plot_results(data):
     ax.scatter(VT, theta, s=success.T, c="b")
     ax.plot(
         VT_corr,
-        np.rad2deg(upper_func(VT_corr)),
+        np.rad2deg(casadi_polyval(ref, VT_corr)),
         "k-",
         label=r"$\mathrm{upper}(V)$",
         linewidth=2,
     )
     ax.plot(
         VT_corr,
-        np.rad2deg(lower_func(VT_corr)),
+        np.rad2deg(casadi_polyval(lower, VT_corr)),
         "k-",
         label=r"$\mathrm{lower}(V)$",
         linewidth=2,

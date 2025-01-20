@@ -165,8 +165,8 @@ class LC62_corridor(fym.BaseEnv):
         self.plant = LC62()
         self.Fr_max = 6 * self.plant.th_r_max
         self.Fp_max = 2 * self.plant.th_p_max
-        # self.eta = 1.0
-        self.eta = 0.8
+        self.eta = 1.0
+        # self.eta = 0.8
 
     def B_Pusher(self, Fp):
         Fx = Fp
@@ -380,6 +380,7 @@ class LC62_corridor(fym.BaseEnv):
         x2 = (np.sign(F[0]) + 1) * F[0]
         # x3 = (np.sign(F[2]) + 1) * F[2]
         x3 = F[2]
+        # x4 = np.sign(F[0] / self.m + 6) - 1
         dxs = np.vstack((x1, x2, x3))
         weight = np.diag([10000, 1, 1])
         cost = dxs.T @ weight @ dxs

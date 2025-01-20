@@ -20,7 +20,7 @@ plant = LC62()
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 
-Trst_corr = np.load("ftc/trst_corr/corr_back.npz")
+Trst_corr = np.load("ftc/trst_corr/corr_back_full.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -51,9 +51,14 @@ def lower_func(vel):
 
 
 def upper_func(vel):
+    value_max = np.deg2rad(30)
     value_upp = casadi_polyval(upper, vel)
-    return value_upp
+    value = if_else(vel < VT_filtered[0], value_max, value_upp)
+    return value
 
+# def upper_func(vel):
+#     value = casadi_polyval(upper, vel)
+#     return value
 
 # Optimal Trajectory
 data = {}
@@ -67,16 +72,26 @@ with h5py.File("back_traj.h5", "r") as f:
 fig = plt.figure(figsize=(12, 8))
 ax = fig.add_subplot(111)
 
-degree = 3
 upper_bound, lower_bound = boundary2(Trst_corr)
 
-mask = upper_bound < np.deg2rad(10)
+mask = upper_bound < np.deg2rad(9.9999)
 VT_filtered = VT_corr[mask]
 upper_bound_filtered = upper_bound[mask]
 
 deg = 3
-lower = np.polyfit(VT_corr, lower_bound, deg)
-upper = np.polyfit(VT_filtered, upper_bound_filtered, deg)
+lower = np.polyfit(VT_corr, lower_bound, 3)
+upper = np.polyfit(VT_filtered, upper_bound_filtered, 3)
+
+# upper_ref = [np.deg2rad(10)]
+# VT_ref = [0]
+# for i in range(len(upper_bound)):
+#     if upper_bound[i] < np.max(upper_bound):
+#         upper_ref.append(upper_bound[i])
+#         VT_ref.append(VT_corr[i])
+
+# deg = 3
+# lower = np.polyfit(VT_corr, lower_bound, deg)
+# upper = np.polyfit(VT_ref, upper_ref, deg)
 
 VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, s=success.T, c="k")
@@ -84,14 +99,14 @@ ax.plot(
     VT_corr,
     np.rad2deg(upper_func(VT_corr)),
     "r-",
-    label=r"$\mathrm{upper}(V)$",
+    label=r"$\mathrm{upper}_{BT}(V)$",
     linewidth=5,
 )
 ax.plot(
     VT_corr,
     np.rad2deg(lower_func(VT_corr)),
     "b-",
-    label=r"$\mathrm{lower}(V)$",
+    label=r"$\mathrm{lower}_{BT}(V)$",
     linewidth=5,
 )
 ax.set_xlabel(r"$V, \mathrm{m/s}$", fontsize=20)
@@ -107,7 +122,6 @@ VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT.T, acc_corr, s=3)
 ax.set_xlabel("VT, m/s", fontsize=15)
 ax.set_ylabel(r"$a_x, m/s^{2}$", fontsize=15)
-
 
 """ Figure 3 """
 fig = plt.figure()
@@ -160,11 +174,11 @@ fig.tight_layout()
 
 """ Figure 7 - non-corridor """
 fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-cmap = mcolors.ListedColormap(["lightblue", "lightcoral"])
-sc1 = ax.scatter(VT, theta, s=50, c=Fz.T, cmap=cmap, alpha=0.2, label="Fz")
+cmap = mcolors.ListedColormap(["lightcoral", "green"])
+sc1 = ax.scatter(VT, theta, s=50, c=Fz.T, cmap=cmap, alpha=0.8, label="Fz")
 
 cmap = mcolors.ListedColormap(["k"])
-sc2 = ax.scatter(VT, theta, s=5, c=Fx.T, cmap=cmap, label="Fx")
+sc2 = ax.scatter(VT, theta, s=5, c=Fx.T, cmap=cmap, alpha=0.4, label="Fx")
 
 legend_elements = [
     Line2D(
@@ -183,9 +197,8 @@ legend_elements = [
         marker="o",
         color="w",
         label=r"$F_z^I > 0$",
-        markerfacecolor="lightblue",
+        markerfacecolor="lightcoral",
         markersize=10,
-        alpha=0.6,
     ),
     Line2D(
         [0],
@@ -193,9 +206,8 @@ legend_elements = [
         marker="o",
         color="w",
         label=r"$F_z^I < 0$",
-        markerfacecolor="lightcoral",
+        markerfacecolor="green",
         markersize=10,
-        alpha=0.6,
     ),
 ]
 

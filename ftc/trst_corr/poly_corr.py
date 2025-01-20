@@ -44,7 +44,7 @@ def boundary2(Trst_corr):
         theta_candidate = []
         for j in range(len(theta_corr)):
             if success[i][j] == 1:
-                if acc_corr[i][j] > -3.3:
+                if acc_corr[i][j] > -3.3 and theta_corr[j] <= np.deg2rad(10):
                     theta_candidate.append(theta_corr[j])
 
         upper_bound.append(np.max(theta_candidate))
@@ -71,6 +71,13 @@ def poly(degree, Trst_corr, upper_bound, lower_bound):
 
     return poly_upper_func, poly_lower_func, poly_central_func
 
+def upper_ref(degree, upper_bound):
+    ref_data = [0]
+    for i in range(len(upper_bound)):
+        if upper_bound[i] < np.max(upper_bound):
+            ref_data.append(upper_bound[i])
+
+    return ref_data
 
 if __name__ == "__main__":
     upper_bound, lower_bound = boundary2(Trst_corr)
