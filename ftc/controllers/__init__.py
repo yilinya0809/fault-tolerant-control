@@ -49,10 +49,14 @@ register(
     entry_point="ftc.controllers.MPC.mpc_geso:GESOController",
 )
 register(
-    id="Trst",
-    entry_point="ftc.controllers.switching:NDIController",
+    id="Trst-Corr",
+    entry_point="ftc.controllers.switching:Corr_NDIController",
 )
 register(
     id="FWHV",
     entry_point="ftc.controllers.switching:LQRController",
+)
+register(
+    id="Trst-NDI",
+    entry_point="ftc.controllers.switching:NDIController",
 )

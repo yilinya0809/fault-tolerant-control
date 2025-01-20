@@ -1,7 +1,6 @@
 import argparse
 
 import fym
-import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from fym.utils.rot import quat2angle
@@ -9,7 +8,6 @@ from fym.utils.rot import quat2angle
 import ftc
 from ftc.models.LC62R_lin import LC62R
 from ftc.utils import safeupdate
-from scipy.integrate import cumtrapz
 
 np.seterr(all="raise")
 
@@ -20,64 +18,19 @@ plt.rcParams.update(
     }
 )
 
-""" Forward Transition Reference """
-FTC = np.load("data/corr_forward.npz")
-VT_ftc = FTC["VT_corr"]
-theta_ftc = np.rad2deg(FTC["theta_corr"])
-success_ftc = FTC["success"]
-
-ftc_traj = {}
-f = h5py.File("data/opt_forward.h5", "r")
-ftc_traj["tf"] = f.get("tf")[()]
-ftc_traj["X"] = f.get("X")[:]
-ftc_traj["U"] = f.get("U")[:]
-
-N = np.shape(ftc_traj["U"])[1]
-t_ftc = np.linspace(0, ftc_traj["tf"], N + 1)
-Vxd_ftc = ftc_traj["X"][1, :]
-Vzd_ftc = ftc_traj["X"][2, :]
-thetad_ftc = ftc_traj["U"][2, :]
-xdot = []
-for i in range(N):
-    xdot.append(Vxd_ftc[i+1] * np.cos(thetad_ftc[i]) + Vzd_ftc[i+1] * np.sin(thetad_ftc[i]))
-
-Xd_ftc = cumtrapz(xdot, t_ftc[1:], initial=0)
-
-""" Backward Transition Reference """
-BTC = np.load("data/corr_backward.npz")
-VT_btc = BTC["VT_corr"]
-theta_btc = np.rad2deg(BTC["theta_corr"])
-success_btc = BTC["success"]
-
-btc_traj = {}
-f = h5py.File("data/opt_backward.h5", "r")
-btc_traj["tf"] = f.get("tf")[()]
-btc_traj["X"] = f.get("X")[:]
-btc_traj["U"] = f.get("U")[:]
-
-t_btc = np.linspace(0, btc_traj["tf"], N + 1)
-Vxd_btc = btc_traj["X"][1, :]
-Vzd_btc = btc_traj["X"][2, :]
-thetad_btc = btc_traj["U"][2, :]
-xdot = []
-for i in range(N):
-    xdot.append(Vxd_btc[i+1] * np.cos(thetad_btc[i]) + Vzd_btc[i+1] * np.sin(thetad_btc[i]))
-
-Xd_btc = cumtrapz(xdot, t_btc[1:], initial=0)
-
 class MyEnv(fym.BaseEnv):
     VT_cruise = 45
     h = 10
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 50,
+            "max_t": 40,
         },
         "plant": {
             "init": {
                 "pos": np.vstack((0.0, 0.0, -h)),
-                "vel": np.zeros((3, 1)),
-                "quat": np.vstack((1, 0, 0, 0)),
+                "vel": np.vstack((44.97696983, 0, 1.43950854)),
+                "quat": np.vstack((0.99987205, 0, 0.01599659, 0)),
                 "omega": np.zeros((3, 1)),
             },
         },
@@ -108,7 +61,7 @@ class MyEnv(fym.BaseEnv):
         self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
 
 
-        self.controller_trst = ftc.make("Trst-Corr", self)
+        self.controller_trst = ftc.make("Trst-NDI", self)
         self.controller_lqr = ftc.make("FWHV", self)
 
     def step(self):
@@ -118,36 +71,17 @@ class MyEnv(fym.BaseEnv):
     def observation(self):
         return self.observe_flat()
 
-    # Optimal Transition Trajectory Reference
     def get_ref(self, t):
+        xd = 0
         zd = -self.h
+        veld = np.zeros((3, 1))
+        thetad = 0
+        _, vel, _, _ = self.plant.observe_list()
+        VT = np.linalg.norm(vel)
 
-        if t <= t_ftc[-1]: # FTC
-            xd = np.interp(t, t_ftc[1:], Xd_ftc[:])
-            Vxd_ftc = np.interp(t, t_ftc, ftc_traj["X"][1, :])
-            Vzd_ftc = np.interp(t, t_ftc, ftc_traj["X"][2, :])
-            veld = np.vstack((Vxd_ftc, 0, Vzd_ftc))
-            thetad = np.interp(t, t_ftc[1:], ftc_traj["U"][2, :])
-            mode = "FTC"
-
-        elif t_ftc[-1] < t <=20: # FW
-            xd = Xd_ftc[-1] + self.VT_cruise * (t - t_ftc[-1])
-            veld = np.vstack((ftc_traj["X"][1, -1], 0, ftc_traj["X"][2, -1]))
-            thetad = ftc_traj["U"][2, -1]
-            mode = "FW"
-
-        elif 20 < t <= 20 + t_btc[-1]:
-            xd = Xd_ftc[-1] + self.VT_cruise * (20 - t_ftc[-1]) + np.interp(t-20, t_btc[1:], Xd_btc[:])
-            Vxd_btc = np.interp(t-20, t_btc, btc_traj["X"][1, :])
-            Vzd_btc = np.interp(t-20, t_btc, btc_traj["X"][2, :])
-            veld = np.vstack((Vxd_btc, 0, Vzd_btc))
-            thetad = np.interp(t-20, t_btc[1:], btc_traj["U"][2, :])
+        if VT > 1:
             mode = "BTC"
-        
-        elif 20 + t_btc[-1] < t:
-            xd = Xd_ftc[-1] + self.VT_cruise * (20 - t_ftc[-1]) + Xd_btc[-1]
-            veld = np.zeros((3, 1))
-            thetad = 0
+        else:
             mode = "HV"
             
         return xd, zd, veld, thetad, mode
@@ -155,7 +89,6 @@ class MyEnv(fym.BaseEnv):
     def set_dot(self, t):
         pos, vel, quat, omega = self.plant.observe_list()
         _, _, _, _, mode = self.get_ref(t)
-        VT = np.linalg.norm(vel)
         
         if mode == "FW" or mode == "HV":
             ctrls0, controller_info = self.controller_lqr.get_control(t, self)
@@ -179,9 +112,10 @@ class MyEnv(fym.BaseEnv):
 
         return env_info
 
+
 def run():
     env = MyEnv()
-    flogger = fym.Logger("data.h5")
+    flogger = fym.Logger("data_ndi_backward.h5")
 
     env.reset()
     try:
@@ -200,24 +134,23 @@ def run():
 
 
 def plot():
-    data = fym.load("data.h5")["env"]
+    data = fym.load("data_ndi_backward.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(2, 3, figsize=(12, 8), squeeze=False, sharex=True)
 
     ax = axes[0, 0]
     ax.plot(data["t"], data["plant"]["pos"][:, 0].squeeze(-1), "b-", linewidth=3)
-    ax.plot(data["t"], data["posd"][:, 0], "r--")
+    # ax.plot(data["t"], data["posd"][:, 0], "r--")
     ax.set_ylabel(r"$x$, m", fontsize=20)
     ax.set_xlim(data["t"][0], data["t"][-1])
     ax.grid()
 
     ax = axes[0, 1]
-    # ax.plot(t_ftc, ftc_traj["X"][0, :], "r--")
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-", linewidth=3)
     ax.plot(data["t"], data["posd"][:, 2], "r--")
     ax.set_ylabel(r"$z$, m", fontsize=20)
-    ax.set_ylim([-12, -8])
+    # ax.set_ylim([-12, -8])
     ax.grid()
 
     ax = axes[1, 0]
@@ -231,7 +164,7 @@ def plot():
     ax.plot(data["t"], data["plant"]["vel"][:, 2].squeeze(-1), "b-", linewidth=3)
     ax.plot(data["t"], data["veld"][:, 2], "r--")
     ax.set_ylabel(r"$V_z^B$, m/s", fontsize=20, labelpad=-2)
-    ax.set_ylim([-10, 5])
+    # ax.set_ylim([-10, 5])
     ax.set_xlabel("Time, sec", fontsize=20)
     ax.grid()
 
@@ -340,17 +273,6 @@ def plot():
     ax.plot(data["t"], data["Fp"].squeeze(-1), "b-")
     ax.set_ylabel(r"$F_{pushers}$, N")
     ax.set_xlabel("Time, sec")
-
-#     """ Figure 4 - Transition Corridor """
-#     fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-#     VT, theta = np.meshgrid(VT_ftc, theta_ftc)
-#     ax.scatter(VT, theta, s=success_ftc.T, c="b")
-
-#     ax.plot(np.linalg.norm(data["plant"]["vel"].squeeze(-1), axis=1), np.rad2deg(data["ang"][:, 1]), "r-", linewidth=5)
-#     ax.set_xlabel("V, m/s", fontsize=20)
-#     ax.set_ylabel(r"$\theta$, deg", fontsize=20)
-#     ax.legend(fontsize=20)
-#     fig.tight_layout()
 
     plt.show()
 
