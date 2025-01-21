@@ -5,11 +5,11 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from fym.utils.rot import quat2angle
+from scipy.integrate import cumtrapz
 
 import ftc
 from ftc.models.LC62R_lin import LC62R
 from ftc.utils import safeupdate
-from scipy.integrate import cumtrapz
 
 np.seterr(all="raise")
 
@@ -39,7 +39,9 @@ Vzd_ftc = ftc_traj["X"][2, :]
 thetad_ftc = ftc_traj["U"][2, :]
 xdot = []
 for i in range(N):
-    xdot.append(Vxd_ftc[i+1] * np.cos(thetad_ftc[i]) + Vzd_ftc[i+1] * np.sin(thetad_ftc[i]))
+    xdot.append(
+        Vxd_ftc[i + 1] * np.cos(thetad_ftc[i]) + Vzd_ftc[i + 1] * np.sin(thetad_ftc[i])
+    )
 
 Xd_ftc = cumtrapz(xdot, t_ftc[1:], initial=0)
 
@@ -61,9 +63,12 @@ Vzd_btc = btc_traj["X"][2, :]
 thetad_btc = btc_traj["U"][2, :]
 xdot = []
 for i in range(N):
-    xdot.append(Vxd_btc[i+1] * np.cos(thetad_btc[i]) + Vzd_btc[i+1] * np.sin(thetad_btc[i]))
+    xdot.append(
+        Vxd_btc[i + 1] * np.cos(thetad_btc[i]) + Vzd_btc[i + 1] * np.sin(thetad_btc[i])
+    )
 
 Xd_btc = cumtrapz(xdot, t_btc[1:], initial=0)
+
 
 class MyEnv(fym.BaseEnv):
     VT_cruise = 45
@@ -96,17 +101,16 @@ class MyEnv(fym.BaseEnv):
         self.u_trims_vtol_FW = np.zeros((6, 1))
         self.Q_FW = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
         self.R_FW = np.diag([400, 400, 1, 1, 1])
-        
+
         # HV
         self.x_trims_HV, self.u_trims_fixed_HV = self.plant.get_trim_fixed(
             fixed={"h": self.h, "VT": 0}
         )
         self.u_trims_vtol_HV = self.plant.get_trim_vtol(
             fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
-        )        
-        self.Q_HV = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
-        self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
-
+        )
+        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 50000, 10, 0, 0, 0])
+        self.R_HV = 10000 * np.diag([1, 1, 1, 1, 1, 1])
 
         self.controller_trst = ftc.make("Trst-Corr", self)
         self.controller_lqr = ftc.make("FWHV", self)
@@ -122,7 +126,7 @@ class MyEnv(fym.BaseEnv):
     def get_ref(self, t):
         zd = -self.h
 
-        if t <= t_ftc[-1]: # FTC
+        if t <= t_ftc[-1]:  # FTC
             xd = np.interp(t, t_ftc[1:], Xd_ftc[:])
             Vxd_ftc = np.interp(t, t_ftc, ftc_traj["X"][1, :])
             Vzd_ftc = np.interp(t, t_ftc, ftc_traj["X"][2, :])
@@ -130,33 +134,37 @@ class MyEnv(fym.BaseEnv):
             thetad = np.interp(t, t_ftc[1:], ftc_traj["U"][2, :])
             mode = "FTC"
 
-        elif t_ftc[-1] < t <=20: # FW
+        elif t_ftc[-1] < t <= 20:  # FW
             xd = Xd_ftc[-1] + self.VT_cruise * (t - t_ftc[-1])
             veld = np.vstack((ftc_traj["X"][1, -1], 0, ftc_traj["X"][2, -1]))
             thetad = ftc_traj["U"][2, -1]
             mode = "FW"
 
         elif 20 < t <= 20 + t_btc[-1]:
-            xd = Xd_ftc[-1] + self.VT_cruise * (20 - t_ftc[-1]) + np.interp(t-20, t_btc[1:], Xd_btc[:])
-            Vxd_btc = np.interp(t-20, t_btc, btc_traj["X"][1, :])
-            Vzd_btc = np.interp(t-20, t_btc, btc_traj["X"][2, :])
+            xd = (
+                Xd_ftc[-1]
+                + self.VT_cruise * (20 - t_ftc[-1])
+                + np.interp(t - 20, t_btc[1:], Xd_btc[:])
+            )
+            Vxd_btc = np.interp(t - 20, t_btc, btc_traj["X"][1, :])
+            Vzd_btc = np.interp(t - 20, t_btc, btc_traj["X"][2, :])
             veld = np.vstack((Vxd_btc, 0, Vzd_btc))
-            thetad = np.interp(t-20, t_btc[1:], btc_traj["U"][2, :])
+            thetad = np.interp(t - 20, t_btc[1:], btc_traj["U"][2, :])
             mode = "BTC"
-        
+
         elif 20 + t_btc[-1] < t:
             xd = Xd_ftc[-1] + self.VT_cruise * (20 - t_ftc[-1]) + Xd_btc[-1]
             veld = np.zeros((3, 1))
             thetad = 0
             mode = "HV"
-            
+
         return xd, zd, veld, thetad, mode
 
     def set_dot(self, t):
         pos, vel, quat, omega = self.plant.observe_list()
         _, _, _, _, mode = self.get_ref(t)
         VT = np.linalg.norm(vel)
-        
+
         if mode == "FW" or mode == "HV":
             ctrls0, controller_info = self.controller_lqr.get_control(t, self)
         else:
@@ -178,6 +186,7 @@ class MyEnv(fym.BaseEnv):
         }
 
         return env_info
+
 
 def run():
     env = MyEnv()
@@ -235,7 +244,6 @@ def plot():
     ax.set_xlabel("Time, sec", fontsize=20)
     ax.grid()
 
-
     ax = axes[0, 2]
     ax.plot(data["t"], np.rad2deg(data["ang"][:, 1].squeeze(-1)), "b-", linewidth=3)
     ax.plot(data["t"], np.rad2deg(data["angd"][:, 1].squeeze(-1)), "r--")
@@ -243,7 +251,12 @@ def plot():
     ax.set_ylabel(r"$\theta$, deg", fontsize=20, labelpad=-5)
 
     ax = axes[1, 2]
-    ax.plot(data["t"], np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)), "b-", linewidth=3)
+    ax.plot(
+        data["t"],
+        np.rad2deg(data["plant"]["omega"][:, 1].squeeze(-1)),
+        "b-",
+        linewidth=3,
+    )
     ax.plot(data["t"], np.rad2deg(data["omegad"][:, 1].squeeze(-1)), "r--")
     ax.set_ylabel(r"$q$, deg/s", fontsize=20, labelpad=-5)
     ax.set_xlabel("Time, sec", fontsize=20)
@@ -252,11 +265,11 @@ def plot():
     fig.tight_layout(rect=[0, 0, 1, 0.95])
 
     fig.legend(
-    labels=["Responses", "Optimal commands"],
-    loc="upper center",  # Position the legend above the figure
-    bbox_to_anchor=(0.5, 1.005),  # Center the legend horizontally
-    ncol=2,  # Number of columns
-    fontsize=14,  # Font size for legend
+        labels=["Responses", "Optimal commands"],
+        loc="upper center",  # Position the legend above the figure
+        bbox_to_anchor=(0.5, 1.005),  # Center the legend horizontally
+        ncol=2,  # Number of columns
+        fontsize=14,  # Font size for legend
     )
 
     """ Figure 2 - Rotor inputs """
@@ -325,7 +338,6 @@ def plot():
     # fig.subplots_adjust(wspace=0.2)
     # fig.align_ylabels(axes)
 
-
     """ Figure 5 - Thrust """
     fig, axes = plt.subplots(2, 1, sharex=True)
 
@@ -341,16 +353,16 @@ def plot():
     ax.set_ylabel(r"$F_{pushers}$, N")
     ax.set_xlabel("Time, sec")
 
-#     """ Figure 4 - Transition Corridor """
-#     fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-#     VT, theta = np.meshgrid(VT_ftc, theta_ftc)
-#     ax.scatter(VT, theta, s=success_ftc.T, c="b")
+    #     """ Figure 4 - Transition Corridor """
+    #     fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    #     VT, theta = np.meshgrid(VT_ftc, theta_ftc)
+    #     ax.scatter(VT, theta, s=success_ftc.T, c="b")
 
-#     ax.plot(np.linalg.norm(data["plant"]["vel"].squeeze(-1), axis=1), np.rad2deg(data["ang"][:, 1]), "r-", linewidth=5)
-#     ax.set_xlabel("V, m/s", fontsize=20)
-#     ax.set_ylabel(r"$\theta$, deg", fontsize=20)
-#     ax.legend(fontsize=20)
-#     fig.tight_layout()
+    #     ax.plot(np.linalg.norm(data["plant"]["vel"].squeeze(-1), axis=1), np.rad2deg(data["ang"][:, 1]), "r-", linewidth=5)
+    #     ax.set_xlabel("V, m/s", fontsize=20)
+    #     ax.set_ylabel(r"$\theta$, deg", fontsize=20)
+    #     ax.legend(fontsize=20)
+    #     fig.tight_layout()
 
     plt.show()
 

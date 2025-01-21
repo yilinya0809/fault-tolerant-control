@@ -216,8 +216,8 @@ class NDIController(fym.BaseEnv):
             Ko1 = 0.01 * np.diag((0, 4))
             Ko2 = 0.01 * np.diag((4, 1))
             Ko3 = 0.001 * np.diag((2, 0))
-            Ki1 = np.diag((50, 10, 100, 1))
-            Ki2 = np.diag((50, 10, 100, 1))
+            Ki1 = np.diag((200, 10, 500, 1))
+            Ki2 = np.diag((100, 10, 200, 1))
 
 
         """ outer-loop control

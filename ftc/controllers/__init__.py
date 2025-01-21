@@ -42,7 +42,7 @@ register(
 )
 register(
     id="NMPC-DI",
-    entry_point="ftc.controllers.MPC.mpc_geso:NDIController",
+    entry_point="ftc.controllers.MPC.nmpc_di:NDIController",
 )
 register(
     id="NMPC-GESO",

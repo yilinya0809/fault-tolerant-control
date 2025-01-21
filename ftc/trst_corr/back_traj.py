@@ -25,6 +25,7 @@ cost = Trst_corr["cost"]
 success = Trst_corr["success"]
 upper_bound, lower_bound = boundary2(Trst_corr)
 
+
 def casadi_polyval(coeffs, x):
     value = 0
     deg = len(coeffs) - 1
@@ -32,11 +33,13 @@ def casadi_polyval(coeffs, x):
         value += coeff * x ** (deg - i)
     return value
 
+
 def upper_func(vel):
-    value_max = np.deg2rad(30)
+    value_max = np.deg2rad(10)
     value_upp = casadi_polyval(upper, vel)
     value = if_else(vel < VT_filtered[0], value_max, value_upp)
     return value
+
 
 mask = upper_bound < np.deg2rad(9.9)
 VT_filtered = VT_corr[mask]
@@ -79,9 +82,9 @@ theta = U[2, :]
 T = opti.variable()
 
 # ---- objective          ---------
-W_t = 100000
-W_z = 10000
-W_u = diag([1, 10, 100000])
+W_t = 1000
+W_z = 500
+W_u = diag([0.01, 0.1, 5000])
 # W_tht = 1000
 
 # W_t = 100000
@@ -108,8 +111,10 @@ for k in range(N):  # loop over control intervals
     # Transition Corridor
     theta_k = U[2, k]
     VT_k = norm_2(X[1:3, k])
-    # opti.subject_to(opti.bounded(casadi_polyval(lower, VT_k), theta_k, upper_func(VT_k)))
-    opti.subject_to(opti.bounded(casadi_polyval(lower, VT_k), theta_k, casadi_polyval(ref, VT_k)))
+    opti.subject_to(opti.bounded(casadi_polyval(lower, VT_k), theta_k, upper_func(VT_k)))
+    # opti.subject_to(
+    #     opti.bounded(casadi_polyval(lower, VT_k), theta_k, casadi_polyval(upper, VT_k))
+    # )
 
     # dist to ref
     # cost += W_tht * (theta_k - casadi_polyval(ref, VT_k)) ** 2
@@ -120,14 +125,14 @@ opti.minimize(cost)
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 eta = 1.0
-theta_max = np.deg2rad(30)
+theta_max = np.deg2rad(10)
 # ---- input constraints --------
 opti.subject_to(opti.bounded(0, Fr, eta * Fr_max))
 opti.subject_to(opti.bounded(0, Fp, eta * Fp_max))
 # opti.subject_to(opti.bounded(-theta_max, theta, theta_max))
 
 # ---- state constraints --------
-z_eps = 0.01
+z_eps = 0.02
 opti.subject_to(opti.bounded(-h - z_eps, z, -h + z_eps))
 # opti.subject_to(opti.bounded(0, T, 20))
 opti.subject_to(T >= 0)
@@ -146,11 +151,9 @@ opti.subject_to(vx[-1] == x_hv[2])
 opti.subject_to(vz[-1] == x_hv[3])
 
 u_eps = 0.2
-opti.subject_to(opti.bounded(u_hv[0] * (1 - u_eps), Fr[-1], u_hv[0] * (1 + u_eps)))
-opti.subject_to(opti.bounded(0, Fp[-1], 5))
-opti.subject_to(
-    opti.bounded(-np.deg2rad(5), theta[-1], np.deg2rad(5))
-)
+# opti.subject_to(opti.bounded(u_hv[0] * (1 - u_eps), Fr[-1], u_hv[0] * (1 + u_eps)))
+# opti.subject_to(opti.bounded(0, Fp[-1], 5))
+# opti.subject_to(opti.bounded(-np.deg2rad(5), theta[-1], np.deg2rad(10)))
 
 # opti.subject_to(Fr[-1] == u_hv[0])
 # opti.subject_to(Fp[-1] == u_hv[1])
@@ -183,7 +186,7 @@ opti.set_initial(theta, 0)
 p_opts = {"expand": False}
 s_opts = {
     "tol": 1e-6,
-    "acceptable_tol": 1e-6,
+    "acceptable_tol": 1e-2,
     "acceptable_iter": 15,
     "max_iter": 1000,
     "max_cpu_time": 1e4,
@@ -265,7 +268,8 @@ def plot_results(data):
     ax.scatter(VT, theta, s=success.T, c="b")
     ax.plot(
         VT_corr,
-        np.rad2deg(casadi_polyval(ref, VT_corr)),
+        # np.rad2deg(casadi_polyval(ref, VT_corr)),
+        np.rad2deg(upper_func(VT_corr)),
         "k-",
         label=r"$\mathrm{upper}(V)$",
         linewidth=2,

@@ -20,7 +20,7 @@ plant = LC62()
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 
-Trst_corr = np.load("ftc/trst_corr/corr_back_full.npz")
+Trst_corr = np.load("ftc/trst_corr/corr_back.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -51,10 +51,11 @@ def lower_func(vel):
 
 
 def upper_func(vel):
-    value_max = np.deg2rad(30)
+    value_max = np.deg2rad(10)
     value_upp = casadi_polyval(upper, vel)
     value = if_else(vel < VT_filtered[0], value_max, value_upp)
     return value
+
 
 # def upper_func(vel):
 #     value = casadi_polyval(upper, vel)
@@ -74,7 +75,7 @@ ax = fig.add_subplot(111)
 
 upper_bound, lower_bound = boundary2(Trst_corr)
 
-mask = upper_bound < np.deg2rad(9.9999)
+mask = upper_bound < np.max(upper_bound)
 VT_filtered = VT_corr[mask]
 upper_bound_filtered = upper_bound[mask]
 
@@ -94,7 +95,7 @@ VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, s=success.T, c="k")
 ax.plot(
     VT_corr,
-    np.rad2deg(casadi_polyval(ref, VT_corr)),
+    np.rad2deg(upper_func(VT_corr)),
     "r-",
     label=r"$\mathrm{upper}_{BT}(V)$",
     linewidth=5,
@@ -109,7 +110,8 @@ ax.plot(
 ax.set_xlabel(r"$V, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
 ax.set_xlim([0, 45])
-ax.set_ylim([-10, 30])
+ax.set_ylim([-10, 10])
+ax.set_aspect(1.5)
 ax.legend(fontsize=20)
 fig.tight_layout()
 
@@ -134,7 +136,7 @@ contour = ax.contourf(
 )
 ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
-ax.set_aspect(0.62)
+ax.set_aspect(2)
 # ax.set_title("Forward Acceleration Corridor", fontsize=20)
 cbar = fig.colorbar(contour)
 cbar.ax.set_xlabel(r"$a_x^I,\, \mathrm{m/s^{2}}$", fontsize=20, labelpad=15)
@@ -151,7 +153,7 @@ contour = ax.contourf(
 # ax.plot(VT_corr, Fr_margin, "r--")
 ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
-ax.set_aspect(0.62)
+ax.set_aspect(2)
 cbar = fig.colorbar(contour)
 cbar.ax.set_xlabel(r"$F_{rotors},\, \mathrm{N}$", fontsize=20, labelpad=15)
 fig.tight_layout()
@@ -164,7 +166,7 @@ contour = ax.contourf(
 )
 ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
-ax.set_aspect(0.62)
+ax.set_aspect(2)
 cbar = fig.colorbar(contour)
 cbar.ax.set_xlabel(r"$F_{pushers},\, \mathrm{N}$", fontsize=20, labelpad=15)
 fig.tight_layout()
@@ -172,10 +174,10 @@ fig.tight_layout()
 """ Figure 7 - non-corridor """
 fig, ax = plt.subplots(1, 1, figsize=(12, 8))
 cmap = mcolors.ListedColormap(["lightcoral", "green"])
-sc1 = ax.scatter(VT, theta, s=50, c=Fz.T, cmap=cmap, alpha=0.8, label="Fz")
+sc1 = ax.scatter(VT, theta, s=200, c=Fz.T, cmap=cmap, alpha=0.8, label="Fz")
 
 cmap = mcolors.ListedColormap(["k"])
-sc2 = ax.scatter(VT, theta, s=5, c=Fx.T, cmap=cmap, alpha=0.4, label="Fx")
+sc2 = ax.scatter(VT, theta, s=30, c=Fx.T, cmap=cmap, alpha=0.4, label="Fx")
 
 legend_elements = [
     Line2D(
@@ -218,8 +220,8 @@ ax.legend(
 ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
 ax.set_xlim([0, 45])
-ax.set_ylim([-30, 30])
-ax.set_aspect(0.55)
+ax.set_ylim([-10, 10])
+ax.set_aspect(1.8)
 fig.tight_layout()
 
 
@@ -305,7 +307,7 @@ for i in range(N):
 
 ax.plot(VT_traj[1:], theta_traj[1:], "r-", linewidth=5)
 VT, theta = np.meshgrid(VT_corr, theta_corr)
-ax.scatter(VT, theta, s=success.T, c="b")
+ax.scatter(VT, theta, s=4 * success.T, c="b")
 ax.set_xlabel("V, m/s", fontsize=15)
 ax.set_ylabel(r"$\theta$, deg", fontsize=15)
 fig.tight_layout()

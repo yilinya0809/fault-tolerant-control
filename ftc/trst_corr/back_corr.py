@@ -390,7 +390,7 @@ class LC62_corridor(fym.BaseEnv):
 if __name__ == "__main__":
     system = LC62_corridor()
     height = 10
-    grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
+    grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-10, 10, 0.2))}
 
     Trst_corr = system.get_corr(
         z0={"Fr": system.m * system.g, "Fp": 0.0},

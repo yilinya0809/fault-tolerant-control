@@ -5,6 +5,7 @@ from fym.utils.rot import quat2angle
 
 from ftc.models.LC62_opt import LC62
 
+
 class MPC:
     def __init__(self, env):
         self.plant = LC62()
@@ -23,7 +24,7 @@ class MPC:
         _, self.z_target, vx_target, vz_target = X_trim.ravel()
         Fr_target, Fp_target, theta_target = U_trim.ravel()
 
-        self.control_init = ca.DM([-self.plant.m * self.plant.g, 0, theta_init])
+        self.control_init = ca.DM([self.plant.m * self.plant.g, 0, theta_init])
         self.state_init = ca.DM([z_init, vx_init, vz_init])
         self.state_target = ca.DM([self.z_target, vx_target, vz_target])
         self.control_target = ca.DM([Fr_target, Fp_target, theta_target])
@@ -42,15 +43,15 @@ class MPC:
         lbx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
         ubx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
 
-        lbx[0 : n_states * (N + 1) : n_states] = self.z_target - self.z_eps  # z min
-        ubx[0 : n_states * (N + 1) : n_states] = self.z_target + self.z_eps  # z max
+        lbx[0 : n_states * (N + 1) : n_states] = self.z_target - 2  # z min
+        ubx[0 : n_states * (N + 1) : n_states] = self.z_target + 1  # z max
         lbx[1 : n_states * (N + 1) : n_states] = 0  # Vx min
         ubx[1 : n_states * (N + 1) : n_states] = ca.inf  # Vx max
         lbx[2 : n_states * (N + 1) : n_states] = -ca.inf  # Vz min
         ubx[2 : n_states * (N + 1) : n_states] = ca.inf  # Vz max
 
-        lbx[n_states * (N + 1) :: n_controls] = -self.Fr_max  # Fr min
-        ubx[n_states * (N + 1) :: n_controls] = 0  # Fr max
+        lbx[n_states * (N + 1) :: n_controls] = 0  # Fr min
+        ubx[n_states * (N + 1) :: n_controls] = self.Fr_max  # Fr max
         lbx[n_states * (N + 1) + 1 :: n_controls] = 0  # Fp min
         ubx[n_states * (N + 1) + 1 :: n_controls] = self.Fp_max  # Fp max
         lbx[n_states * (N + 1) + 2 :: n_controls] = -self.theta_max  # theta min
@@ -95,6 +96,8 @@ class MPC:
 
         Q = ca.diagcat(300, 300, 300)
         R = ca.diagcat(0.01, 0.1, 200000)
+        # Q = 10 * ca.diagcat(1, 1, 1)
+        # R = 0.0 * ca.diagcat(0, 0, 1000)
 
         Xdot = self.plant.derivq(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
@@ -178,6 +181,15 @@ class NDIController(fym.BaseEnv):
         self.tau = 0.05
         self.lpf_ang = fym.BaseSystem(np.zeros((3, 1)))
 
+        pos_trim, vel_trim, quat_trim, omega_trim = env.x_trims_FW
+        ang_trim = np.vstack(quat2angle(quat_trim)[::-1])
+
+        rotor_trim = env.u_trims_vtol_FW
+        pusher_trim, dels_trim = env.u_trims_fixed_FW
+
+        self.x_trims_FW = np.vstack((pos_trim, vel_trim, ang_trim, omega_trim))
+        self.u_trims_FW = np.vstack((rotor_trim, pusher_trim, dels_trim))
+
     def get_control(self, t, env, action):
         _, _, quat, omega = env.plant.observe_list()
         ang0 = np.vstack(quat2angle(quat)[::-1])
@@ -186,12 +198,12 @@ class NDIController(fym.BaseEnv):
         Frd, Fpd, thetad = np.ravel(action)
         angd = np.vstack((0, thetad, 0))
         ang_f = self.lpf_ang.state
-        omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau1
+        omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau
 
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
 
         K1 = np.diag((1, 100, 1))
-        K2 = np.diag((1, 100, 1))
+        K2 = np.diag((1, 10, 1))
         Mrd = env.plant.J @ (-f - K1 @ (ang - angd) - K2 @ (omega - omegad))
         nu = np.vstack((Frd, Mrd))
         th_r = np.linalg.pinv(self.B_r2f) @ nu
@@ -204,8 +216,10 @@ class NDIController(fym.BaseEnv):
         ctrls = np.vstack((rcmds, pcmds, dels))
 
         controller_info = {
-            "Frd": Frd,
-            "Fpd": Fpd,
+            "posd": self.x_trims_FW[0:3],
+            "veld": self.x_trims_FW[3:6],
+            "Frd": np.array([Frd]),
+            "Fpd": np.array([Fpd]),
             "angd": angd,
             "omegad": omegad,
             "ang": ang,
