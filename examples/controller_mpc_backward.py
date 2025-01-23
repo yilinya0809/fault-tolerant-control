@@ -117,7 +117,7 @@ class MyEnv(fym.BaseEnv):
             "ctrls0": ctrls0,
             "ctrls": ctrls,
             "FM": FM,
-            "Fr": self.plant.B_VTOL(ctrls[:6], omega)[2],
+            "Fr": -self.plant.B_VTOL(ctrls[:6], omega)[2],
             "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
         }
 
@@ -129,8 +129,23 @@ def run():
     agent = ftc.make("MPC-back", env)
     flogger = fym.Logger("data_mpc_backward.h5")
 
+    f = h5py.File("err_log.h5", "w")
+    st_err_log = f.create_dataset(
+        "st_err_log",
+        shape=(0, agent.N, agent.n_states),
+        maxshape=(None, agent.N, agent.n_states),
+        dtype=np.float64,
+    )
+    in_err_log = f.create_dataset(
+        "in_err_log",
+        shape=(0, agent.N, agent.n_states),
+        maxshape=(None, agent.N, agent.n_states),
+        dtype=np.float64,
+    )
+
     env.reset()
     try:
+        i = 0
         while True:
             env.render()
 
@@ -138,10 +153,16 @@ def run():
             action, agent_info = agent.get_action()
             _, vel, _, _ = env.plant.observe_list()
             VT = np.linalg.norm(vel)
-            # if t < 30:
             if VT > 2:
                 obs, done, env_info = env.step(action=action)
-                agent.solve_mpc(obs)
+                st_err, in_err = agent.solve_mpc(obs)
+
+                st_err_log.resize((i + 1, agent.N, agent.n_states))
+                in_err_log.resize((i + 1, agent.N, agent.n_states))
+                st_err_log[i, :, :] = st_err
+                in_err_log[i, :, :] = in_err
+                i = i + 1
+
             else:
                 _, done, env_info = env.step(action=ca.DM.zeros((3, 1)))
 
@@ -152,14 +173,21 @@ def run():
 
     finally:
         flogger.close()
+        f.close()
         plot()
 
 
 def plot():
     data = fym.load("data_mpc_backward.h5")["env"]
     agent_data = fym.load("data_mpc_backward.h5")["agent"]
+    with h5py.File("err_log.h5", "r") as f:
+        st_err_data = f["st_err_log"][:]
+        in_err_data = f["in_err_log"][:]
+
+
+    # data = fym.load("data/data_mpc_backward.h5")["env"]
+    # agent_data = fym.load("data/data_mpc_backward.h5")["agent"]
     t_mpc = len(agent_data["Xd"][:, 0])
-    # t_mpc = 1000
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(12, 8), squeeze=False, sharex=True)
@@ -181,7 +209,7 @@ def plot():
     ax.plot(data["t"][t_mpc:], data["posd"][t_mpc:, 0].squeeze(-1), "r--")
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
     ax.set_ylabel(r"$z$, m", fontsize=15)
-    ax.set_ylim([-12, -8])
+    # ax.set_ylim([-12, -8])
 
     ax.set_xlabel("Time, sec", fontsize=15)
 
@@ -260,98 +288,140 @@ def plot():
 
     fig.tight_layout()
 
-    # """ Figure 2 - Control inputs """
-    # fig, axes = plt.subplots(2, 4, figsize=(12, 8))
+    """ Figure 2 - Control inputs """
+    fig, axes = plt.subplots(2, 4, figsize=(12, 8))
 
-    # ax = axes[0, 0]
-    # ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "b-")
-    # ax.set_ylabel("Rotor 1", fontsize=15)
-    # ax.set_xlim(data["t"][0], data["t"][-1])
-    # ax.set_ylim([-0.1, 1.1])
+    ax = axes[0, 0]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 0], "b-")
+    ax.set_ylabel("Rotor 1", fontsize=15)
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.1, 1.1])
 
-    # ax = axes[1, 0]
-    # ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "b-")
-    # ax.set_ylabel("Rotor 2", fontsize=15)
-    # ax.set_xlim(data["t"][0], data["t"][-1])
-    # ax.set_ylim([-0.1, 1.1])
-    # ax.set_xlabel("Time, sec", fontsize=15)
+    ax = axes[1, 0]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 1], "b-")
+    ax.set_ylabel("Rotor 2", fontsize=15)
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_xlabel("Time, sec", fontsize=15)
 
-    # ax = axes[0, 1]
-    # ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "b-")
-    # ax.set_xlim(data["t"][0], data["t"][-1])
-    # ax.set_ylim([-0.1, 1.1])
-    # ax.set_ylabel("Rotor 3", fontsize=15)
+    ax = axes[0, 1]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 2], "b-")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Rotor 3", fontsize=15)
 
-    # ax = axes[1, 1]
-    # ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "b-")
-    # ax.set_ylabel("Rotor 4", fontsize=15)
-    # ax.set_xlim(data["t"][0], data["t"][-1])
-    # ax.set_ylim([-0.1, 1.1])
-    # ax.set_xlabel("Time, sec", fontsize=15)
+    ax = axes[1, 1]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 3], "b-")
+    ax.set_ylabel("Rotor 4", fontsize=15)
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_xlabel("Time, sec", fontsize=15)
 
-    # ax = axes[0, 2]
-    # ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "b-")
-    # ax.set_xlim(data["t"][0], data["t"][-1])
-    # ax.set_ylim([-0.1, 1.1])
-    # ax.set_ylabel("Rotor 5", fontsize=15)
+    ax = axes[0, 2]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 4], "b-")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Rotor 5", fontsize=15)
 
-    # ax = axes[1, 2]
-    # ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "b-")
-    # ax.set_xlim(data["t"][0], data["t"][-1])
-    # ax.set_ylim([-0.1, 1.1])
-    # ax.set_ylabel("Rotor 6", fontsize=15)
-    # ax.set_xlabel("Time, sec", fontsize=15)
+    ax = axes[1, 2]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 5], "b-")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Rotor 6", fontsize=15)
+    ax.set_xlabel("Time, sec", fontsize=15)
 
-    # ax = axes[0, 3]
-    # ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "b-")
-    # ax.set_ylabel("Pusher 1", fontsize=15)
-    # ax.set_ylim([-0.1, 1.1])
-    # ax.set_xlim(data["t"][0], data["t"][-1])
+    ax = axes[0, 3]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "b-")
+    ax.set_ylabel("Pusher 1", fontsize=15)
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_xlim(data["t"][0], data["t"][-1])
 
-    # ax = axes[1, 3]
-    # ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "b-")
-    # ax.set_xlim(data["t"][0], data["t"][-1])
-    # ax.set_ylim([-0.1, 1.1])
-    # ax.set_ylabel("Pusher 2", fontsize=15)
-    # ax.set_xlabel("Time, sec", fontsize=15)
+    ax = axes[1, 3]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "b-")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+    ax.set_ylim([-0.1, 1.1])
+    ax.set_ylabel("Pusher 2", fontsize=15)
+    ax.set_xlabel("Time, sec", fontsize=15)
 
-    # fig.tight_layout()
-    # fig.subplots_adjust(wspace=0.3)
-    # fig.align_ylabels(axes)
+    fig.tight_layout()
+    fig.subplots_adjust(wspace=0.3)
+    fig.align_ylabels(axes)
 
-    # #     """ Figure 3 - Pusher input """
-    #     fig, axes = plt.subplots(2, 1, sharex=True)
+    #     """ Figure 3 - Pusher input """
+    fig, axes = plt.subplots(2, 1, sharex=True)
 
-    #     ax = axes[0]
-    #     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "b-")
-    #     ax.set_ylabel("Pusher 1")
-    #     ax.set_xlim(data["t"][0], data["t"][-1])
+    ax = axes[0]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 6], "b-")
+    ax.set_ylabel("Pusher 1")
+    ax.set_xlim(data["t"][0], data["t"][-1])
 
-    #     ax = axes[1]
-    #     ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "b-")
-    #     ax.set_ylabel("Pusher 2")
-    #     ax.set_xlabel("Time, sec")
+    ax = axes[1]
+    ax.plot(data["t"], data["ctrls"].squeeze(-1)[:, 7], "b-")
+    ax.set_ylabel("Pusher 2")
+    ax.set_xlabel("Time, sec")
 
-    #     plt.tight_layout()
-    #     fig.align_ylabels(axes)
+    plt.tight_layout()
+    fig.align_ylabels(axes)
 
-    # """ Figure 5 - Thrust """
-    # fig, axes = plt.subplots(2, 1, sharex=True)
+    """ Figure 5 - Thrust """
+    fig, axes = plt.subplots(2, 1, sharex=True)
 
-    # ax = axes[0]
-    # ax.plot(data["t"], data["Frd"], "r--")
-    # ax.plot(data["t"], data["Fr"].squeeze(-1), "b-")
-    # ax.set_ylabel(r"$F_{rotors}$, N")
-    # ax.set_xlim(data["t"][0], data["t"][-1])
+    ax = axes[0]
+    ax.plot(data["t"], data["Frd"], "r--")
+    ax.plot(data["t"], data["Fr"].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_{rotors}$, N")
+    ax.set_xlim(data["t"][0], data["t"][-1])
 
-    # ax = axes[1]
-    # ax.plot(data["t"], data["Fpd"], "r--")
-    # ax.plot(data["t"], data["Fp"].squeeze(-1), "b-")
-    # ax.set_ylabel(r"$F_{pushers}$, N")
-    # ax.set_xlabel("Time, sec")
+    ax = axes[1]
+    ax.plot(data["t"], data["Fpd"], "r--")
+    ax.plot(data["t"], data["Fp"].squeeze(-1), "b-")
+    ax.set_ylabel(r"$F_{pushers}$, N")
+    ax.set_xlabel("Time, sec")
 
-    # plt.tight_layout()
-    # fig.align_ylabels(axes)
+    plt.tight_layout()
+    fig.align_ylabels(axes)
+
+    """ Figure 6 - Error """
+    fig, axes = plt.subplots(3, 2, sharex=True)
+   
+    i = 50
+    current_t =  0.01 * i
+    N = 5
+    step = 0.2
+    mpc_t = np.arange(current_t, current_t + N * step, step)
+      
+    ax = axes[0, 0]
+    ax.plot(mpc_t, st_err_data[i, :, 0])
+    ax.set_ylabel(r"$z_e$, m")
+
+
+    ax = axes[1, 0]
+    ax.plot(mpc_t, st_err_data[i, :, 1])
+    ax.set_ylabel(r"$vx_e$, m/s")
+
+
+    ax = axes[2, 0]
+    ax.plot(mpc_t, st_err_data[i, :, 2])
+    ax.set_ylabel(r"$vz_e$, m/s")
+    ax.set_xlabel("time, sec")
+
+
+    ax = axes[0, 1]
+    ax.plot(mpc_t, in_err_data[i, :, 0])
+    ax.set_ylabel(r"$Fr$, N")
+    ax.set_xlabel("Time, sec")
+
+
+    ax = axes[1, 1]
+    ax.plot(mpc_t, in_err_data[i, :, 1])
+    ax.set_ylabel(r"$Fp$, N")
+    ax.set_xlabel("time, sec")
+
+
+    ax = axes[2, 1]
+    ax.plot(mpc_t, np.rad2deg(in_err_data[i, :, 2]))
+    ax.set_ylabel(r"$\theta$, deg")
+    ax.set_xlabel("time, sec")
 
     plt.show()
 

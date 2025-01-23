@@ -14,6 +14,7 @@ class MPC:
         self.Fp_max = 2 * self.plant.th_p_max
         self.theta_max = env.ang_lim
         self.z_eps = 2
+        self.eta = 1.0
 
         self.step_horizon = 0.2  # time between steps in seconds
         self.N = 5  # number of look ahead steps
@@ -34,8 +35,23 @@ class MPC:
         self.Q = ca.diagcat(300, 300, 300)
         self.R = ca.diagcat(0.01, 0.1, 200000)
 
+
     def DM2Arr(self, dm):
         return np.array(dm.full())
+
+    def log_errors(self, X, U, P):
+        state_err_horizon = []
+        input_err_horizon = []
+        for i in range(self.N):
+            state_err = self.DM2Arr(X[:, i]) - self.DM2Arr(
+                P[self.n_states : 2 * self.n_states]
+            )
+            input_err = self.DM2Arr(U[:, i]) - self.DM2Arr(P[2 * self.n_states:])
+            state_err_horizon.append(state_err)
+            input_err_horizon.append(input_err)
+        state_err_horizon = np.array(state_err_horizon)[:, :, 0]
+        input_err_horizon = np.array(input_err_horizon)[:, :, 0]
+        return state_err_horizon, input_err_horizon
 
     def constraints(self):
         N = self.N
@@ -45,7 +61,7 @@ class MPC:
         lbx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
         ubx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
 
-        lbx[0 : n_states * (N + 1) : n_states] = self.z_target - 2  # z min
+        lbx[0 : n_states * (N + 1) : n_states] = self.z_target - self.z_eps  # z min
         ubx[0 : n_states * (N + 1) : n_states] = self.z_target + 1  # z max
         lbx[1 : n_states * (N + 1) : n_states] = 0  # Vx min
         ubx[1 : n_states * (N + 1) : n_states] = ca.inf  # Vx max
@@ -53,9 +69,9 @@ class MPC:
         ubx[2 : n_states * (N + 1) : n_states] = ca.inf  # Vz max
 
         lbx[n_states * (N + 1) :: n_controls] = 0  # Fr min
-        ubx[n_states * (N + 1) :: n_controls] = self.Fr_max  # Fr max
+        ubx[n_states * (N + 1) :: n_controls] = self.eta * self.Fr_max  # Fr max
         lbx[n_states * (N + 1) + 1 :: n_controls] = 0  # Fp min
-        ubx[n_states * (N + 1) + 1 :: n_controls] = self.Fp_max  # Fp max
+        ubx[n_states * (N + 1) + 1 :: n_controls] = self.eta * self.Fp_max  # Fp max
         lbx[n_states * (N + 1) + 2 :: n_controls] = -self.theta_max  # theta min
         ubx[n_states * (N + 1) + 2 :: n_controls] = self.theta_max  # theta max
 
@@ -99,7 +115,8 @@ class MPC:
         Q = self.Q
         R = self.R
 
-        Xdot = self.plant.derivq(states, controls, q)
+        # Xdot = self.plant.derivq(states, controls, q)
+        Xdot = self.plant.derivq(states, controls, q=0.0)
         f = ca.Function("f", [states, controls], [Xdot])
 
         cost_fn = 0  # cost function
@@ -128,7 +145,7 @@ class MPC:
             "ipopt": {
                 "max_iter": 1000,
                 "print_level": 0,
-                "acceptable_tol": 1e-8,
+                "acceptable_tol": 1e-4,
                 "acceptable_obj_change_tol": 1e-6,
             },
             "print_time": 0,
@@ -159,7 +176,9 @@ class MPC:
         X0 = ca.reshape(sol["x"][: n_states * (N + 1)], n_states, N + 1)
         u = ca.reshape(sol["x"][n_states * (N + 1) :], n_controls, N)
 
+        st_err_hor, in_err_hor = self.log_errors(X0, u, self.args["p"])
         self.control_init = u[:, 0]
+        return st_err_hor, in_err_hor
 
 
 class MPC_back(MPC):
@@ -172,6 +191,9 @@ class MPC_back(MPC):
         Fr_target, Fp_target, theta_target = U_trim.ravel()
 
         self.N = 5
+        self.step_horizon = 0.2  # time between steps in seconds
+        self.z_eps = 2
+        self.eta = 1.0
         self.control_init = ca.DM([0, 82, theta_init])
         self.state_init = ca.DM([z_init, vx_init, vz_init])
         self.state_target = ca.DM([self.z_target, vx_target, vz_target])
@@ -179,8 +201,11 @@ class MPC_back(MPC):
         self.n_states = self.state_init.numel()
         self.n_controls = self.control_init.numel()
         self.args = self.constraints()
-        self.Q = ca.diagcat(10, 100, 1)
-        self.R = ca.diagcat(0.0001, 0, 5000)
+        # self.Q = ca.diagcat(10, 100, 1)
+        # self.R = ca.diagcat(0.0001, 0, 5000)
+
+        self.Q = ca.diagcat(50, 100, 5)
+        self.R = ca.diagcat(0.00005, 0, 5000)
 
 
 class NDIController(fym.BaseEnv):
@@ -219,11 +244,12 @@ class NDIController(fym.BaseEnv):
         Frd, Fpd, thetad = np.ravel(action)
         angd = np.vstack((0, thetad, 0))
         ang_f = self.lpf_ang.state
-        omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau
+        # omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau
+        omegad = np.vstack((0, 0, 0))
 
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
 
-        K1 = np.diag((1, 100, 1))
+        K1 = np.diag((1, 200, 1))
         K2 = np.diag((1, 10, 1))
         Mrd = env.plant.J @ (-f - K1 @ (ang - angd) - K2 @ (omega - omegad))
         nu = np.vstack((Frd, Mrd))
