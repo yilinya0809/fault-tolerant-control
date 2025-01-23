@@ -384,7 +384,7 @@ def plot():
     """ Figure 6 - Error """
     fig, axes = plt.subplots(3, 2, sharex=True)
    
-    i = 50
+    i = 900
     current_t =  0.01 * i
     N = 5
     step = 0.2
