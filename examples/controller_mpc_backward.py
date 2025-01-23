@@ -209,7 +209,7 @@ def plot():
     ax.plot(data["t"][t_mpc:], data["posd"][t_mpc:, 0].squeeze(-1), "r--")
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
     ax.set_ylabel(r"$z$, m", fontsize=15)
-    # ax.set_ylim([-12, -8])
+    ax.set_ylim([-12, -8])
 
     ax.set_xlabel("Time, sec", fontsize=15)
 
