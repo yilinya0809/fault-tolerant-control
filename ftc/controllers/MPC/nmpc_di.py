@@ -204,9 +204,10 @@ class MPC_back(MPC):
         # self.Q = ca.diagcat(10, 100, 1)
         # self.R = ca.diagcat(0.0001, 0, 5000)
 
-        # self.Q = ca.diagcat(100, 5, 1)
-        self.Q = ca.diagcat(50, 5, 1)
-        self.R = ca.diagcat(0.0001, 0, 0)
+        # self.Q = ca.diagcat(50, 5, 1)
+        self.Q = ca.diagcat(50, 7, 2)
+        # self.R = ca.diagcat(0.0001, 0, 5000)
+        self.R = ca.diagcat(0.0001, 0, 4000)
 
 
 class NDIController(fym.BaseEnv):

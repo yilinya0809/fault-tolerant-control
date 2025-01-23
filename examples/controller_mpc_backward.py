@@ -60,10 +60,8 @@ class MyEnv(fym.BaseEnv):
         self.u_trims_vtol_HV = self.plant.get_trim_vtol(
             fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
         )
-        # self.Q_HV = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
-        # self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
 
-        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 1000, 10, 0, 0, 0])
+        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 500, 10, 10, 10, 10])
         self.R_HV = 10000 * np.diag([1, 1, 1, 1, 1, 1])
 
         self.controller_trst = ftc.make("NMPC-DI", self)
@@ -148,7 +146,7 @@ def run():
             action, agent_info = agent.get_action()
             _, vel, _, _ = env.plant.observe_list()
             VT = np.linalg.norm(vel)
-            if VT > 2:
+            if VT > 0.5:
                 obs, done, env_info = env.step(action=action)
                 st_err, in_err = agent.solve_mpc(obs)
 
