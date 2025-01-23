@@ -31,6 +31,8 @@ class MPC:
         self.n_states = self.state_init.numel()
         self.n_controls = self.control_init.numel()
         self.args = self.constraints()
+        self.Q = ca.diagcat(300, 300, 300)
+        self.R = ca.diagcat(0.01, 0.1, 200000)
 
     def DM2Arr(self, dm):
         return np.array(dm.full())
@@ -94,10 +96,8 @@ class MPC:
         U = ca.MX.sym("U", n_controls, N)
         P = ca.MX.sym("P", 2 * n_states + n_controls)
 
-        Q = ca.diagcat(300, 300, 300)
-        R = ca.diagcat(0.01, 0.1, 200000)
-        # Q = 10 * ca.diagcat(1, 1, 1)
-        # R = 0.0 * ca.diagcat(0, 0, 1000)
+        Q = self.Q
+        R = self.R
 
         Xdot = self.plant.derivq(states, controls, q)
         f = ca.Function("f", [states, controls], [Xdot])
@@ -162,6 +162,27 @@ class MPC:
         self.control_init = u[:, 0]
 
 
+class MPC_back(MPC):
+    def __init__(self, env):
+        super().__init__(env)
+        z_init, vx_init, vz_init, theta_init, _ = env.observation()
+
+        X_trim, U_trim = self.plant.get_trim(fixed={"h": 10, "VT": 0})
+        _, self.z_target, vx_target, vz_target = X_trim.ravel()
+        Fr_target, Fp_target, theta_target = U_trim.ravel()
+
+        self.N = 5
+        self.control_init = ca.DM([0, 82, theta_init])
+        self.state_init = ca.DM([z_init, vx_init, vz_init])
+        self.state_target = ca.DM([self.z_target, vx_target, vz_target])
+        self.control_target = ca.DM([Fr_target, Fp_target, theta_target])
+        self.n_states = self.state_init.numel()
+        self.n_controls = self.control_init.numel()
+        self.args = self.constraints()
+        self.Q = ca.diagcat(10, 100, 1)
+        self.R = ca.diagcat(0.0001, 0, 5000)
+
+
 class NDIController(fym.BaseEnv):
     def __init__(self, env):
         super().__init__()
@@ -170,7 +191,7 @@ class NDIController(fym.BaseEnv):
         cr, self.cr_th = 0.0338, 130  # tq / th, th / rcmds
         self.B_r2f = np.array(
             (
-                [-1, -1, -1, -1, -1, -1],
+                [1, 1, 1, 1, 1, 1],
                 [-self.dy2, self.dy1, self.dy1, -self.dy2, -self.dy2, self.dy1],
                 [-self.dx2, -self.dx2, self.dx1, -self.dx3, self.dx1, -self.dx3],
                 [-cr, cr, -cr, cr, cr, -cr],

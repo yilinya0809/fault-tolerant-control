@@ -41,6 +41,10 @@ register(
     entry_point="ftc.controllers.MPC.nmpc_di:MPC",
 )
 register(
+    id="MPC-back",
+    entry_point="ftc.controllers.MPC.nmpc_di:MPC_back",
+)
+register(
     id="NMPC-DI",
     entry_point="ftc.controllers.MPC.nmpc_di:NDIController",
 )

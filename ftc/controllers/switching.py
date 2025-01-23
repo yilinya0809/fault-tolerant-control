@@ -21,20 +21,20 @@ class Corr_NDIController(fym.BaseEnv):
                 [-cr, cr, -cr, cr, cr, -cr],
             )
         )
-        
+
     def get_control(self, t, env):
         xd, zd, veld, thetad, mode = env.get_ref(t)
         if mode == "FTC":
-            self.K1 = np.diag((10, 100)) # K4
-            self.K2 = np.diag((10, 50)) # K3
-            self.K3 = np.diag((10, 200, 10)) # K2
-            self.K4 = np.diag((10, 20, 10)) # K1
+            self.K1 = np.diag((10, 100))  # K4
+            self.K2 = np.diag((10, 50))  # K3
+            self.K3 = np.diag((10, 200, 10))  # K2
+            self.K4 = np.diag((10, 20, 10))  # K1
         elif mode == "BTC":
-            self.K1 = np.diag((10, 100)) # K4
-            self.K2 = np.diag((10, 50)) # K3
-            self.K3 = np.diag((10, 5000, 10)) # K2
-            self.K4 = np.diag((10, 100, 10)) # K1
-   
+            self.K1 = np.diag((10, 100))  # K4
+            self.K2 = np.diag((10, 50))  # K3
+            self.K3 = np.diag((10, 5000, 10))  # K2
+            self.K4 = np.diag((10, 100, 10))  # K1
+
         # current state
         pos, vel, quat, omega = env.plant.observe_list()
         ang = np.vstack(quat2angle(quat)[::-1])
@@ -74,8 +74,10 @@ class Corr_NDIController(fym.BaseEnv):
         # control input
         th_r = np.linalg.pinv(self.B_r2f) @ np.vstack((-Frd, Mrd))
         rcmds = th_r / self.cr_th
-        if not np.isclose(np.linalg.norm(self.B_r2f@ th_r- np.vstack((-Frd, Mrd))), 0):
-            print(np.linalg.norm(self.B_r2f@ th_r- np.vstack((-Frd, Mrd))))
+        if not np.isclose(
+            np.linalg.norm(self.B_r2f @ th_r - np.vstack((-Frd, Mrd))), 0
+        ):
+            print(np.linalg.norm(self.B_r2f @ th_r - np.vstack((-Frd, Mrd))))
 
         th_p = Fpd / 2
         pcmds = th_p / self.cp_th * np.ones((2, 1))
@@ -116,7 +118,7 @@ class LQRController(fym.BaseEnv):
         A_FW, B_FW = env.plant.lin_model(self.x_trims_FW, self.u_trims_FW, ptrb)
 
         self.K_FW, *_ = fym.agents.LQR.clqr(A_FW, B_FW[:, 6:], env.Q_FW, env.R_FW)
-        
+
         # HV
         pos_trim, vel_trim, quat_trim, omega_trim = env.x_trims_HV
         ang_trim = np.vstack(quat2angle(quat_trim)[::-1])
@@ -130,7 +132,6 @@ class LQRController(fym.BaseEnv):
         A_HV, B_HV = env.plant.lin_model(self.x_trims_HV, self.u_trims_HV, ptrb)
 
         self.K_HV, *_ = fym.agents.LQR.clqr(A_HV, B_HV[:, :6], env.Q_HV, env.R_HV)
-
 
     def get_control(self, t, env):
         xd, zd, _, _, mode = env.get_ref(t)
@@ -149,7 +150,7 @@ class LQRController(fym.BaseEnv):
         x = np.vstack((pos, vel, ang, omega))
 
         # K = np.vstack((np.zeros((6, 12)), self.K_FW))
-        ctrls = -K @ (x - x_ref) + u_ref 
+        ctrls = -K @ (x - x_ref) + u_ref
 
         controller_info = {
             "posd": np.vstack((xd, 0, zd)),
@@ -169,7 +170,7 @@ class NDIController(fym.BaseEnv):
         super().__init__()
         dx1, dx2, dx3 = env.plant.dx1, env.plant.dx2, env.plant.dx3
         dy1, dy2 = env.plant.dy1, env.plant.dy2
-        self.r1 , r2 = 130, 0.0338  # th_r/rcmds, tq_r/th_r
+        self.r1, r2 = 130, 0.0338  # th_r/rcmds, tq_r/th_r
         self.B_r2FM = np.array(
             (
                 [-1, -1, -1, -1, -1, -1],
@@ -178,7 +179,7 @@ class NDIController(fym.BaseEnv):
                 [-r2, r2, -r2, r2, r2, -r2],
             )
         )
-        self.p1, p2 = 70, 0.0835 # th_p/pcmds, tq_p/th_p
+        self.p1, p2 = 70, 0.0835  # th_p/pcmds, tq_p/th_p
         # self.B_p2FM = np.array(
         #     (
         #         [1, 1],
@@ -193,7 +194,7 @@ class NDIController(fym.BaseEnv):
         self.mg = env.plant.m * env.plant.g
         self.ang_lim = np.deg2rad(30)
         # self.W = np.diag((200/(self.ang_lim), 1/self.p1))
-        self.W = np.diag((600/(self.ang_lim), 1/self.p1))
+        self.W = np.diag((600 / (self.ang_lim), 1 / self.p1))
         self.eo_int = fym.BaseSystem(np.zeros((2, 1)))
 
     def get_control(self, t, env):
@@ -205,7 +206,7 @@ class NDIController(fym.BaseEnv):
 
         xd, zd, veld, _, mode = env.get_ref(t)
         posd = np.vstack((xd, 0, zd))
- 
+
         if mode == "FTC":
             Ko1 = 0.01 * np.diag((0, 4))
             Ko2 = 0.01 * np.diag((22, 1))
@@ -219,7 +220,6 @@ class NDIController(fym.BaseEnv):
             Ki1 = np.diag((200, 10, 500, 1))
             Ki2 = np.diag((100, 10, 200, 1))
 
-
         """ outer-loop control
         Objective: horizontal position (x, y) tracking control
         States:
@@ -230,13 +230,13 @@ class NDIController(fym.BaseEnv):
         xo_dot, xod_dot = vel[0:2], veld[0:2]
         eo, eo_dot = xo - xod, xo_dot - xod_dot
         eo_int = self.eo_int.state
-        
+
         # outer-loop virtual control input
         nuo = (-Ko1 @ eo - Ko2 @ eo_dot - Ko3 @ eo_int) * env.plant.m
         phi = nuo[1] / self.mg
-        
+
         # control effectiveness vector
-        bo = np.vstack((-self.mg, 1)) 
+        bo = np.vstack((-self.mg, 1))
         Winv = np.linalg.inv(self.W)
         Pw = Winv @ bo @ np.linalg.inv(bo.T @ Winv @ bo)
         uo = nuo[0] * Pw
@@ -259,7 +259,7 @@ class NDIController(fym.BaseEnv):
         xid_dot = np.vstack((veld[2], 0, 0, 0))
         ei = xi - xid
         ei_dot = xi_dot - xid_dot
-        
+
         f = np.vstack(
             (
                 env.plant.g,
@@ -287,7 +287,6 @@ class NDIController(fym.BaseEnv):
             "omegad": np.zeros((3, 1)),
             "Frd": env.plant.B_VTOL(ctrls[0:6], np.zeros((3, 1)))[0],
             "Fpd": env.plant.B_Pusher(ctrls[6:8])[0],
-
         }
 
         return ctrls, controller_info

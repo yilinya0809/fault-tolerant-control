@@ -27,13 +27,13 @@ class MyEnv(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 20,
+            "max_t": 40,
         },
         "plant": {
             "init": {
                 "pos": np.vstack((0.0, 0.0, -h)),
-                "vel": np.zeros((3, 1)),
-                "quat": np.vstack((1, 0, 0, 0)),
+                "vel": np.vstack((44.97696983, 0, 1.43950854)),
+                "quat": np.vstack((0.99987205, 0, 0.01599659, 0)),
                 "omega": np.zeros((3, 1)),
             },
         },
@@ -64,7 +64,7 @@ class MyEnv(fym.BaseEnv):
         self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
 
         self.controller_trst = ftc.make("NMPC-DI", self)
-        self.controller_fw = ftc.make("FWHV", self)
+        self.controller_lqr = ftc.make("FWHV", self)
 
     def step(self, action):
         env_info, done = self.update(action=action)
@@ -83,12 +83,12 @@ class MyEnv(fym.BaseEnv):
         return obs
 
     def get_ref(self, t):
-        _, veld, angd, _ = self.x_trims_FW
+        _, veld, angd, _ = self.x_trims_HV
 
         thetad = angd[1]
         xd = 0
         zd = -self.h
-        mode = "FW"
+        mode = "HV"
 
         return xd, zd, veld, thetad, mode
 
@@ -103,7 +103,7 @@ class MyEnv(fym.BaseEnv):
 
         # if action == ca.DM.zeros((3, 1)):
         if np.array_equal(action.full(), np.zeros((3, 1))):
-            ctrls0, controller_info = self.controller_fw.get_control(t, self)
+            ctrls0, controller_info = self.controller_lqr.get_control(t, self)
         else:
             ctrls0, controller_info = self.controller_trst.get_control(t, self, action)
         ctrls = self.plant.saturate(ctrls0)
@@ -126,8 +126,8 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    agent = ftc.make("NMPC", env)
-    flogger = fym.Logger("data_mpc_switch.h5")
+    agent = ftc.make("MPC-back", env)
+    flogger = fym.Logger("data_mpc_backward.h5")
 
     env.reset()
     try:
@@ -135,11 +135,11 @@ def run():
             env.render()
 
             t = env.clock.get()
-            # _, vel, _, _ = env.plant.observe_list()
-            # VT = np.linalg.norm(vel)
-            # if VT < env.VT_cruise - 2:
             action, agent_info = agent.get_action()
-            if t < 10:
+            _, vel, _, _ = env.plant.observe_list()
+            VT = np.linalg.norm(vel)
+            # if t < 30:
+            if VT > 2:
                 obs, done, env_info = env.step(action=action)
                 agent.solve_mpc(obs)
             else:
@@ -156,10 +156,10 @@ def run():
 
 
 def plot():
-    data = fym.load("data_mpc_switch.h5")["env"]
-    agent_data = fym.load("data_mpc_switch.h5")["agent"]
-    # t_mpc = len(agent_data["Xd"][:, 0])
-    t_mpc = 1000
+    data = fym.load("data_mpc_backward.h5")["env"]
+    agent_data = fym.load("data_mpc_backward.h5")["agent"]
+    t_mpc = len(agent_data["Xd"][:, 0])
+    # t_mpc = 1000
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(12, 8), squeeze=False, sharex=True)
@@ -181,7 +181,7 @@ def plot():
     ax.plot(data["t"][t_mpc:], data["posd"][t_mpc:, 0].squeeze(-1), "r--")
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
     ax.set_ylabel(r"$z$, m", fontsize=15)
-    ax.set_ylim([-11, -9])
+    ax.set_ylim([-12, -8])
 
     ax.set_xlabel("Time, sec", fontsize=15)
 
