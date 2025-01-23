@@ -35,7 +35,6 @@ class MPC:
         self.Q = ca.diagcat(300, 300, 300)
         self.R = ca.diagcat(0.01, 0.1, 200000)
 
-
     def DM2Arr(self, dm):
         return np.array(dm.full())
 
@@ -46,7 +45,7 @@ class MPC:
             state_err = self.DM2Arr(X[:, i]) - self.DM2Arr(
                 P[self.n_states : 2 * self.n_states]
             )
-            input_err = self.DM2Arr(U[:, i]) - self.DM2Arr(P[2 * self.n_states:])
+            input_err = self.DM2Arr(U[:, i]) - self.DM2Arr(P[2 * self.n_states :])
             state_err_horizon.append(state_err)
             input_err_horizon.append(input_err)
         state_err_horizon = np.array(state_err_horizon)[:, :, 0]
@@ -62,7 +61,7 @@ class MPC:
         ubx = ca.DM.zeros((n_states * (N + 1) + n_controls * N, 1))
 
         lbx[0 : n_states * (N + 1) : n_states] = self.z_target - self.z_eps  # z min
-        ubx[0 : n_states * (N + 1) : n_states] = self.z_target + 1  # z max
+        ubx[0 : n_states * (N + 1) : n_states] = self.z_target + self.z_eps  # z max
         lbx[1 : n_states * (N + 1) : n_states] = 0  # Vx min
         ubx[1 : n_states * (N + 1) : n_states] = ca.inf  # Vx max
         lbx[2 : n_states * (N + 1) : n_states] = -ca.inf  # Vz min
@@ -192,7 +191,7 @@ class MPC_back(MPC):
 
         self.N = 5
         self.step_horizon = 0.2  # time between steps in seconds
-        self.z_eps = 0.1
+        self.z_eps = 1
         self.eta = 1.0
         self.control_init = ca.DM([0, 82, theta_init])
         self.state_init = ca.DM([z_init, vx_init, vz_init])
@@ -204,8 +203,8 @@ class MPC_back(MPC):
         # self.Q = ca.diagcat(10, 100, 1)
         # self.R = ca.diagcat(0.0001, 0, 5000)
 
-        self.Q = ca.diagcat(50, 100, 10)
-        # self.Q = ca.diagcat(100, 10, 1)
+        # self.Q = ca.diagcat(50, 100, 10)
+        self.Q = ca.diagcat(500, 30, 2)
         self.R = ca.diagcat(0, 0, 0)
 
 
@@ -251,7 +250,7 @@ class NDIController(fym.BaseEnv):
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
 
         K1 = np.diag((1, 200, 1))
-        K2 = np.diag((1, 50, 1))
+        K2 = np.diag((1, 100, 1))
         Mrd = env.plant.J @ (-f - K1 @ (ang - angd) - K2 @ (omega - omegad))
         nu = np.vstack((Frd, Mrd))
         th_r = np.linalg.pinv(self.B_r2f) @ nu

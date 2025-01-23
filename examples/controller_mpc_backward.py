@@ -43,7 +43,7 @@ class MyEnv(fym.BaseEnv):
         env_config = safeupdate(self.ENV_CONFIG, env_config)
         super().__init__(**env_config["fkw"])
         self.plant = LC62R(env_config["plant"])
-        self.ang_lim = np.deg2rad(30)
+        self.ang_lim = np.deg2rad(10)
 
         # FW
         self.x_trims_FW, self.u_trims_fixed_FW = self.plant.get_trim_fixed(
@@ -60,8 +60,11 @@ class MyEnv(fym.BaseEnv):
         self.u_trims_vtol_HV = self.plant.get_trim_vtol(
             fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
         )
-        self.Q_HV = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
-        self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
+        # self.Q_HV = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
+        # self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
+
+        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 50000, 10, 0, 0, 0])
+        self.R_HV = 10000 * np.diag([1, 1, 1, 1, 1, 1])
 
         self.controller_trst = ftc.make("NMPC-DI", self)
         self.controller_lqr = ftc.make("FWHV", self)
@@ -184,7 +187,6 @@ def plot():
         st_err_data = f["st_err_log"][:]
         in_err_data = f["in_err_log"][:]
 
-
     # data = fym.load("data/data_mpc_backward.h5")["env"]
     # agent_data = fym.load("data/data_mpc_backward.h5")["agent"]
     t_mpc = len(agent_data["Xd"][:, 0])
@@ -209,7 +211,7 @@ def plot():
     ax.plot(data["t"][t_mpc:], data["posd"][t_mpc:, 0].squeeze(-1), "r--")
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-")
     ax.set_ylabel(r"$z$, m", fontsize=15)
-    ax.set_ylim([-12, -8])
+    # ax.set_ylim([-12, -8])
 
     ax.set_xlabel("Time, sec", fontsize=15)
 
@@ -383,40 +385,35 @@ def plot():
 
     """ Figure 6 - Error """
     fig, axes = plt.subplots(3, 2, sharex=True)
-   
+
     i = 900
-    current_t =  0.01 * i
+    current_t = 0.01 * i
     N = 5
     step = 0.2
     mpc_t = np.arange(current_t, current_t + N * step, step)
-      
+
     ax = axes[0, 0]
     ax.plot(mpc_t, st_err_data[i, :, 0])
     ax.set_ylabel(r"$z_e$, m")
 
-
     ax = axes[1, 0]
     ax.plot(mpc_t, st_err_data[i, :, 1])
     ax.set_ylabel(r"$vx_e$, m/s")
-
 
     ax = axes[2, 0]
     ax.plot(mpc_t, st_err_data[i, :, 2])
     ax.set_ylabel(r"$vz_e$, m/s")
     ax.set_xlabel("time, sec")
 
-
     ax = axes[0, 1]
     ax.plot(mpc_t, in_err_data[i, :, 0])
     ax.set_ylabel(r"$Fr$, N")
     ax.set_xlabel("Time, sec")
 
-
     ax = axes[1, 1]
     ax.plot(mpc_t, in_err_data[i, :, 1])
     ax.set_ylabel(r"$Fp$, N")
     ax.set_xlabel("time, sec")
-
 
     ax = axes[2, 1]
     ax.plot(mpc_t, np.rad2deg(in_err_data[i, :, 2]))
