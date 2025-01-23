@@ -191,7 +191,8 @@ class MPC_back(MPC):
 
         self.N = 5
         self.step_horizon = 0.2  # time between steps in seconds
-        self.z_eps = 1
+        # self.z_eps = 1
+        self.z_eps = 2
         self.eta = 1.0
         self.control_init = ca.DM([0, 82, theta_init])
         self.state_init = ca.DM([z_init, vx_init, vz_init])
@@ -203,9 +204,9 @@ class MPC_back(MPC):
         # self.Q = ca.diagcat(10, 100, 1)
         # self.R = ca.diagcat(0.0001, 0, 5000)
 
-        # self.Q = ca.diagcat(50, 100, 10)
-        self.Q = ca.diagcat(100, 5, 1)
-        self.R = ca.diagcat(0, 0, 0)
+        # self.Q = ca.diagcat(100, 5, 1)
+        self.Q = ca.diagcat(50, 5, 1)
+        self.R = ca.diagcat(0.0001, 0, 0)
 
 
 class NDIController(fym.BaseEnv):
@@ -249,8 +250,8 @@ class NDIController(fym.BaseEnv):
 
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
 
-        K1 = np.diag((1, 200, 1))
-        K2 = np.diag((1, 50, 1))
+        K1 = np.diag((1, 400, 1))
+        K2 = np.diag((1, 200, 1))
         Mrd = env.plant.J @ (-f - K1 @ (ang - angd) - K2 @ (omega - omegad))
         nu = np.vstack((Frd, Mrd))
         th_r = np.linalg.pinv(self.B_r2f) @ nu

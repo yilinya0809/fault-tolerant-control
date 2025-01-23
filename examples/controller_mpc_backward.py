@@ -63,7 +63,7 @@ class MyEnv(fym.BaseEnv):
         # self.Q_HV = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
         # self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
 
-        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 50000, 10, 0, 0, 0])
+        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 1000, 10, 0, 0, 0])
         self.R_HV = 10000 * np.diag([1, 1, 1, 1, 1, 1])
 
         self.controller_trst = ftc.make("NMPC-DI", self)
