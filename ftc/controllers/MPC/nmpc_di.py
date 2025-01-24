@@ -13,7 +13,7 @@ class MPC:
         self.Fr_max = 6 * self.plant.th_r_max
         self.Fp_max = 2 * self.plant.th_p_max
         self.theta_max = env.ang_lim
-        self.z_eps = 2
+        self.z_eps = 1
         self.eta = 1.0
 
         self.step_horizon = 0.2  # time between steps in seconds
@@ -32,8 +32,11 @@ class MPC:
         self.n_states = self.state_init.numel()
         self.n_controls = self.control_init.numel()
         self.args = self.constraints()
-        self.Q = ca.diagcat(300, 300, 300)
-        self.R = ca.diagcat(0.01, 0.1, 200000)
+        # self.Q = ca.diagcat(300, 300, 300)
+        # self.R = ca.diagcat(0.01, 0.1, 200000)
+        
+        self.Q = ca.diagcat(50, 10, 1)
+        self.R = ca.diagcat(0.0001, 0, 1000)
 
     def DM2Arr(self, dm):
         return np.array(dm.full())
@@ -246,11 +249,16 @@ class NDIController(fym.BaseEnv):
         Frd, Fpd, thetad = np.ravel(action)
         angd = np.vstack((0, thetad, 0))
         ang_f = self.lpf_ang.state
-        # omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau
-        omegad = np.vstack((0, 0, 0))
+        omegad = self.lpf_ang.dot = -(ang_f - angd) / self.tau
+        # omegad = np.vstack((0, 0, 0))
 
         f = -env.plant.Jinv @ np.cross(omega, env.plant.J @ omega, axis=0)
+        
+        # forward
+        K1 = np.diag((1, 100, 1))
+        K2 = np.diag((1, 10, 1))
 
+        # backward
         K1 = np.diag((1, 400, 1))
         K2 = np.diag((1, 200, 1))
         Mrd = env.plant.J @ (-f - K1 @ (ang - angd) - K2 @ (omega - omegad))
