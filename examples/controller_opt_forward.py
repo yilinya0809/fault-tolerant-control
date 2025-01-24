@@ -20,7 +20,7 @@ plt.rcParams.update(
     }
 )
 """ Transition Corridor """
-Trst_corr = np.load("data/corr_safe.npz")
+Trst_corr = np.load("data/corr_forward.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -32,7 +32,7 @@ success = Trst_corr["success"]
 
 """ Optimal transition trajectory """
 opt_traj = {}
-f = h5py.File("data/opt_corr.h5", "r")
+f = h5py.File("data/opt_forward.h5", "r")
 opt_traj["tf"] = f.get("tf")[()]
 opt_traj["X"] = f.get("X")[:]
 opt_traj["U"] = f.get("U")[:]
@@ -76,12 +76,21 @@ class MyEnv(fym.BaseEnv):
             fixed={"h": self.h, "VT": self.VT_cruise}
         )
         self.u_trims_vtol_FW = np.zeros((6, 1))
-        self.Q = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
-        # self.R = np.diag([1, 1, 100, 100, 100])
-        self.R = np.diag([400, 400, 1, 1, 1])
+        self.Q_FW = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
+        self.R_FW = np.diag([400, 400, 1, 1, 1])
 
-        self.controller_trst = ftc.make("Trst", self)
-        self.controller_fw = ftc.make("FW", self)
+        # HV
+        self.x_trims_HV, self.u_trims_fixed_HV = self.plant.get_trim_fixed(
+            fixed={"h": self.h, "VT": 0}
+        )
+        self.u_trims_vtol_HV = self.plant.get_trim_vtol(
+            fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
+        )
+        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 50000, 10, 0, 0, 0])
+        self.R_HV = 10000 * np.diag([1, 1, 1, 1, 1, 1])
+
+        self.controller_trst = ftc.make("Trst-Corr", self)
+        self.controller_fw = ftc.make("FWHV", self)
 
     def step(self):
         env_info, done = self.update()
@@ -99,15 +108,19 @@ class MyEnv(fym.BaseEnv):
         Vzd = np.interp(t, tspan, opt_traj["X"][2, :])
         veld = np.vstack((Vxd, 0, Vzd))
         thetad = np.interp(t, tspan[1:], opt_traj["U"][2, :])
+
         if t > tspan[-1]:
             xd = Xd[-1] + self.VT_cruise * (t - tspan[-1])
-        return xd, zd, veld, thetad
+            mode = "FW"
+        else:
+            mode = "FTC"
+        return xd, zd, veld, thetad, mode 
 
     def set_dot(self, t):
         pos, vel, quat, omega = self.plant.observe_list()
         VT = np.linalg.norm(vel)
         # if np.isclose(self.VT_cruise, VT, atol=0.01):
-        if VT >= self.VT_cruise:
+        if t > tspan[-1]:
             ctrls0, controller_info = self.controller_fw.get_control(t, self)
         else:
             ctrls0, controller_info = self.controller_trst.get_control(t, self)
@@ -132,7 +145,7 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    flogger = fym.Logger("data_opt_switch.h5")
+    flogger = fym.Logger("data_opt_forward.h5")
 
     env.reset()
     try:
@@ -151,7 +164,7 @@ def run():
 
 
 def plot():
-    data = fym.load("data_opt_switch.h5")["env"]
+    data = fym.load("data_opt_forward.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(2, 3, figsize=(12, 8), squeeze=False, sharex=True)
