@@ -19,7 +19,7 @@ class MyEnv(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 50,
+            "max_t": 20,
         },
         "plant": {
             "init": {
@@ -41,12 +41,21 @@ class MyEnv(fym.BaseEnv):
             fixed={"h": self.h, "VT": self.VT_cruise}
         )
         self.u_trims_vtol_FW = np.zeros((6, 1))
-        self.Q = np.diag([0, 0, 100, 10, 10, 10, 100, 100, 100, 0, 0, 0])
-        # self.R = np.diag([1, 1, 100, 100, 100])
-        self.R = np.diag([400, 400, 1, 1, 1])
+        self.Q_FW = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
+        self.R_FW = np.diag([400, 400, 1, 1, 1])
 
-        self.controller_trst = ftc.make("NDI-C", self)
-        self.controller_fw = ftc.make("FW", self)
+        # HV
+        self.x_trims_HV, self.u_trims_fixed_HV = self.plant.get_trim_fixed(
+            fixed={"h": self.h, "VT": 0}
+        )
+        self.u_trims_vtol_HV = self.plant.get_trim_vtol(
+            fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
+        )
+        self.Q_HV = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
+        self.R_HV = 100 * np.diag([1, 1, 1, 1, 1, 1])
+
+        self.controller_trst = ftc.make("Trst-NDI", self)
+        self.controller_lqr = ftc.make("FWHV", self)
         self.ang_lim = np.deg2rad(30)
 
     def step(self):
@@ -56,28 +65,29 @@ class MyEnv(fym.BaseEnv):
     def observation(self):
         return self.observe_flat()
 
-    def get_ref(self, t, *args):
-        pos, vel, quat, omega = self.plant.observe_list()
-        ang0 = np.vstack(quat2angle(quat)[::-1])
-        ang_min, ang_max = -self.ang_lim, self.ang_lim
-        ang = np.clip(ang0, ang_min, ang_max)
-        alp = ang[1]
+    def get_ref(self, t):
+        _, vel, quat, _ = self.plant.observe_list()
+        VT = np.linalg.norm(vel)
+        theta = quat2angle(quat)[1]
+        xd = t * self.VT_cruise * cos(theta)
+        zd = -self.h
+        veld = np.vstack((self.VT_cruise * cos(theta), 0, self.VT_cruise * sin(theta)))
+        thetad = np.deg2rad(1.81)
 
-        """ Level Flight only """
-        VT = self.VT_cruise
-        posd = np.vstack((t * VT * cos(alp), 0, -10))
-        posd_dot = np.vstack((VT * cos(alp), 0, VT * sin(alp)))
+        if VT < self.VT_cruise - 1:
+            mode = "FTC"
+        else:
+            mode = "FW"
 
-        refs = {"posd": posd, "posd_dot": posd_dot}
-        return [refs[key] for key in args]
+        return xd, zd, veld, thetad, mode
 
     def set_dot(self, t):
         pos, vel, quat, omega = self.plant.observe_list()
         VT = np.linalg.norm(vel)
-        if VT < self.VT_cruise - 2:
+        if VT < self.VT_cruise - 1:
             ctrls0, controller_info = self.controller_trst.get_control(t, self)
         else:
-            ctrls0, controller_info = self.controller_fw.get_control(t, self)
+            ctrls0, controller_info = self.controller_lqr.get_control(t, self)
 
         ctrls = self.plant.saturate(ctrls0)
         FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
@@ -99,7 +109,7 @@ class MyEnv(fym.BaseEnv):
 
 def run():
     env = MyEnv()
-    flogger = fym.Logger("data_C.h5")
+    flogger = fym.Logger("data_ndi_forward.h5")
 
     env.reset()
     try:
@@ -118,7 +128,7 @@ def run():
 
 
 def plot():
-    data = fym.load("data_C.h5")["env"]
+    data = fym.load("data_ndi_forward.h5")["env"]
 
     """ Figure 1 - States """
     fig, axes = plt.subplots(3, 4, figsize=(18, 5), squeeze=False, sharex=True)
