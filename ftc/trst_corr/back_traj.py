@@ -17,7 +17,7 @@ plt.rcParams.update(
 
 """ Pre-processing - Transition Corridor """
 
-Trst_corr = np.load("ftc/trst_corr/corr_back.npz")
+Trst_corr = np.load("data/corr_backward.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -41,22 +41,13 @@ def upper_func(vel):
     return value
 
 
-mask = upper_bound < np.deg2rad(9.9)
+mask = upper_bound < np.max(upper_bound)
 VT_filtered = VT_corr[mask]
 upper_bound_filtered = upper_bound[mask]
 
 deg = 3
 lower = np.polyfit(VT_corr, lower_bound, deg)
 upper = np.polyfit(VT_filtered, upper_bound_filtered, deg)
-
-theta_ref = [np.deg2rad(5)]
-VT_ref = [0]
-for i in range(len(upper_bound)):
-    if upper_bound[i] < np.max(upper_bound):
-        theta_ref.append(upper_bound[i])
-        VT_ref.append(VT_corr[i])
-ref = np.polyfit(VT_ref, theta_ref, deg)
-
 
 plant = LC62()
 
@@ -112,12 +103,6 @@ for k in range(N):  # loop over control intervals
     theta_k = U[2, k]
     VT_k = norm_2(X[1:3, k])
     opti.subject_to(opti.bounded(casadi_polyval(lower, VT_k), theta_k, upper_func(VT_k)))
-    # opti.subject_to(
-    #     opti.bounded(casadi_polyval(lower, VT_k), theta_k, casadi_polyval(upper, VT_k))
-    # )
-
-    # dist to ref
-    # cost += W_tht * (theta_k - casadi_polyval(ref, VT_k)) ** 2
 
 
 opti.minimize(cost)
@@ -153,7 +138,7 @@ opti.subject_to(vz[-1] == x_hv[3])
 u_eps = 0.2
 # opti.subject_to(opti.bounded(u_hv[0] * (1 - u_eps), Fr[-1], u_hv[0] * (1 + u_eps)))
 # opti.subject_to(opti.bounded(0, Fp[-1], 5))
-# opti.subject_to(opti.bounded(-np.deg2rad(5), theta[-1], np.deg2rad(10)))
+opti.subject_to(opti.bounded(-np.deg2rad(5), theta[-1], np.deg2rad(10)))
 
 # opti.subject_to(Fr[-1] == u_hv[0])
 # opti.subject_to(Fp[-1] == u_hv[1])

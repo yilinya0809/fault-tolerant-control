@@ -185,7 +185,7 @@ legend_elements = [
         [0],
         marker="o",
         color="w",
-        label=r"$F_x^I < 0$",
+        label=r"$F_x^I > 0$",
         markerfacecolor="black",
         markersize=10,
         alpha=0.8,

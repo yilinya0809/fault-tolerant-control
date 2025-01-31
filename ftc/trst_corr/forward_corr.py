@@ -415,7 +415,7 @@ if __name__ == "__main__":
     np.savez(
         os.path.join(
             # "ftc/trst_corr/corr_safe_cause.npz",
-            "corr_test.npz"
+            "corr_wide.npz"
         ),
         VT_corr=VT_corr,
         theta_corr=theta_corr,

@@ -73,8 +73,9 @@ class MyEnv(fym.BaseEnv):
         self.u_trims_vtol_HV = self.plant.get_trim_vtol(
             fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
         )
-        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 50000, 10, 0, 0, 0])
-        self.R_HV = 10000 * np.diag([1, 1, 1, 1, 1, 1])
+        # self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 50000, 10, 0, 0, 0])
+        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 100000000, 10, 0, 100, 0])
+        self.R_HV = 10000000 * np.diag([1, 1, 1, 1, 1, 1])
 
         self.controller_trst = ftc.make("Trst-Corr", self)
         self.controller_lqr = ftc.make("FWHV", self)
