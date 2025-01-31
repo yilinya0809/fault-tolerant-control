@@ -25,13 +25,13 @@ class Corr_NDIController(fym.BaseEnv):
     def get_control(self, t, env):
         xd, zd, veld, thetad, mode = env.get_ref(t)
         if mode == "FTC":
-            self.K1 = np.diag((10, 100))  # K4
-            self.K2 = np.diag((10, 50))  # K3
-            self.K3 = np.diag((10, 200, 10))  # K2
-            self.K4 = np.diag((10, 20, 10))  # K1
+            self.K1 = np.diag((10, 500))  # K4
+            self.K2 = np.diag((10, 200))  # K3
+            self.K3 = np.diag((10, 1000, 10))  # K2
+            self.K4 = np.diag((10, 100, 10))  # K1
         elif mode == "BTC":
-            self.K1 = np.diag((10, 100))  # K4
-            self.K2 = np.diag((10, 50))  # K3
+            self.K1 = np.diag((10, 600))  # K4
+            self.K2 = np.diag((10, 300))  # K3
             self.K3 = np.diag((10, 5000, 10))  # K2
             self.K4 = np.diag((10, 100, 10))  # K1
 

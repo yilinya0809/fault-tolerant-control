@@ -99,8 +99,9 @@ class MyEnv(fym.BaseEnv):
             fixed={"h": self.h, "VT": self.VT_cruise}
         )
         self.u_trims_vtol_FW = np.zeros((6, 1))
-        self.Q_FW = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
-        self.R_FW = np.diag([400, 400, 1, 1, 1])
+        # self.Q_FW = np.diag([0, 0, 200, 10, 10, 20, 100, 200, 100, 0, 0, 0])
+        self.Q_FW = np.diag([0, 0, 100000, 20, 10, 2000, 10, 50000, 10, 0, 0, 0])
+        self.R_FW = np.diag([500, 500, 1, 1, 1])
 
         # HV
         self.x_trims_HV, self.u_trims_fixed_HV = self.plant.get_trim_fixed(
@@ -109,8 +110,8 @@ class MyEnv(fym.BaseEnv):
         self.u_trims_vtol_HV = self.plant.get_trim_vtol(
             fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
         )
-        self.Q_HV = np.diag([0, 0, 20, 10, 10, 20, 10, 50000, 10, 0, 0, 0])
-        self.R_HV = 10000 * np.diag([1, 1, 1, 1, 1, 1])
+        self.Q_HV = np.diag([0, 0, 100, 10, 10, 50, 10, 50000, 10, 0, 0, 0])
+        self.R_HV = 50000 * np.diag([1, 1, 1, 1, 1, 1])
 
         self.controller_trst = ftc.make("Trst-Corr", self)
         self.controller_lqr = ftc.make("FWHV", self)
@@ -172,6 +173,7 @@ class MyEnv(fym.BaseEnv):
 
         ctrls = self.plant.saturate(ctrls0)
         FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
+        FM_aero = self.plant.B_Fuselage(ctrls[0:3], pos, vel, omega)
         self.plant.set_dot(t, FM)
 
         env_info = {
@@ -183,6 +185,7 @@ class MyEnv(fym.BaseEnv):
             "ctrls0": ctrls0,
             "Fr": -self.plant.B_VTOL(ctrls[:6], omega)[2],
             "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
+            "FM_aero": FM_aero,
         }
 
         return env_info
@@ -364,6 +367,47 @@ def plot():
     #     ax.legend(fontsize=20)
     #     fig.tight_layout()
 
+    """ Figure 7 - FM_aero """
+    fig, axs = plt.subplots(2, 3, figsize=(12, 8))
+
+    ax = axs[0, 0]
+    ax.plot(data["t"], data["FM"][:, 0], "k-")
+    ax.plot(data["t"], data["FM_aero"][:, 0], "b-")
+    ax.set_ylabel(r"$F_{x, aero}$, N")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    ax = axs[0, 1]
+    ax.plot(data["t"], data["FM_aero"][:, 1], "b-")
+    ax.plot(data["t"], data["FM"][:, 1], "k-")
+    ax.set_ylabel(r"$F_{y, aero}$, N")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    ax = axs[0, 2]
+    ax.plot(data["t"], data["FM_aero"][:, 2], "b-")
+    ax.plot(data["t"], data["FM"][:, 2], "k-")
+    ax.set_ylabel(r"$F_{z, aero}$, N")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+
+    ax = axs[1, 0]
+    ax.plot(data["t"], data["FM_aero"][:, 3], "b-")
+    ax.plot(data["t"], data["FM"][:, 3], "k-")
+    ax.set_ylabel(r"$M_{x, aero}$, N")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    ax = axs[1, 1]
+    ax.plot(data["t"], data["FM_aero"][:, 4], "b-")
+    ax.plot(data["t"], data["FM"][:, 4], "k-")
+    ax.set_ylabel(r"$M_{y, aero}$, N")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    ax = axs[1, 2]
+    ax.plot(data["t"], data["FM_aero"][:, 5], "b-")
+    ax.plot(data["t"], data["FM"][:, 5], "k-")
+    ax.set_ylabel(r"$M_{z, aero}$, N")
+    ax.set_xlim(data["t"][0], data["t"][-1])
+
+    fig.tight_layout()
     plt.show()
 
 
