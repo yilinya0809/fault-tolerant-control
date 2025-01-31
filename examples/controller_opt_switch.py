@@ -76,11 +76,11 @@ class MyEnv(fym.BaseEnv):
     ENV_CONFIG = {
         "fkw": {
             "dt": 0.01,
-            "max_t": 50,
+            "max_t": 60,
         },
         "plant": {
             "init": {
-                "pos": np.vstack((0.0, 0.0, -h)),
+                "pos": np.vstack((0.0, 0.0, 0.0)),
                 "vel": np.zeros((3, 1)),
                 "quat": np.vstack((1, 0, 0, 0)),
                 "omega": np.zeros((3, 1)),
@@ -110,7 +110,7 @@ class MyEnv(fym.BaseEnv):
         self.u_trims_vtol_HV = self.plant.get_trim_vtol(
             fixed={"x_trims": self.x_trims_HV, "u_trims_fixed": self.u_trims_fixed_HV}
         )
-        self.Q_HV = np.diag([0, 0, 100, 10, 10, 50, 10, 50000, 10, 0, 0, 0])
+        self.Q_HV = np.diag([0, 0, 1000, 10, 10, 500, 10, 50000, 10, 0, 0, 0])
         self.R_HV = 50000 * np.diag([1, 1, 1, 1, 1, 1])
 
         self.controller_trst = ftc.make("Trst-Corr", self)
@@ -127,37 +127,46 @@ class MyEnv(fym.BaseEnv):
     def get_ref(self, t):
         zd = -self.h
 
-        if t <= t_ftc[-1]:  # FTC
-            xd = np.interp(t, t_ftc[1:], Xd_ftc[:])
-            Vxd_ftc = np.interp(t, t_ftc, ftc_traj["X"][1, :])
-            Vzd_ftc = np.interp(t, t_ftc, ftc_traj["X"][2, :])
+        if t <= 5:
+            xd = 0
+            veld = np.zeros((3, 1))
+            thetad = 0
+            mode = "HV"
+
+        elif 5 < t <= 5 + t_ftc[-1]:  # FTC
+            xd = np.interp(t-5, t_ftc[1:], Xd_ftc[:])
+            Vxd_ftc = np.interp(t-5, t_ftc, ftc_traj["X"][1, :])
+            Vzd_ftc = np.interp(t-5, t_ftc, ftc_traj["X"][2, :])
             veld = np.vstack((Vxd_ftc, 0, Vzd_ftc))
-            thetad = np.interp(t, t_ftc[1:], ftc_traj["U"][2, :])
+            thetad = np.interp(t-5, t_ftc[1:], ftc_traj["U"][2, :])
             mode = "FTC"
 
-        elif t_ftc[-1] < t <= 20:  # FW
-            xd = Xd_ftc[-1] + self.VT_cruise * (t - t_ftc[-1])
+        elif 5 + t_ftc[-1] < t <= 25:  # FW
+            xd = Xd_ftc[-1] + self.VT_cruise * (t - t_ftc[-1] - 5)
             veld = np.vstack((ftc_traj["X"][1, -1], 0, ftc_traj["X"][2, -1]))
             thetad = ftc_traj["U"][2, -1]
             mode = "FW"
 
-        elif 20 < t <= 20 + t_btc[-1]:
+        elif 25 < t <= 25 + t_btc[-1]:
             xd = (
                 Xd_ftc[-1]
                 + self.VT_cruise * (20 - t_ftc[-1])
-                + np.interp(t - 20, t_btc[1:], Xd_btc[:])
+                + np.interp(t - 25, t_btc[1:], Xd_btc[:])
             )
-            Vxd_btc = np.interp(t - 20, t_btc, btc_traj["X"][1, :])
-            Vzd_btc = np.interp(t - 20, t_btc, btc_traj["X"][2, :])
+            Vxd_btc = np.interp(t - 25, t_btc, btc_traj["X"][1, :])
+            Vzd_btc = np.interp(t - 25, t_btc, btc_traj["X"][2, :])
             veld = np.vstack((Vxd_btc, 0, Vzd_btc))
-            thetad = np.interp(t - 20, t_btc[1:], btc_traj["U"][2, :])
+            thetad = np.interp(t - 25, t_btc[1:], btc_traj["U"][2, :])
             mode = "BTC"
 
-        elif 20 + t_btc[-1] < t:
+        elif 25 + t_btc[-1] < t:
             xd = Xd_ftc[-1] + self.VT_cruise * (20 - t_ftc[-1]) + Xd_btc[-1]
             veld = np.zeros((3, 1))
             thetad = 0
             mode = "HV"
+
+            if 50 < t:
+                zd = 0
 
         return xd, zd, veld, thetad, mode
 
@@ -172,20 +181,27 @@ class MyEnv(fym.BaseEnv):
             ctrls0, controller_info = self.controller_trst.get_control(t, self)
 
         ctrls = self.plant.saturate(ctrls0)
-        FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
-        FM_aero = self.plant.B_Fuselage(ctrls[0:3], pos, vel, omega)
-        self.plant.set_dot(t, FM)
+        if t < 54:
+            FM = self.plant.get_FM(pos, vel, quat, omega, ctrls)
+            FM_aero = self.plant.B_Fuselage(ctrls[0:3], pos, vel, omega)
+            self.plant.set_dot(t, FM)
+        else:
+            ctrls[:] = np.zeros((11, 1))
+            self.plant.pos.dot = np.zeros((3, 1))
+            self.plant.vel.dot = np.zeros((3, 1))
+            self.plant.quat.dot = np.zeros((4, 1))
+            self.plant.omega.dot = np.zeros((3, 1))
 
+         
         env_info = {
             "t": t,
             **self.observe_dict(),
             **controller_info,
-            "FM": FM,
             "ctrls": ctrls,
             "ctrls0": ctrls0,
             "Fr": -self.plant.B_VTOL(ctrls[:6], omega)[2],
             "Fp": self.plant.B_Pusher(ctrls[6:8])[0],
-            "FM_aero": FM_aero,
+            # "FM_aero": FM_aero,
         }
 
         return env_info
@@ -229,7 +245,7 @@ def plot():
     ax.plot(data["t"], data["plant"]["pos"][:, 2].squeeze(-1), "b-", linewidth=3)
     ax.plot(data["t"], data["posd"][:, 2], "r--")
     ax.set_ylabel(r"$z$, m", fontsize=20)
-    ax.set_ylim([-12, -8])
+    # ax.set_ylim([-12, -8])
     ax.grid()
 
     ax = axes[0, 1]
@@ -367,47 +383,47 @@ def plot():
     #     ax.legend(fontsize=20)
     #     fig.tight_layout()
 
-    """ Figure 7 - FM_aero """
-    fig, axs = plt.subplots(2, 3, figsize=(12, 8))
+    # """ Figure 7 - FM_aero """
+    # fig, axs = plt.subplots(2, 3, figsize=(12, 8))
 
-    ax = axs[0, 0]
-    ax.plot(data["t"], data["FM"][:, 0], "k-")
-    ax.plot(data["t"], data["FM_aero"][:, 0], "b-")
-    ax.set_ylabel(r"$F_{x, aero}$, N")
-    ax.set_xlim(data["t"][0], data["t"][-1])
+    # ax = axs[0, 0]
+    # ax.plot(data["t"], data["FM"][:, 0], "k-")
+    # ax.plot(data["t"], data["FM_aero"][:, 0], "b-")
+    # ax.set_ylabel(r"$F_{x, aero}$, N")
+    # ax.set_xlim(data["t"][0], data["t"][-1])
 
-    ax = axs[0, 1]
-    ax.plot(data["t"], data["FM_aero"][:, 1], "b-")
-    ax.plot(data["t"], data["FM"][:, 1], "k-")
-    ax.set_ylabel(r"$F_{y, aero}$, N")
-    ax.set_xlim(data["t"][0], data["t"][-1])
+    # ax = axs[0, 1]
+    # ax.plot(data["t"], data["FM_aero"][:, 1], "b-")
+    # ax.plot(data["t"], data["FM"][:, 1], "k-")
+    # ax.set_ylabel(r"$F_{y, aero}$, N")
+    # ax.set_xlim(data["t"][0], data["t"][-1])
 
-    ax = axs[0, 2]
-    ax.plot(data["t"], data["FM_aero"][:, 2], "b-")
-    ax.plot(data["t"], data["FM"][:, 2], "k-")
-    ax.set_ylabel(r"$F_{z, aero}$, N")
-    ax.set_xlim(data["t"][0], data["t"][-1])
+    # ax = axs[0, 2]
+    # ax.plot(data["t"], data["FM_aero"][:, 2], "b-")
+    # ax.plot(data["t"], data["FM"][:, 2], "k-")
+    # ax.set_ylabel(r"$F_{z, aero}$, N")
+    # ax.set_xlim(data["t"][0], data["t"][-1])
 
 
-    ax = axs[1, 0]
-    ax.plot(data["t"], data["FM_aero"][:, 3], "b-")
-    ax.plot(data["t"], data["FM"][:, 3], "k-")
-    ax.set_ylabel(r"$M_{x, aero}$, N")
-    ax.set_xlim(data["t"][0], data["t"][-1])
+    # ax = axs[1, 0]
+    # ax.plot(data["t"], data["FM_aero"][:, 3], "b-")
+    # ax.plot(data["t"], data["FM"][:, 3], "k-")
+    # ax.set_ylabel(r"$M_{x, aero}$, N")
+    # ax.set_xlim(data["t"][0], data["t"][-1])
 
-    ax = axs[1, 1]
-    ax.plot(data["t"], data["FM_aero"][:, 4], "b-")
-    ax.plot(data["t"], data["FM"][:, 4], "k-")
-    ax.set_ylabel(r"$M_{y, aero}$, N")
-    ax.set_xlim(data["t"][0], data["t"][-1])
+    # ax = axs[1, 1]
+    # ax.plot(data["t"], data["FM_aero"][:, 4], "b-")
+    # ax.plot(data["t"], data["FM"][:, 4], "k-")
+    # ax.set_ylabel(r"$M_{y, aero}$, N")
+    # ax.set_xlim(data["t"][0], data["t"][-1])
 
-    ax = axs[1, 2]
-    ax.plot(data["t"], data["FM_aero"][:, 5], "b-")
-    ax.plot(data["t"], data["FM"][:, 5], "k-")
-    ax.set_ylabel(r"$M_{z, aero}$, N")
-    ax.set_xlim(data["t"][0], data["t"][-1])
+    # ax = axs[1, 2]
+    # ax.plot(data["t"], data["FM_aero"][:, 5], "b-")
+    # ax.plot(data["t"], data["FM"][:, 5], "k-")
+    # ax.set_ylabel(r"$M_{z, aero}$, N")
+    # ax.set_xlim(data["t"][0], data["t"][-1])
 
-    fig.tight_layout()
+    # fig.tight_layout()
     plt.show()
 
 
