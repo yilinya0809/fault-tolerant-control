@@ -70,7 +70,7 @@ with h5py.File("back_traj.h5", "r") as f:
 
 
 """ Figure 1 """
-fig = plt.figure(figsize=(12, 8))
+fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot(111)
 
 upper_bound, lower_bound = boundary2(Trst_corr)
@@ -111,7 +111,6 @@ ax.set_xlabel(r"$V, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
 ax.set_xlim([0, 45])
 ax.set_ylim([-10, 10])
-ax.set_aspect(1.5)
 ax.legend(fontsize=20)
 fig.tight_layout()
 
@@ -129,14 +128,18 @@ ax.scatter(VT, theta, acc_corr.T, cmap="plasma", edgecolor="none")
 ax.contourf(VT, theta, acc_corr.T, zdir="z", offset=7, cmap="plasma")
 
 """ Figure 4 - Trst 2D """
-fig = plt.figure(figsize=(12, 8))
+fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot(111)
 contour = ax.contourf(
-    VT, theta, acc_corr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
+    VT,
+    theta,
+    acc_corr.T,
+    levels=np.shape(theta_corr)[0],
+    cmap="viridis_r",
+    alpha=1.0,
 )
 ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
-ax.set_aspect(2)
 # ax.set_title("Forward Acceleration Corridor", fontsize=20)
 cbar = fig.colorbar(contour)
 cbar.ax.set_xlabel(r"$a_x^I,\, \mathrm{m/s^{2}}$", fontsize=20, labelpad=15)
@@ -145,7 +148,7 @@ fig.tight_layout()
 """ Figure 5 - Fr, Fp """
 # fig, axs = plt.subplots(1, 2, figsize=(18, 5), squeeze=False, sharex=True)
 # ax = axs[0, 0]
-fig = plt.figure(figsize=(12, 8))
+fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot(111)
 contour = ax.contourf(
     VT, theta, Fr.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
@@ -153,26 +156,24 @@ contour = ax.contourf(
 # ax.plot(VT_corr, Fr_margin, "r--")
 ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
-ax.set_aspect(2)
 cbar = fig.colorbar(contour)
 cbar.ax.set_xlabel(r"$F_{rotors},\, \mathrm{N}$", fontsize=20, labelpad=15)
 fig.tight_layout()
 
 """ Figure 6 - Fp """
-fig = plt.figure(figsize=(12, 8))
+fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot(111)
 contour = ax.contourf(
     VT, theta, Fp.T, levels=np.shape(theta_corr)[0], cmap="viridis", alpha=1.0
 )
 ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
-ax.set_aspect(2)
 cbar = fig.colorbar(contour)
 cbar.ax.set_xlabel(r"$F_{pushers},\, \mathrm{N}$", fontsize=20, labelpad=15)
 fig.tight_layout()
 
 """ Figure 7 - non-corridor """
-fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+fig, ax = plt.subplots(1, 1, figsize=(10, 7))
 cmap = mcolors.ListedColormap(["lightcoral", "green"])
 sc1 = ax.scatter(VT, theta, s=200, c=Fz.T, cmap=cmap, alpha=0.8, label="Fz")
 
@@ -221,7 +222,6 @@ ax.set_xlabel(r"$V,\, \mathrm{m/s}$", fontsize=20)
 ax.set_ylabel(r"$\theta, \mathrm{deg}$", fontsize=20)
 ax.set_xlim([0, 45])
 ax.set_ylim([-10, 10])
-ax.set_aspect(1.8)
 fig.tight_layout()
 
 
@@ -298,7 +298,7 @@ ax.grid()
 fig.tight_layout()
 
 """ Figure 9 - VT, theta traj """
-fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 VT_traj = np.zeros((N, 1))
 theta_traj = np.zeros((N, 1))
 for i in range(N):

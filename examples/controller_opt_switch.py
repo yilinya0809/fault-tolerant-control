@@ -134,11 +134,11 @@ class MyEnv(fym.BaseEnv):
             mode = "HV"
 
         elif 5 < t <= 5 + t_ftc[-1]:  # FTC
-            xd = np.interp(t-5, t_ftc[1:], Xd_ftc[:])
-            Vxd_ftc = np.interp(t-5, t_ftc, ftc_traj["X"][1, :])
-            Vzd_ftc = np.interp(t-5, t_ftc, ftc_traj["X"][2, :])
+            xd = np.interp(t - 5, t_ftc[1:], Xd_ftc[:])
+            Vxd_ftc = np.interp(t - 5, t_ftc, ftc_traj["X"][1, :])
+            Vzd_ftc = np.interp(t - 5, t_ftc, ftc_traj["X"][2, :])
             veld = np.vstack((Vxd_ftc, 0, Vzd_ftc))
-            thetad = np.interp(t-5, t_ftc[1:], ftc_traj["U"][2, :])
+            thetad = np.interp(t - 5, t_ftc[1:], ftc_traj["U"][2, :])
             mode = "FTC"
 
         elif 5 + t_ftc[-1] < t <= 25:  # FW
@@ -192,7 +192,6 @@ class MyEnv(fym.BaseEnv):
             self.plant.quat.dot = np.zeros((4, 1))
             self.plant.omega.dot = np.zeros((3, 1))
 
-         
         env_info = {
             "t": t,
             **self.observe_dict(),
@@ -403,7 +402,6 @@ def plot():
     # ax.plot(data["t"], data["FM"][:, 2], "k-")
     # ax.set_ylabel(r"$F_{z, aero}$, N")
     # ax.set_xlim(data["t"][0], data["t"][-1])
-
 
     # ax = axs[1, 0]
     # ax.plot(data["t"], data["FM_aero"][:, 3], "b-")

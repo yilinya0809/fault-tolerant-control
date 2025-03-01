@@ -144,10 +144,9 @@ opti.subject_to(vx[-1] ** 2 + vz[-1] ** 2 == x_trim[2] ** 2 + x_trim[3] ** 2)
 u_eps = 0.2
 opti.subject_to(opti.bounded(0, Fr[-1], 5))
 opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
-opti.subject_to(
-    opti.bounded(np.deg2rad(1), theta[-1], np.deg2rad(2.5))
-)
+opti.subject_to(opti.bounded(np.deg2rad(1), theta[-1], np.deg2rad(2.5)))
 
+breakpoint()
 # opti.subject_to(Fr[-1] == u_trim[0])
 # opti.subject_to(Fp[-1] == u_trim[1])
 # opti.subject_to(theta[-1] == u_trim[2])
