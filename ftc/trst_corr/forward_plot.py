@@ -55,7 +55,7 @@ for i in range(np.size(VT_corr)):
 
 # Optimal Trajectory
 data = {}
-with h5py.File("opt_corr.h5", "r") as f:
+with h5py.File("data/opt_forward.h5", "r") as f:
     data["tf"] = f["tf"][()]
     data["X"] = f["X"][:]
     data["U"] = f["U"][:]
@@ -255,11 +255,11 @@ for i in range(N):
 
 
 """ States trajectory """
-fig, axs = plt.subplots(3, 1, figsize=(8, 10))
+fig, axs = plt.subplots(3, 1, figsize=(8, 6))
 ax = axs[0]
 ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
 ax.set_ylabel("$h$, m", fontsize=20)
-ax.set_ylim([5, 15])
+ax.set_ylim([9, 11])
 ax.grid()
 ax.set_xlim([0, data["tf"]])
 # fig.tight_layout()
@@ -284,12 +284,12 @@ ax.grid()
 fig.tight_layout()
 
 """ Input trajectories """
-fig, axs = plt.subplots(3, 1, figsize=(8, 10))
+fig, axs = plt.subplots(3, 1, figsize=(8, 6))
 ax = axs[0]
 ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
 ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
 ax.plot(tspan[:-1], np.zeros((N, 1)), "r--")
-ax.set_ylabel("$F^{rotor}$, N", fontsize=20)
+ax.set_ylabel("$F_{rotor}$, N", fontsize=20)
 # ax.set_xlabel("Time, s", fontsize=20)
 ax.set_xlim([0, data["tf"]])
 ax.grid()
@@ -300,7 +300,7 @@ ax = axs[1]
 ax.plot(tspan[:-1], data["U"][1, :], "k", linewidth=3)
 ax.plot(tspan[:-1], Fp_max * np.ones((N, 1)), "r--")
 ax.plot(tspan[:-1], np.zeros((N, 1)), "r--")
-ax.set_ylabel("$F^{pusher}$, N", fontsize=20)
+ax.set_ylabel("$F_{pusher}$, N", fontsize=20)
 ax.set_xlim([0, data["tf"]])
 # ax.set_xlabel("Time, s", fontsize=20)
 ax.grid()
@@ -326,11 +326,12 @@ for i in range(N):
     VT_traj[i] = norm_2(data["X"][1:3, i])
     theta_traj[i] = np.rad2deg(data["U"][2, i])
 
-ax.plot(VT_traj[1:], theta_traj[1:], "r-", linewidth=5)
+ax.plot(VT_traj[1:], theta_traj[1:], "r-", linewidth=5, label="Optimal Trajectory")
 VT, theta = np.meshgrid(VT_corr, theta_corr)
 ax.scatter(VT, theta, s=success.T, c="b")
 ax.set_xlabel("V, m/s", fontsize=20)
 ax.set_ylabel(r"$\theta$, deg", fontsize=20)
+ax.legend(fontsize=20)
 # ax.set_title("Dynamic Transition Corridor", fontsize=20)
 fig.tight_layout()
 
