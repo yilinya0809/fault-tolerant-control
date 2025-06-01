@@ -73,14 +73,16 @@ theta = U[2, :]
 T = opti.variable()
 
 # ---- objective          ---------
-W_t = 1000
-W_z = 500
-W_u = diag([0.01, 0.1, 5000])
+# W_t = 1000
+# W_z = 500
+# W_u = diag([0.01, 0.1, 5000])
 # W_tht = 1000
 
-# W_t = 100000
-# W_z = 50000
-# W_u = diag([1, 10, 500000])
+W_t = 100000
+W_z = 10000
+# W_t = 10000
+# W_z = 5000
+W_u = diag([1, 10, 500000])
 
 cost = W_t * T
 # cost = W_t * T + W_tht * (U[2, -1]**2)
@@ -109,7 +111,8 @@ opti.minimize(cost)
 
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
-eta = 1.0
+# eta = 1.0
+eta = 0.8
 theta_max = np.deg2rad(10)
 # ---- input constraints --------
 opti.subject_to(opti.bounded(0, Fr, eta * Fr_max))
@@ -118,6 +121,7 @@ opti.subject_to(opti.bounded(0, Fp, eta * Fp_max))
 
 # ---- state constraints --------
 z_eps = 0.02
+# z_eps = 0.01
 opti.subject_to(opti.bounded(-h - z_eps, z, -h + z_eps))
 # opti.subject_to(opti.bounded(0, T, 20))
 opti.subject_to(T >= 0)
@@ -138,7 +142,7 @@ opti.subject_to(vz[-1] == x_hv[3])
 u_eps = 0.2
 # opti.subject_to(opti.bounded(u_hv[0] * (1 - u_eps), Fr[-1], u_hv[0] * (1 + u_eps)))
 # opti.subject_to(opti.bounded(0, Fp[-1], 5))
-opti.subject_to(opti.bounded(-np.deg2rad(5), theta[-1], np.deg2rad(10)))
+opti.subject_to(opti.bounded(-np.deg2rad(5), theta[-1], np.deg2rad(1.5)))
 
 # opti.subject_to(Fr[-1] == u_hv[0])
 # opti.subject_to(Fp[-1] == u_hv[1])
@@ -294,11 +298,21 @@ try:
             cost.append(iter_costs[i])
 
     results["cost"] = cost
+    results["F"] = np.zeros((2, N+1))
+
+    # B_Fuselage 
+    for i in range(N + 1):
+        vel = results["X"][1:, i]
+        Fx, Fz = plant.B_Fuselage(vel)
+        results["F"][0, i] = Fx
+        results["F"][1, i] = Fz
+
 
     with h5py.File("back_traj.h5", "w") as f:
         f.create_dataset("tf", data=results["tf"])
         f.create_dataset("X", data=results["X"])
         f.create_dataset("U", data=results["U"])
+        f.create_dataset("F", data=results["F"])
         f.create_dataset("cost", data=results["cost"])
     plot_results(results)
 

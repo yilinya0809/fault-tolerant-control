@@ -570,7 +570,7 @@ def rotor_cost(data):
 
 
 if __name__ == "__main__":
-    opt_switch = fym.load("data_opt_switch.h5")["env"]
+    opt_switch = fym.load("data/data_opt_switch.h5")["env"]
     fw_opt = fym.load("data/data_opt_forward.h5")["env"]
     fw_mpc = fym.load("data/data_mpc_forward.h5")["env"]
     fw_mpc_agent = fym.load("data/data_mpc_forward.h5")["agent"]

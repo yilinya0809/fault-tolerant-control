@@ -48,18 +48,21 @@ for i in range(np.size(VT_corr)):
 
 for i in range(np.size(VT_corr)):
     if Fr_margin[i, 0] == 0:
-        Fr_margin[i, 0] = np.NaN
+        Fr_margin[i, 0] = np.nan
     if Fp_margin[i, 0] == 0:
-        Fp_margin[i, 0] = np.NaN
+        Fp_margin[i, 0] = np.nan
 
 
 # Optimal Trajectory
 data = {}
-with h5py.File("data/opt_forward.h5", "r") as f:
+# with h5py.File("data/opt_forward.h5", "r") as f:
+with h5py.File("opt_corr.h5", "r") as f:
     data["tf"] = f["tf"][()]
     data["X"] = f["X"][:]
     data["U"] = f["U"][:]
+    data["F"] = f["F"][:]
 
+breakpoint()
 
 def casadi_polyval(coeffs, x):
     value = 0
@@ -244,12 +247,14 @@ theta = data["U"][2, :]
 
 Fx_I = np.zeros((N, 1))
 Fz_I = np.zeros((N, 1))
+Lift = np.zeros((N, 1))
 for i in range(N):
     R = angle2dcm(0, theta[i], 0)
     Fx, Fz = plant.B_Fuselage(vel[:, i])
 
     FB = np.vstack((Fp[i] + Fx, 0, -Fr[i] + Fz))
     F = R.T @ FB + np.vstack((0, 0, plant.m * plant.g))
+    Lift[i] = Fz
     Fx_I[i] = F[0]
     Fz_I[i] = F[2]
 
@@ -281,18 +286,22 @@ ax.set_xlabel("Time, s", fontsize=20)
 ax.set_ylim([-10, 5])
 ax.set_xlim([0, data["tf"]])
 ax.grid()
-fig.tight_layout()
+# fig.tight_layout()
+fig.subplots_adjust(left=0.15, right=0.98, top=0.98, bottom=0.1)
 
 """ Input trajectories """
 fig, axs = plt.subplots(3, 1, figsize=(8, 6))
 ax = axs[0]
 ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
+ax.plot(tspan[:-1], -Lift[:], "g-.", linewidth=3)
 ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
-ax.plot(tspan[:-1], np.zeros((N, 1)), "r--")
-ax.set_ylabel("$F_{rotor}$, N", fontsize=20)
-# ax.set_xlabel("Time, s", fontsize=20)
+# ax.plot(tspan[:-1], np.zeros((N, 1)), "r--")
+# ax.set_ylabel("$F_{rotor}$, N", fontsize=20)
+ax.set_ylabel("$F_{rotors}$ and" +"\n" + "$F_{aero, z}, \quad$ N", fontsize=20)
+# ax.set_ylabel("Vertical    " +"\n" + "Forces, N", fontsize=15)
 ax.set_xlim([0, data["tf"]])
 ax.grid()
+ax.legend(["$F_{rotors}$", "$F_{aero,z}$"], fontsize=14)
 # fig.tight_layout()
 
 # fig, ax = plt.subplots(1, 1, figsize=(10, 6))
@@ -316,7 +325,8 @@ ax.set_xlabel("Time, s", fontsize=20)
 ax.set_ylim([-35, 35])
 ax.set_xlim([0, data["tf"]])
 ax.grid()
-fig.tight_layout()
+# fig.tight_layout()
+fig.subplots_adjust(left=0.15, right=0.98, top=0.98, bottom=0.1)
 
 """ Figure 9 - VT, theta traj """
 fig, ax = plt.subplots(1, 1, figsize=(10, 6))

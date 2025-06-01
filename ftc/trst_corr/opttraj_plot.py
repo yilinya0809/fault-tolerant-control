@@ -20,7 +20,8 @@ plant = LC62()
 Fr_max = 6 * plant.th_r_max
 Fp_max = 2 * plant.th_p_max
 
-Trst_corr = np.load("data/corr_safe_cause.npz")
+# Trst_corr = np.load("data/corr_forward.npz")
+Trst_corr = np.load("data/corr_backward.npz")
 VT_corr = Trst_corr["VT_corr"]
 acc_corr = Trst_corr["acc"]
 theta_corr = np.rad2deg(Trst_corr["theta_corr"])
@@ -48,19 +49,20 @@ for i in range(np.size(VT_corr)):
 
 for i in range(np.size(VT_corr)):
     if Fr_margin[i, 0] == 0:
-        Fr_margin[i, 0] = np.NaN
+        Fr_margin[i, 0] = np.nan
     if Fp_margin[i, 0] == 0:
-        Fp_margin[i, 0] = np.NaN
+        Fp_margin[i, 0] = np.nan
 
 
 # Optimal Trajectory
 data = {}
-# with h5py.File("data/opt_corr.h5", "r") as f:
-with h5py.File("opt_test.h5", "r") as f:
+# with h5py.File("data/opt_forward.h5", "r") as f:
+with h5py.File("data/opt_backward.h5", "r") as f:
+# with h5py.File("opt_corr.h5", "r") as f:
     data["tf"] = f["tf"][()]
     data["X"] = f["X"][:]
     data["U"] = f["U"][:]
-
+    # data["F"] = f["F"][:]
 
 def casadi_polyval(coeffs, x):
     value = 0
@@ -137,6 +139,7 @@ fig.tight_layout()
 fig, axs = plt.subplots(3, 1, figsize=(8, 10))
 ax = axs[0]
 ax.plot(tspan[:-1], data["U"][0, :], "k", linewidth=3)
+# ax.plot(tspan[:-1], -data["F"][1, 1:], "g", linewidth=3)
 ax.plot(tspan[:-1], Fr_max * np.ones((N, 1)), "r--")
 ax.set_ylabel("$F^{rotor}$, N", fontsize=20)
 # ax.set_xlabel("Time, s", fontsize=20)
@@ -147,6 +150,7 @@ ax.grid()
 # fig, ax = plt.subplots(1, 1, figsize=(12, 8))
 ax = axs[1]
 ax.plot(tspan[:-1], data["U"][1, :], "k", linewidth=3)
+# ax.plot(tspan[:-1], -data["F"][0, 1:], "g", linewidth=3)
 ax.plot(tspan[:-1], Fp_max * np.ones((N, 1)), "r--")
 ax.set_ylabel("$F^{pusher}$, N", fontsize=20)
 ax.set_xlim([0, data["tf"]])

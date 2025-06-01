@@ -146,7 +146,6 @@ opti.subject_to(opti.bounded(0, Fr[-1], 5))
 opti.subject_to(opti.bounded(u_trim[1] * (1 - u_eps), Fp[-1], u_trim[1] * (1 + u_eps)))
 opti.subject_to(opti.bounded(np.deg2rad(1), theta[-1], np.deg2rad(2.5)))
 
-breakpoint()
 # opti.subject_to(Fr[-1] == u_trim[0])
 # opti.subject_to(Fp[-1] == u_trim[1])
 # opti.subject_to(theta[-1] == u_trim[2])
@@ -289,11 +288,21 @@ try:
             cost.append(iter_costs[i])
 
     results["cost"] = cost
+    results["F"] = np.zeros((2, N+1))
+
+    # B_Fuselage 
+    for i in range(N + 1):
+        vel = results["X"][1:, i]
+        Fx, Fz = plant.B_Fuselage(vel)
+        results["F"][0, i] = Fx
+        results["F"][1, i] = Fz
+
 
     with h5py.File("opt_corr.h5", "w") as f:
         f.create_dataset("tf", data=results["tf"])
         f.create_dataset("X", data=results["X"])
         f.create_dataset("U", data=results["U"])
+        f.create_dataset("F", data=results["F"])
         f.create_dataset("cost", data=results["cost"])
     plot_results(results)
 
