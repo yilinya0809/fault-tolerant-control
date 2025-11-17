@@ -62,7 +62,6 @@ with h5py.File("opt_corr.h5", "r") as f:
     data["U"] = f["U"][:]
     data["F"] = f["F"][:]
 
-breakpoint()
 
 def casadi_polyval(coeffs, x):
     value = 0
