@@ -63,7 +63,7 @@ def upper_func(vel):
 
 # Optimal Trajectory
 data = {}
-with h5py.File("back_traj.h5", "r") as f:
+with h5py.File("opt_backward_F.h5", "r") as f:
     data["tf"] = f["tf"][()]
     data["X"] = f["X"][:]
     data["U"] = f["U"][:]
@@ -251,9 +251,9 @@ for i in range(N):
 """ States trajectory """
 fig, axs = plt.subplots(3, 1, figsize=(8, 6))
 ax = axs[0]
-ax.plot(tspan, -data["X"][0, :], "k", linewidth=3)
-ax.set_ylabel("$h$, m", fontsize=20)
-ax.set_ylim([9, 11])
+ax.plot(tspan, data["X"][0, :], "k", linewidth=3)
+ax.set_ylabel("$z$, m", fontsize=20)
+ax.set_ylim([-11, -9])
 ax.grid()
 ax.set_xlim([0, data["tf"]])
 
@@ -284,15 +284,16 @@ ax.set_ylabel("$F_{rotors}$ and" +"\n" + "$F_{aero, z}, \quad$ N", fontsize=20)
 # ax.set_ylabel("Vertical    " +"\n" + "Forces, N", fontsize=15)
 ax.set_xlim([0, data["tf"]])
 ax.grid()
-ax.legend(["$F_{rotors}$", "$F_{aero,z}$"], fontsize=14)
+ax.legend(["$F_{rotors}$", "$F_{aero,z}$", "$F_{rotors, max}$"], fontsize=14, ncol=2)
 
 
 ax = axs[1]
 ax.plot(tspan[:-1], data["U"][1, :], "k", linewidth=3)
 ax.plot(tspan[:-1], Fp_max * np.ones((N, 1)), "r--")
-ax.set_ylabel("$F_{pusher}$, N", fontsize=20)
+ax.set_ylabel("$F_{pushers}$, N", fontsize=20)
 ax.set_xlim([0, data["tf"]])
 ax.grid()
+ax.legend(["$F_{pushers}$", "$F_{pushers, max}$"], fontsize=14, ncol=2, loc='upper right')
 
 ax = axs[2]
 ax.plot(tspan[:-1], np.rad2deg(data["U"][2, :]), "k", linewidth=3)
@@ -300,9 +301,10 @@ ax.plot(tspan[:-1], -30 * np.ones((N, 1)), "r--")
 ax.plot(tspan[:-1], 30 * np.ones((N, 1)), "r--")
 ax.set_ylabel(r"$\theta$, deg", fontsize=20)
 ax.set_xlabel("Time, s", fontsize=20)
-ax.set_ylim([-35, 35])
+ax.set_ylim([-32, 32])
 ax.set_xlim([0, data["tf"]])
 ax.grid()
+ax.legend([r"$\theta$", r"$\theta$ limits"], fontsize=14, ncol=2, loc='upper right')
 # fig.tight_layout()
 fig.subplots_adjust(left=0.15, right=0.98, top=0.98, bottom=0.1)
 
