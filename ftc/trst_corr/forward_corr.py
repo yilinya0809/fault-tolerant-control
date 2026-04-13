@@ -166,8 +166,8 @@ class LC62_corridor(fym.BaseEnv):
         self.Fr_max = 6 * self.plant.th_r_max
         self.Fp_max = 2 * self.plant.th_p_max
         # self.eta = 1.0
-        # self.eta = 0.8
-        self.eta = 0.9
+        self.eta = 0.8
+        # self.eta = 0.9
 
     def B_Pusher(self, Fp):
         Fx = Fp
@@ -269,7 +269,8 @@ class LC62_corridor(fym.BaseEnv):
         grid={"VT": np.arange(0, 40, 1), "theta": np.deg2rad(np.arange(-20, 20, 1))},
         method="SLSQP",
         options={"disp": False, "ftol": 1e-10},
-        eps=1e-3,
+        # eps=1e-3,
+        eps=1e-16,
     ):
         z0 = list(z0.values())
         grid = list(grid.values())
@@ -328,29 +329,29 @@ class LC62_corridor(fym.BaseEnv):
                 a_x = F[0] / self.m
 
                 if np.linalg.norm(cost[i][j]) < eps:
-                    Fx[i][j] = np.NaN
-                    Fz[i][j] = np.NaN
+                    Fx[i][j] = np.nan
+                    Fz[i][j] = np.nan
                     acc[i][j] = a_x[0]
                     success[i][j] = 1
                     Fr[i][j] = self.Fr
                     Fp[i][j] = self.Fp
                     print(f"vel: {VT:.1f}, theta: {np.rad2deg(theta):.1f}, success")
                 else:
-                    success[i][j] = np.NaN
-                    Fr[i][j] = np.NaN
-                    Fp[i][j] = np.NaN
-                    acc[i][j] = np.NaN
+                    success[i][j] = np.nan
+                    Fr[i][j] = np.nan
+                    Fp[i][j] = np.nan
+                    acc[i][j] = np.nan
                     if F[0] < -0.01:
                         Fx[i][j] = 1
                     else:
-                        Fx[i][j] = np.NaN
+                        Fx[i][j] = np.nan
 
                     if F[2] > 0.01:
                         Fz[i][j] = 1
                     elif F[2] < -0.01:
                         Fz[i][j] = 2
                     else:
-                        Fz[i][j] = np.NaN
+                        Fz[i][j] = np.nan
 
         Trst_corr = VT_range, theta_range, cost, success, acc, Fr, Fp, Fx, Fz
         return Trst_corr
@@ -404,7 +405,7 @@ class LC62_corridor(fym.BaseEnv):
 if __name__ == "__main__":
     system = LC62_corridor()
     height = 50
-    grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 0.2))}
+    grid = {"VT": np.arange(0, 45.1, 0.5), "theta": np.deg2rad(np.arange(-30, 30, 1))}
 
     Trst_corr = system.get_corr(
         z0={"Fr": system.m * system.g, "Fp": 0.0},
@@ -415,7 +416,7 @@ if __name__ == "__main__":
     np.savez(
         os.path.join(
             # "ftc/trst_corr/corr_safe_cause.npz",
-            "corr_wide.npz"
+            "corr_narrow_eps.npz"
         ),
         VT_corr=VT_corr,
         theta_corr=theta_corr,
