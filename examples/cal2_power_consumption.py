@@ -79,55 +79,71 @@ def rotor_cost(data):
 
     return cost
 
-def induced_velocity(Th, V, alpha, rho, A):
+def induced_velocity(Th, V_B, n_disk, rho, A, theta):
     if Th <= 1e-3 :
         return 0.0
 
     v_hover = np.sqrt(Th / (2.0 * rho * A))
 
+    V_perp = np.dot(V_B, n_disk)
+    V_par_vec = V_B - V_perp * n_disk
+    V_par = np.linalg.norm(V_par_vec)
+
     def f(v):
-        term1 = V * np.cos(alpha)
-        term2 = V * np.sin(alpha) + v
-        return 2.0 * rho * A * v * np.sqrt(term1**2 + term2**2) - Th
+        # term1 = V * np.cos(alpha)
+        # term2 = V * np.sin(alpha) + v
+        return 2.0 * rho * A * v * np.sqrt(V_par**2 + (V_perp + v)**2) - Th
 
     v_min = 1e-6
     v_max = max(5 * v_hover, 1)
     # v_max = max(10 * v_hover, 5)
     v_induced = brentq(f, v_min, v_max)
+
+    if np.linalg.norm(V_B) < 5 and np.abs(theta) <= np.deg2rad(10):
+        return v_hover
     
     return v_induced
 
 
-def rotor_power_consumption(data):
+def rotor_power_consumption(data, time, mode):
     rho = 1.2241 # air density at altitude 10m
     A_rotor = np.pi * (0.762/2)**2
     A_pusher = np.pi * (0.525/2)**2
 
     P_rotors = np.zeros((6, 1))
     for i in range(6):
-        for k in range(np.size(data["time"])):
+        for k in range(int(time/0.01)):
             th = data["th_r"][k, i]
-            VT = data["VT"][k]
-            alp = np.abs(data["theta"][k])
-            # alp = data["theta"][k]
-            vi = induced_velocity(th, VT, alp, rho, A_rotor)
-            # P_rotors[i] += th * (VT * np.sin(alp) + vi)
-            P_rotors[i] += th * (vi)
+            V_B = data["V"][k, :]
+            theta = data["theta"][k]
+            n_rotor = np.array([0.0, 0.0, -1.0])
+            vi = induced_velocity(th, V_B, n_rotor, rho, A_rotor, theta)
+            V_perp = V_B @ n_rotor
+            if mode == "fw":
+                P_rotors[i] += th * (V_perp + vi) * 0.01
+            else:
+                P_rotors[i] += th * (vi) * 0.01
 
     P_pushers = np.zeros((2, 1))
     for i in range(2):
-        for k in range(np.size(data["time"])):
+        for k in range(int(time/0.01)):
             th = data ["th_p"][k, i]
-            VT = data["VT"][k]
-            alp = data["theta"][k] + np.pi / 2
-            vi_p = induced_velocity(th, VT, alp, rho, A_pusher)
-            # P_pushers[i] += th * (VT * np.sin(alp) + vi_p)
-            P_pushers[i] += th * (vi_p)
+            V_B = data["V"][k, :]
+            theta = data["theta"][k]
+            # alp = data["theta"][k] + np.pi / 2
+            n_pusher = np.array([1.0, 0.0, 0.0])
+            vi_p = induced_velocity(th, V_B, n_pusher, rho, A_pusher, theta)
+            V_perp = V_B @ n_pusher
+            if mode == "fw":
+                P_pushers[i] += th * (V_perp + vi_p) * 0.01
+            else:
+                P_pushers[i] += th * (vi_p) * 0.01
 
-    P_r = np.sum(P_rotors)
-    P_p = np.sum(P_pushers)
+
+    P_r = np.sum(P_rotors) / time
+    P_p = np.sum(P_pushers) / time
     P = P_r + P_p
-    return P
+    return P_r, P_p, P
 
 
 if __name__ == "__main__":
@@ -182,17 +198,29 @@ if __name__ == "__main__":
     rho = 1.2241 # air density at altitude 10m
     A_rotor = np.pi * (0.762/2)**2
  
-    P_opt_fw = rotor_power_consumption(data_opt_fw)
-    P_mpc_fw = rotor_power_consumption(data_mpc_fw)
-    P_ndi_fw = rotor_power_consumption(data_ndi_fw)
+    t_opt_fw = 9.8
+    t_mpc_fw = 10.8
+    t_ndi_fw = 15.1
+    P_opt_fw_r, P_opt_fw_p, P_opt_fw = rotor_power_consumption(data_opt_fw, t_opt_fw, mode="fw")
+    P_mpc_fw_r, P_mpc_fw_p, P_mpc_fw = rotor_power_consumption(data_mpc_fw, t_mpc_fw, mode="fw")
+    P_ndi_fw_r, P_ndi_fw_p, P_ndi_fw = rotor_power_consumption(data_ndi_fw, t_ndi_fw, mode="fw")
 
-    P_opt_bw = rotor_power_consumption(data_opt_bw)
-    P_mpc_bw = rotor_power_consumption(data_mpc_bw)
-    P_ndi_bw = rotor_power_consumption(data_ndi_bw)
+    t_opt_bw = 21.8
+    t_mpc_bw = 38.2
+    t_ndi_bw = 29.6
+    P_opt_bw_r, P_opt_bw_p, P_opt_bw = rotor_power_consumption(data_opt_bw, t_opt_bw, mode="bw")
+    P_mpc_bw_r, P_mpc_bw_p, P_mpc_bw = rotor_power_consumption(data_mpc_bw, t_mpc_bw, mode="bw")
+    P_ndi_bw_r, P_ndi_bw_p, P_ndi_bw = rotor_power_consumption(data_ndi_bw, t_ndi_bw, mode="bw")
 
-    print(P_opt_fw, P_opt_bw)
-    print(P_mpc_fw, P_mpc_bw)
-    print(P_ndi_fw, P_ndi_bw)
+    test_bw = 40
+    _,_, P_opt_bw_test = rotor_power_consumption(data_opt_bw, test_bw, mode="bw")
+    _,_, P_mpc_bw_test = rotor_power_consumption(data_mpc_bw, test_bw, mode="bw")
+    _,_, P_ndi_bw_test = rotor_power_consumption(data_ndi_bw, test_bw, mode="bw")
 
+    print(P_opt_fw, P_opt_bw, P_opt_bw_test)
+    print(P_mpc_fw, P_mpc_bw, P_mpc_bw_test)
+    print(P_ndi_fw, P_ndi_bw, P_ndi_bw_test)
+
+    breakpoint()
 
 
