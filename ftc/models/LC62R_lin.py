@@ -226,7 +226,8 @@ class LC62R(fym.BaseEnv):
         dels = ctrls[8:]  # control surfaces
 
         """ wind disturbance """
-        vel_wind = np.vstack((0.1 * vel[0], 0, 0))
+        # vel_wind = np.vstack((0.1 * vel[0], 0, 0)) # Head wind
+        vel_wind = np.vstack((-0.01 * vel[0], 0, 0)) # Tail wind
 
         """ multicopter """
         FM_VTOL = self.B_VTOL(rcmds, omega)
